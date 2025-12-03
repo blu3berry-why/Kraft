@@ -14,4 +14,5 @@ data class GenerationConfig(
             .replace("\${source}", sourceSimple)
             .replace("\${target}", targetSimple)
     }
+
 }

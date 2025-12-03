@@ -10,7 +10,25 @@ data class TypeInfo(
     val ksType: KSType,
     val className: ClassName,
     val isNullable: Boolean
-)
+){
+    companion object {
+
+        fun fromKSType(type: KSType): TypeInfo {
+            val decl = type.declaration as? KSClassDeclaration
+                ?: error("TypeInfo.fromKSType: expected KSClassDeclaration for $type")
+
+            return TypeInfo(
+                declaration = decl,
+                ksType = type,
+                className = ClassName(
+                    decl.packageName.asString(),
+                    decl.simpleName.asString()
+                ),
+                isNullable = type.nullability == Nullability.NULLABLE
+            )
+        }
+    }
+}
 
 fun KSClassDeclaration.toTypeInfo(ksType: KSType): TypeInfo =
     TypeInfo(
@@ -22,3 +40,5 @@ fun KSClassDeclaration.toTypeInfo(ksType: KSType): TypeInfo =
         ),
         isNullable = ksType.nullability == Nullability.NULLABLE
     )
+
+

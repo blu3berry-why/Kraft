@@ -12,7 +12,7 @@ import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
 
 class ExtensionMapperGenerator(
     private val logger: KSPLogger,
-    private val config: GenerationConfig
+    private val config: GenerationConfig,
 ) : MapperGenerator {
 
     override fun generate(descriptor: MapperDescriptor, codeGenerator: CodeGenerator) {

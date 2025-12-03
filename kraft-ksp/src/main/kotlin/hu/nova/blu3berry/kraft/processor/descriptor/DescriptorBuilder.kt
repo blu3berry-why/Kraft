@@ -1,6 +1,7 @@
 package hu.nova.blu3berry.kraft.processor.descriptor
 
 import com.google.devtools.ksp.processing.KSPLogger
+import hu.nova.blu3berry.kraft.model.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.model.MapperDescriptor
 import hu.nova.blu3berry.kraft.processor.scanner.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.processor.scanner.ConfigObjectScanResult
@@ -12,7 +13,8 @@ class DescriptorBuilder(
 
     fun build(
         classMappings: List<ClassMappingScanResult>,
-        configMappings: List<ConfigObjectScanResult>
+        configMappings: List<ConfigObjectScanResult>,
+        enumMappings: List<EnumMappingDescriptor>,
     ): List<MapperDescriptor> {
 
         val descriptors = mutableListOf<MapperDescriptor>()
@@ -25,11 +27,18 @@ class DescriptorBuilder(
                 it.toType == mapping.targetType
             }
 
+            // 2) collect enum mappings for this mapping
+            val enumsForThisMapping = enumMappings.filter {
+                it.sourceType.declaration == mapping.sourceType &&  // compare KSClassDeclaration
+                        it.targetType.declaration == mapping.targetType
+            }
+
             // 2) build descriptor
             val builder = ClassDescriptorBuilder(
                 logger = logger,
                 mapping = mapping,
-                configObjects = configsForThisMapping
+                configObjects = configsForThisMapping,
+                enumMappings = enumsForThisMapping
             )
 
             val descriptor = builder.build()

@@ -11,12 +11,14 @@ import hu.nova.blu3berry.kraft.processor.scanner.FieldOverride
 private fun KSPLogger.err(message: String, symbol: KSNode) {
     error(
         """
-        ----------------------------------------
-        AutoMapper KSP Error
-        ----------------------------------------
-        $message
-        ----------------------------------------
-        """.trimIndent(),
+----------------------------------------
+AutoMapper KSP Error
+----------------------------------------
+
+$message
+
+----------------------------------------
+""".trimIndent(),
         symbol
     )
 }
@@ -96,19 +98,25 @@ fun KSPLogger.noSuchProperty(
     propertyName: String,
     available: List<String>,
     symbol: KSNode
-) = err(
-    """
-    Property '$propertyName' does not exist on type '$typeName'.
+) {
+    val suggestions = suggestNames(propertyName, available)
 
-    Available properties:
-    ${available.joinToString("\n") { " - $it" }}
+    err(
+        """
+        Property '$propertyName' does not exist on type '$typeName'.
 
-    Fix:
-    - Check the spelling of the property.
-    - Update your @MapField or @MapFieldOverride accordingly.
-    """.trimIndent(),
-    symbol
-)
+        Available properties:
+        ${available.joinToString("\n") { " - $it" }}
+
+        ${if (suggestions.isNotEmpty()) "Did you mean: ${suggestions.joinToString(", ")} ?" else ""}
+
+        Fix:
+        - Check the spelling of the property.
+        - Update your @MapField or @MapFieldOverride accordingly.
+        """.trimIndent(),
+        symbol
+    )
+}
 
 /**
  * Unmapped non-nullable property in target class
@@ -155,12 +163,16 @@ fun KSPLogger.detailedMissingMapping(
 ${sourceProperties.keys.joinToString("\n") { "      • $it" }}
 
     Class-level overrides (@MapField):
-${if (classLevelOverrides.isEmpty()) "      (none)"
-    else classLevelOverrides.entries.joinToString("\n") { "      • ${it.key} ← ${it.value}" }}
+${
+        if (classLevelOverrides.isEmpty()) "      (none)"
+        else classLevelOverrides.entries.joinToString("\n") { "      • ${it.key} ← ${it.value}" }
+    }
 
     Config-level overrides:
-${if (configOverrides.isEmpty()) "      (none)"
-    else configOverrides.joinToString("\n") { "      • ${it.to} ← ${it.from}" }}
+${
+        if (configOverrides.isEmpty()) "      (none)"
+        else configOverrides.joinToString("\n") { "      • ${it.to} ← ${it.from}" }
+    }
 
     How to fix:
       ✓ Add @MapField("sourceName") to the target property '${targetProperty.name}'
@@ -209,22 +221,29 @@ fun KSPLogger.invalidMapFieldOverride(
     referencedSourceName: String,
     sourceProperties: Map<String, PropertyInfo>,
     symbol: KSNode
-) = err(
-    """
-    Invalid @MapField override for '$targetPropertyName'.
+) {
+    val available = sourceProperties.keys.toList()
+    val suggestions = suggestNames(referencedSourceName, available)
 
-    Referenced source property '$referencedSourceName' does not exist
-    in source type '$sourceType'.
+    err(
+        """
+        Invalid @MapField override for '$targetPropertyName'.
 
-    Available source properties:
-${sourceProperties.keys.joinToString("\n") { "      • $it" }}
+        Referenced source property '$referencedSourceName' does not exist
+        in source type '$sourceType'.
 
-    How to fix:
-      ✓ Correct the @MapField name
-      ✓ Or ensure the source class declares '$referencedSourceName'
-    """.trimIndent(),
-    symbol
-)
+        Available source properties:
+        ${available.joinToString("\n") { "      • $it" }}
+
+        ${if (suggestions.isNotEmpty()) "Did you mean: ${suggestions.joinToString(", ")} ?" else ""}
+
+        How to fix:
+          ✓ Correct the @MapField name
+          ✓ Or ensure the source class declares '$referencedSourceName'
+        """.trimIndent(),
+        symbol
+    )
+}
 
 /**
  * Missing primary constructor error.
@@ -251,19 +270,25 @@ fun KSPLogger.missingConstructorProperty(
     parameterName: String,
     available: List<String>,
     symbol: KSNode
-) = err(
-    """
-    Constructor parameter '$parameterName' in '$typeName'
-    has no corresponding property.
+) {
+    val suggestions = suggestNames(parameterName, available)
 
-    Available properties:
-${available.joinToString("\n") { "      • $it" }}
+    err(
+        """
+        Constructor parameter '$parameterName' in '$typeName'
+        has no corresponding property.
 
-    Fix:
-    - Add 'val $parameterName' or 'var $parameterName' to the class body.
-    """.trimIndent(),
-    symbol
-)
+        Available properties:
+        ${available.joinToString("\n") { "      • $it" }}
+
+        ${if (suggestions.isNotEmpty()) "Did you mean: ${suggestions.joinToString(", ")} ?" else ""}
+
+        Fix:
+        - Add 'val $parameterName' or 'var $parameterName' to the class body.
+        """.trimIndent(),
+        symbol
+    )
+}
 
 /**
  * Unsupported type in constructor.
@@ -308,4 +333,30 @@ fun KSPLogger.constructorPropertyMismatch(
     """.trimIndent(),
     symbol
 )
+
+private fun suggestNames(target: String, candidates: Collection<String>): List<String> =
+    candidates
+        .map { it to levenshtein(target, it) }
+        .filter { (_, dist) -> dist <= 2 }
+        .sortedBy { it.second }
+        .map { it.first }
+
+private fun levenshtein(a: String, b: String): Int {
+    val dp = Array(a.length + 1) { IntArray(b.length + 1) }
+
+    for (i in 0..a.length) dp[i][0] = i
+    for (j in 0..b.length) dp[0][j] = j
+
+    for (i in 1..a.length) {
+        for (j in 1..b.length) {
+            dp[i][j] = if (a[i - 1] == b[j - 1]) {
+                dp[i - 1][j - 1]
+            } else {
+                1 + minOf(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+            }
+        }
+    }
+
+    return dp[a.length][b.length]
+}
 

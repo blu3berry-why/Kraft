@@ -6,6 +6,9 @@ data class MapperDescriptor(
     val toType: TypeInfo,
     val source: MappingSource,
     val propertyMappings: List<PropertyMappingStrategy>,
+    val nestedMappings: List<NestedMappingDescriptor> = emptyList(),
+    val enumMappings: List<EnumMappingDescriptor> = emptyList(),
+    val converters: List<ConverterDescriptor> = emptyList(),
     val generateReverse: Boolean = false,      // for future
     val generateListExtensions: Boolean = true // future: List<From>.toListOfTo()
 ) {

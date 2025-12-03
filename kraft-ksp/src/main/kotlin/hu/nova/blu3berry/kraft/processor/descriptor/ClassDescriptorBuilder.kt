@@ -32,7 +32,8 @@ import hu.nova.blu3berry.kraft.processor.util.unsupportedTypeInConstructor
 class ClassDescriptorBuilder(
     private val logger: KSPLogger,
     private val mapping: ClassMappingScanResult,
-    private val configObjects: List<ConfigObjectScanResult>
+    private val configObjects: List<ConfigObjectScanResult>,
+    private val enumMappings: List<EnumMappingDescriptor>
 ) {
 
     fun build(): MapperDescriptor? {
@@ -143,7 +144,8 @@ class ClassDescriptorBuilder(
                 annotatedClass = mapping.annotatedClass,
                 direction = mapping.direction
             ),
-            propertyMappings = propertyMappings
+            propertyMappings = propertyMappings,
+            enumMappings = enumMappings
         )
     }
 

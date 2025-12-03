@@ -9,6 +9,7 @@ import hu.nova.blu3berry.kraft.processor.codegen.generator.ExtensionMapperGenera
 import hu.nova.blu3berry.kraft.processor.descriptor.DescriptorBuilder
 import hu.nova.blu3berry.kraft.processor.scanner.ClassAnnotationScanner
 import hu.nova.blu3berry.kraft.processor.scanner.ConfigObjectScanner
+import hu.nova.blu3berry.kraft.processor.scanner.EnumMapScanner
 
 class AutoMapperProcessor(
     private val env: SymbolProcessorEnvironment
@@ -24,11 +25,13 @@ class AutoMapperProcessor(
         val objectMappingScanResult =
             ConfigObjectScanner(resolver = resolver, logger = logger).scan()
 
+        val enumMappingScanResult = EnumMapScanner(resolver, logger).scan()
+
         val descriptors = DescriptorBuilder(logger).build(
             classMappings = classMappingScanResult,
-            objectMappingScanResult
+            configMappings = objectMappingScanResult,
+            enumMappings = enumMappingScanResult
         )
-
         for (descriptor in descriptors) {
             dumpDescriptor(descriptor)
         }

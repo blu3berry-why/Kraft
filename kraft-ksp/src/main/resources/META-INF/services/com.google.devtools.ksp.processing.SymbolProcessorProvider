@@ -1,2 +1,2 @@
 hu.nova.blu3berry.kraft.AutoMapperProcessorProvider
-hu.nova.blu3berry.kraft.EnumMapProcessorProvider
+hu.nova.blu3berry.kraft.processor.enummapping.EnumMapperProcessorProvider
