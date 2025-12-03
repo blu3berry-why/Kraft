@@ -109,9 +109,34 @@ class ExtensionMapperGenerator(
             }
 
             is PropertyMappingStrategy.ConverterFunction -> {
-                logger.error(
-                    "ConverterFunction codegen not implemented yet for '${strategy.targetProperty.name}'"
-                )
+                val t = strategy.targetProperty.name
+                val s = strategy.sourceProperty.name
+                val converter = strategy.converter
+
+                if (converter.enclosingObject != null) {
+                    // For converter in an object (e.g., MapConfig object)
+                    val enclosingClassName = ClassName(
+                        converter.enclosingObject.packageName.asString(),
+                        converter.enclosingObject.simpleName.asString()
+                    )
+                    block.add("%N = %T.%N(this.%N)", 
+                        t, 
+                        enclosingClassName, 
+                        converter.functionName, 
+                        s)
+                } else if (converter.isExtension) {
+                    // For extension function
+                    block.add("%N = this.%N.%N()", 
+                        t, 
+                        s, 
+                        converter.functionName)
+                } else {
+                    // For top-level function
+                    block.add("%N = %N(this.%N)", 
+                        t, 
+                        converter.functionName, 
+                        s)
+                }
             }
 
             is PropertyMappingStrategy.NestedMapper -> {

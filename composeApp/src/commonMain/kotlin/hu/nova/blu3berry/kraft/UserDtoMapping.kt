@@ -1,8 +1,8 @@
 package hu.nova.blu3berry.kraft
 
 
-import hu.nova.blu3berry.kraft.E.asd
 import hu.nova.blu3berry.kraft.config.EnumMap
+import hu.nova.blu3berry.kraft.config.MapConfig
 import hu.nova.blu3berry.kraft.config.StringPair
 import hu.nova.blu3berry.kraft.onclass.from.MapField
 import hu.nova.blu3berry.kraft.onclass.from.MapFrom
@@ -17,7 +17,7 @@ data class User(
 
 @MapFrom(User::class)
 data class UserDto(
-    val id: Int,
+    val id: String,
     val name: String,
     val test: Test
 )
@@ -32,10 +32,16 @@ enum class Test2{
     C
 }
 
-@EnumMap(from = Test::class, to = Test2::class, fieldMapping = [
-    StringPair(from ="B", to = "C")
-])
+@MapConfig(
+    from = User::class,
+    to = (UserDto::class),
+    fieldMapping= [
+        StringPair(from = "id", to = "id"),
+        StringPair(from = "name", to = "name")
+    ]
+)
 object E {
 
-    fun Test2.asd() = "lol"
+    @MapUsing(from = "id", to = "id")
+    fun mapId(id:Int): String = "1"
 }

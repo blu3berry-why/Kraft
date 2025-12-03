@@ -116,13 +116,19 @@ class ClassDescriptorBuilder(
             .toMap()
 
         // --------------------------------------------------------------------
+        // Collect converters from config objects
+        // --------------------------------------------------------------------
+        val converters = configObjects.flatMap { it.converters }
+
+        // --------------------------------------------------------------------
         // PropertyResolver (handles mapping errors)
         // --------------------------------------------------------------------
         val resolver = PropertyResolver(
             logger = logger,
             sourceProperties = sourcePropertiesByName,
             configMappings = configObjects,
-            classLevelOverrides = classOverrides
+            classLevelOverrides = classOverrides,
+            converters = converters
         )
 
         val propertyMappings = mutableListOf<PropertyMappingStrategy>()
@@ -145,7 +151,8 @@ class ClassDescriptorBuilder(
                 direction = mapping.direction
             ),
             propertyMappings = propertyMappings,
-            enumMappings = enumMappings
+            enumMappings = enumMappings,
+            converters = converters
         )
     }
 
