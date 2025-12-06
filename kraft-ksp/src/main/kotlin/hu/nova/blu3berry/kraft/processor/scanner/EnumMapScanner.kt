@@ -1,11 +1,9 @@
 package hu.nova.blu3berry.kraft.processor.scanner
 
-import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
 import hu.nova.blu3berry.kraft.config.EnumMap
-import hu.nova.blu3berry.kraft.config.StringPair
 import hu.nova.blu3berry.kraft.model.EnumEntryMapping
 import hu.nova.blu3berry.kraft.model.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.model.TypeInfo

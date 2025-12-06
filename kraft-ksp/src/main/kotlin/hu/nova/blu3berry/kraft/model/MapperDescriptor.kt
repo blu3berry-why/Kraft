@@ -19,6 +19,6 @@ data class MapperDescriptor(
     val nestedDependencies: Set<MapperId> =
         propertyMappings
             .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
-            .map { it.nestedMapperId }
+            .map { it.nestedMappingDescriptor.nestedMapperId }
             .toSet()
 }

@@ -76,22 +76,43 @@ fun <T> KSAnnotation.getArrayArgOrNull(
     annotationFqName: String
 ): List<T>? {
     val arg = arguments.firstOrNull { it.name?.asString() == name }
-        ?: run {
-            logger.missingAnnotationArgument(annotationFqName, name, symbol)
-            return null
-        }
 
-    val list = arg.value as? List<T>
-    if (list == null) {
-        logger.error(
-            """
-            @$annotationFqName argument '$name' must be an array.
-            Found: ${arg.value?.let { it::class.simpleName }}
-            """.trimIndent(),
-            symbol
-        )
-        return null
+    // Missing argument → annotation default applies → treat as empty list
+    if (arg == null || arg.value == null) {
+        return emptyList()
     }
 
-    return list
+    val value = arg.value
+
+    return when (value) {
+        is List<*> -> {
+            value as? List<T> ?: run {
+                logger.error(
+                    "@$annotationFqName argument '$name' must be a List<T>. Found List<${value.firstOrNull()?.let { it::class.simpleName }}>",
+                    symbol
+                )
+                null
+            }
+        }
+
+        is Array<*> -> {
+            value.toList() as? List<T> ?: run {
+                logger.error(
+                    "@$annotationFqName argument '$name' must be an Array<T>. Found Array<${value.firstOrNull()?.let { it::class.simpleName }}>",
+                    symbol
+                )
+                null
+            }
+        }
+
+        else -> {
+            logger.error(
+                "@$annotationFqName argument '$name' must be an array/List. Found: ${value!!::class.simpleName}",
+                symbol
+            )
+            null
+        }
+    }
 }
+
+

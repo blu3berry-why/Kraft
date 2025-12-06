@@ -5,9 +5,11 @@ import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSFile
 import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ksp.writeTo
 import hu.nova.blu3berry.kraft.model.*
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
 import hu.nova.blu3berry.kraft.processor.codegen.MapperGenerator
+import hu.nova.blu3berry.kraft.processor.codegen.functionNameForNested
 import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
 
 class ExtensionMapperGenerator(
@@ -19,7 +21,8 @@ class ExtensionMapperGenerator(
         val fromClass = descriptor.fromType.className
         val toClass = descriptor.toType.className
 
-        val packageName = fromClass.packageName + ".generated"
+        val basePackage = fromClass.packageName.ifBlank { "generated" }
+        val packageName = "$basePackage.generated"
         val functionName = config.functionNameFor(descriptor)
         val fileName = "${fromClass.simpleName}To${toClass.simpleName}Mapper"
 
@@ -32,7 +35,7 @@ class ExtensionMapperGenerator(
 
         funBuilder.addCode("return %L\n", ctorCall)
 
-        val file = FileSpec.builder(packageName, fileName)
+        val file = FileSpec.builder(packageName, "$fileName.kt")
             .addFileComment(CodeGenUtils.generatedBanner())
             .addFunction(funBuilder.build())
             .build()
@@ -48,14 +51,10 @@ class ExtensionMapperGenerator(
             originatingFile ?: return
         )
 
-        codeGenerator.createNewFile(
-            dependencies,
-            packageName,
-            fileName
-        ).writer().use { out ->
-            file.writeTo(out)
-        }
-
+        file.writeTo(
+            codeGenerator = codeGenerator,
+            dependencies = dependencies
+        )
         logger.info("Generated extension mapper function: $packageName.$functionName")
     }
 
@@ -119,31 +118,43 @@ class ExtensionMapperGenerator(
                         converter.enclosingObject.packageName.asString(),
                         converter.enclosingObject.simpleName.asString()
                     )
-                    block.add("%N = %T.%N(this.%N)", 
-                        t, 
-                        enclosingClassName, 
-                        converter.functionName, 
-                        s)
+                    block.add(
+                        "%N = %T.%N(this.%N)",
+                        t,
+                        enclosingClassName,
+                        converter.functionName,
+                        s
+                    )
                 } else if (converter.isExtension) {
                     // For extension function
-                    block.add("%N = this.%N.%N()", 
-                        t, 
-                        s, 
-                        converter.functionName)
+                    block.add(
+                        "%N = this.%N.%N()",
+                        t,
+                        s,
+                        converter.functionName
+                    )
                 } else {
                     // For top-level function
-                    block.add("%N = %N(this.%N)", 
-                        t, 
-                        converter.functionName, 
-                        s)
+                    block.add(
+                        "%N = %N(this.%N)",
+                        t,
+                        converter.functionName,
+                        s
+                    )
                 }
             }
 
+
             is PropertyMappingStrategy.NestedMapper -> {
-                logger.error(
-                    "NestedMapper codegen not implemented yet for '${strategy.targetProperty.name}'"
-                )
+
+                val t = strategy.targetProperty.name
+                val s = strategy.sourceProperty.name
+
+                val fnName = config.functionNameForNested(strategy.nestedMappingDescriptor)
+
+                block.add("%N = this.%N.%N()", t, s, fnName)
             }
+
 
             is PropertyMappingStrategy.Ignored -> {
                 // Already filtered out

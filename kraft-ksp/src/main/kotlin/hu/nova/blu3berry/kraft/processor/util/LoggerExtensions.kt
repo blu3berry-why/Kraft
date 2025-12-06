@@ -3,7 +3,7 @@ package hu.nova.blu3berry.kraft.processor.util
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSNode
 import hu.nova.blu3berry.kraft.model.PropertyInfo
-import hu.nova.blu3berry.kraft.processor.scanner.FieldOverride
+import hu.nova.blu3berry.kraft.model.FieldOverride
 
 /**
  * Base error format with code-like block.

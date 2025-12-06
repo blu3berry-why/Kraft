@@ -7,8 +7,11 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
 import hu.nova.blu3berry.kraft.MapUsing
 import hu.nova.blu3berry.kraft.config.MapConfig
+import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.ConverterDescriptor
-import hu.nova.blu3berry.kraft.model.TypeInfo
+import hu.nova.blu3berry.kraft.model.FieldOverride
+import hu.nova.blu3berry.kraft.model.MapperId
+import hu.nova.blu3berry.kraft.model.NestedMappingDescriptor
 import hu.nova.blu3berry.kraft.model.toTypeInfo
 import hu.nova.blu3berry.kraft.onclass.MapIgnore
 import hu.nova.blu3berry.kraft.processor.util.*
@@ -22,12 +25,16 @@ class ConfigObjectScanner(
 
         val MAP_USING_FQ = MapUsing::class.qualifiedName!!
         val MAP_IGNORE_FQ = MapIgnore::class.qualifiedName!!
-        val STRING_PAIR_FQ = hu.nova.blu3berry.kraft.config.StringPair::class.qualifiedName!!
+        val STRING_PAIR_FQ = hu.nova.blu3berry.kraft.config.FieldOverride::class.qualifiedName!!
+
+        val NESTED_FQ = hu.nova.blu3berry.kraft.config.NestedMapping::class.qualifiedName!!
+
 
         // annotation parameter names
         const val ARG_FROM = "from"
         const val ARG_TO = "to"
-        const val ARG_FIELD_MAPPING = "fieldMapping"
+        const val ARG_FIELD_MAPPING = "fieldMappings"
+        const val ARG_NESTED_MAPPING = "nestedMappings"
         const val ARG_VALUE = "value"
 
         const val OBJECT = "object"
@@ -94,7 +101,35 @@ class ConfigObjectScanner(
                     annotationFqName = STRING_PAIR_FQ
                 ) ?: return@mapNotNull null
 
-                FieldOverride(from=from, to=to)
+                FieldOverride(from = from, to = to)
+            }
+
+            // Read nested = [Nested(...)]
+            val nestedAnnotations = ann.getArrayArgOrNull<KSAnnotation>(
+                name = ARG_NESTED_MAPPING,
+                logger = logger,
+                symbol = symbol,
+                annotationFqName = MAP_CONFIG_FQ
+            ) ?: emptyList()
+
+            val nestedMappings = nestedAnnotations.mapNotNull { nestedAnn ->
+
+                val nestedFrom = nestedAnn.getKClassArgOrNull(ARG_FROM, logger, symbol, NESTED_FQ)
+                    ?: return@mapNotNull null
+                val nestedTo = nestedAnn.getKClassArgOrNull(ARG_TO, logger, symbol, NESTED_FQ)
+                    ?: return@mapNotNull null
+
+                val fromDecl = nestedFrom.declaration as KSClassDeclaration
+                val toDecl = nestedTo.declaration as KSClassDeclaration
+
+                NestedMappingDescriptor(
+                    nestedMapperId = MapperId(
+                        fromQualifiedName = fromDecl.qualifiedName!!.asString(),
+                        toQualifiedName = toDecl.qualifiedName!!.asString(),
+                    ),
+                    sourceType = fromDecl.toTypeInfo(fromDecl.asStarProjectedType()),
+                    targetType = toDecl.toTypeInfo(toDecl.asStarProjectedType())
+                )
             }
 
             // MapUsing functions - collect and validate
@@ -256,6 +291,8 @@ class ConfigObjectScanner(
                 val converter = ConverterDescriptor(
                     enclosingObject = symbol,
                     function = fn,
+                    mapUsingFrom = fromProp,
+                    mapUsingTo = toProp,
                     fromType = fromTypeInfo,
                     toType = toTypeInfo
                 )
@@ -282,7 +319,8 @@ class ConfigObjectScanner(
                 configObject = symbol,
                 fieldOverrides = fieldOverrides,
                 ignoredFields = ignoredFields.toList(),
-                converters = converters
+                converters = converters,
+                nestedMappings = nestedMappings
             )
         }
 

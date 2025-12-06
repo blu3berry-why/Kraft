@@ -39,7 +39,7 @@ sealed interface PropertyMappingStrategy {
     data class NestedMapper(
         override val targetProperty: PropertyInfo,
         val sourceProperty: PropertyInfo,
-        val nestedMapperId: MapperId
+        val nestedMappingDescriptor: NestedMappingDescriptor
     ) : PropertyMappingStrategy
 
     /**

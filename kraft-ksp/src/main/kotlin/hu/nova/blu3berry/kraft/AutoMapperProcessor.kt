@@ -1,12 +1,12 @@
 package hu.nova.blu3berry.kraft
 
+import DescriptorBuilder
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.*
 import hu.nova.blu3berry.kraft.model.MapperDescriptor
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
 import hu.nova.blu3berry.kraft.processor.codegen.MapperGenerator
 import hu.nova.blu3berry.kraft.processor.codegen.generator.ExtensionMapperGenerator
-import hu.nova.blu3berry.kraft.processor.descriptor.DescriptorBuilder
 import hu.nova.blu3berry.kraft.processor.scanner.ClassAnnotationScanner
 import hu.nova.blu3berry.kraft.processor.scanner.ConfigObjectScanner
 import hu.nova.blu3berry.kraft.processor.scanner.EnumMapScanner

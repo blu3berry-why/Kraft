@@ -1,47 +1,48 @@
 package hu.nova.blu3berry.kraft
 
-
-import hu.nova.blu3berry.kraft.config.EnumMap
 import hu.nova.blu3berry.kraft.config.MapConfig
-import hu.nova.blu3berry.kraft.config.StringPair
-import hu.nova.blu3berry.kraft.onclass.from.MapField
-import hu.nova.blu3berry.kraft.onclass.from.MapFrom
-import hu.nova.blu3berry.kraft.onclass.to.MapTo
+import hu.nova.blu3berry.kraft.config.NestedMapping
 
 
 data class User(
     val id: Int,
     val name: String,
-    val test: Test
 )
 
-@MapFrom(User::class)
 data class UserDto(
     val id: String,
     val name: String,
-    val test: Test
 )
 
-enum class Test{
-    A,
-    B
-}
+data class StoreDto(
+    val name: String,
+    val userUser: UserDto,
+)
 
-enum class Test2{
-    A,
-    C
-}
+data class Store(
+    val name: String,
+    val userUser: User,
+)
+
+@MapConfig(
+    from = Store::class,
+    to = StoreDto::class,
+    nestedMappings = [
+        NestedMapping(from = User::class, to = UserDto::class)
+    ]
+)
+object StoreMapping
+
 
 @MapConfig(
     from = User::class,
     to = (UserDto::class),
-    fieldMapping= [
-        StringPair(from = "id", to = "id"),
-        StringPair(from = "name", to = "name")
-    ]
 )
 object E {
+    val a= Unit
 
     @MapUsing(from = "id", to = "id")
-    fun mapId(id:Int): String = "1"
+    fun mapId(id: Int): String = "1"
+
+
 }

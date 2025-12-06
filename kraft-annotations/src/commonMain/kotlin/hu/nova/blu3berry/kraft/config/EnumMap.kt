@@ -7,5 +7,5 @@ import kotlin.reflect.KClass
 annotation class EnumMap(
     val from: KClass<*>,
     val to: KClass<*>,
-    val fieldMapping: Array<StringPair> = []
+    val fieldMapping: Array<FieldOverride> = []
 )

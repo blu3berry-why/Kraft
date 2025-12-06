@@ -1,10 +1,7 @@
-package hu.nova.blu3berry.kraft.processor.scanner
+package hu.nova.blu3berry.kraft.model
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
-import hu.nova.blu3berry.kraft.model.ConverterDescriptor
-import hu.nova.blu3berry.kraft.model.MappingDirection
 
 
 data class ClassMappingScanResult(
@@ -25,9 +22,10 @@ data class ConfigObjectScanResult(
     val fromType: KSClassDeclaration,
     val toType: KSClassDeclaration,
     val configObject: KSClassDeclaration,
-    val fieldOverrides: List<FieldOverride>, // from -> to
+    val fieldOverrides: List<FieldOverride>,
     val ignoredFields: List<String>,
-    val converters: List<ConverterDescriptor>
+    val converters: List<ConverterDescriptor>,
+    val nestedMappings: List<NestedMappingDescriptor> = emptyList(),
 )
 
 data class FieldOverride(
