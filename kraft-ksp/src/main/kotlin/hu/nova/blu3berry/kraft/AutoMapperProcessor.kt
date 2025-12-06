@@ -6,7 +6,9 @@ import com.google.devtools.ksp.symbol.*
 import hu.nova.blu3berry.kraft.model.MapperDescriptor
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
 import hu.nova.blu3berry.kraft.processor.codegen.MapperGenerator
+import hu.nova.blu3berry.kraft.processor.codegen.generator.EnumMapperGenerator
 import hu.nova.blu3berry.kraft.processor.codegen.generator.ExtensionMapperGenerator
+import hu.nova.blu3berry.kraft.processor.enummapping.scanner.EnumMapperScanner
 import hu.nova.blu3berry.kraft.processor.scanner.ClassAnnotationScanner
 import hu.nova.blu3berry.kraft.processor.scanner.ConfigObjectScanner
 import hu.nova.blu3berry.kraft.processor.scanner.EnumMapScanner
@@ -26,6 +28,11 @@ class AutoMapperProcessor(
             ConfigObjectScanner(resolver = resolver, logger = logger).scan()
 
         val enumMappingScanResult = EnumMapScanner(resolver, logger).scan()
+        // 3) Generate pure enum mappers first (independent of class mappers)
+        if (enumMappingScanResult.isNotEmpty()) {
+            val enumGenerator = EnumMapperGenerator(codeGenerator, logger)
+            enumGenerator.generate(enumMappingScanResult)
+        }
 
         val descriptors = DescriptorBuilder(logger).build(
             classMappings = classMappingScanResult,
@@ -53,8 +60,6 @@ class AutoMapperProcessor(
         for (descriptor in descriptors) {
             generator.generate(descriptor, codeGenerator)
         }
-
-
 
         return emptyList()
     }
