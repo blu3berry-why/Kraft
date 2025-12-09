@@ -51,7 +51,7 @@ Use `${target}` and `$source` as variables for the class names.
 
 ```kotlin
 ksp {
-    arg("kraft.functionNameFormat", "to${'$'}{target}From${'$'}{source}")
+    arg("kraft.functionNameFormat", """to${target}From${source}""")
 }
 ```
 
