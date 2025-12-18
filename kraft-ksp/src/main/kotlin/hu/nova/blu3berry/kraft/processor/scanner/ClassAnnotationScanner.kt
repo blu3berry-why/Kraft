@@ -29,72 +29,112 @@ class ClassAnnotationScanner(
     fun scan(): List<ClassMappingScanResult> {
         val results = mutableListOf<ClassMappingScanResult>()
 
-        resolver.getSymbolsWithAnnotation(MAP_FROM_FQ).forEach { symbol ->
+        // First, collect all symbols with either annotation and check if they are classes
+        val allMapFromSymbols = resolver.getSymbolsWithAnnotation(MAP_FROM_FQ)
+        val allMapToSymbols = resolver.getSymbolsWithAnnotation(MAP_TO_FQ)
 
+        // Check for non-class elements with @MapFrom and show error
+        allMapFromSymbols.forEach { symbol ->
             if (symbol !is KSClassDeclaration) {
                 logger.annotationTargetError(
                     actualNode = symbol,
                     annotationName = MAP_FROM_FQ,
                     expectedTarget = CLASS
                 )
-                return@forEach
             }
-
-            val ann = symbol.findAnnotation(MAP_FROM_FQ)
-                ?: return@forEach
-
-            val sourceType = ann.getKClassArgOrNull(
-                name = VALUE,
-                logger = logger,
-                symbol = symbol,
-                annotationFqName = MAP_FROM_FQ
-            ) ?: return@forEach
-
-            val propertyScanResults = scanPropertyAnnotations(symbol)
-
-            results += ClassMappingScanResult(
-                direction = MappingDirection.FROM,
-                sourceType = sourceType.declaration as KSClassDeclaration,
-                targetType = symbol,
-                annotatedClass = symbol,
-                propertyScanResults = propertyScanResults
-            )
         }
 
-        // ---- @MapTo ----
-        resolver.getSymbolsWithAnnotation(MAP_TO_FQ).forEach { symbol ->
-
+        // Check for non-class elements with @MapTo and show error
+        allMapToSymbols.forEach { symbol ->
             if (symbol !is KSClassDeclaration) {
                 logger.annotationTargetError(
                     actualNode = symbol,
                     annotationName = MAP_TO_FQ,
                     expectedTarget = CLASS
                 )
-                return@forEach
             }
+        }
 
-            val ann = symbol.findAnnotation(MAP_TO_FQ)
-                ?: return@forEach
+        // Filter to only include class declarations
+        val classesWithMapFrom = allMapFromSymbols
+            .filterIsInstance<KSClassDeclaration>()
+            .toSet()
 
-            val targetType = ann.getKClassArgOrNull(
-            name = VALUE,
-            logger = logger,
-            symbol = symbol,
-            annotationFqName = MAP_TO_FQ
-        ) ?: return@forEach
+        val classesWithMapTo = allMapToSymbols
+            .filterIsInstance<KSClassDeclaration>()
+            .toSet()
 
-            val propertyScanResults = scanPropertyAnnotations(symbol)
+        // Find classes with both annotations
+        val classesWithBothAnnotations = classesWithMapFrom.intersect(classesWithMapTo)
 
-            results += ClassMappingScanResult(
-                direction = MappingDirection.TO,
-                sourceType = symbol,
-                targetType = targetType.declaration as KSClassDeclaration,
-                annotatedClass = symbol,
-                propertyScanResults = propertyScanResults
+        // Report error for classes with both annotations
+        classesWithBothAnnotations.forEach { classDeclaration ->
+            logger.error(
+                "Class ${classDeclaration.simpleName.asString()} has both @MapFrom and @MapTo annotations. " +
+                "Only one mapping annotation is allowed per class.",
+                classDeclaration
             )
         }
 
+        // Process valid @MapFrom classes (excluding those with both annotations)
+        (classesWithMapFrom - classesWithBothAnnotations).forEach { classDeclaration ->
+            processMapFromClass(classDeclaration, results)
+        }
+
+        // Process valid @MapTo classes (excluding those with both annotations)
+        (classesWithMapTo - classesWithBothAnnotations).forEach { classDeclaration ->
+            processMapToClass(classDeclaration, results)
+        }
+
         return results
+    }
+
+    private fun processMapFromClass(
+        classDeclaration: KSClassDeclaration,
+        results: MutableList<ClassMappingScanResult>
+    ) {
+        val ann = classDeclaration.findAnnotation(MAP_FROM_FQ) ?: return
+
+        val sourceType = ann.getKClassArgOrNull(
+            name = VALUE,
+            logger = logger,
+            symbol = classDeclaration,
+            annotationFqName = MAP_FROM_FQ
+        ) ?: return
+
+        val propertyScanResults = scanPropertyAnnotations(classDeclaration)
+
+        results += ClassMappingScanResult(
+            direction = MappingDirection.FROM,
+            sourceType = sourceType.declaration as KSClassDeclaration,
+            targetType = classDeclaration,
+            annotatedClass = classDeclaration,
+            propertyScanResults = propertyScanResults
+        )
+    }
+
+    private fun processMapToClass(
+        classDeclaration: KSClassDeclaration,
+        results: MutableList<ClassMappingScanResult>
+    ) {
+        val ann = classDeclaration.findAnnotation(MAP_TO_FQ) ?: return
+
+        val targetType = ann.getKClassArgOrNull(
+            name = VALUE,
+            logger = logger,
+            symbol = classDeclaration,
+            annotationFqName = MAP_TO_FQ
+        ) ?: return
+
+        val propertyScanResults = scanPropertyAnnotations(classDeclaration)
+
+        results += ClassMappingScanResult(
+            direction = MappingDirection.TO,
+            sourceType = classDeclaration,
+            targetType = targetType.declaration as KSClassDeclaration,
+            annotatedClass = classDeclaration,
+            propertyScanResults = propertyScanResults
+        )
     }
 
     /**
