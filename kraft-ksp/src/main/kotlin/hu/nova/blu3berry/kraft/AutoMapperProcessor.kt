@@ -8,7 +8,6 @@ import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
 import hu.nova.blu3berry.kraft.processor.codegen.MapperGenerator
 import hu.nova.blu3berry.kraft.processor.codegen.generator.EnumMapperGenerator
 import hu.nova.blu3berry.kraft.processor.codegen.generator.ExtensionMapperGenerator
-import hu.nova.blu3berry.kraft.processor.enummapping.scanner.EnumMapperScanner
 import hu.nova.blu3berry.kraft.processor.scanner.ClassAnnotationScanner
 import hu.nova.blu3berry.kraft.processor.scanner.ConfigObjectScanner
 import hu.nova.blu3berry.kraft.processor.scanner.EnumMapScanner

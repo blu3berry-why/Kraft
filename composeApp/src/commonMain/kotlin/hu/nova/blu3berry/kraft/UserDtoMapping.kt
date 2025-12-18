@@ -35,8 +35,8 @@ object StoreMapping
 
 
 @MapConfig(
-    from= UserDto::class,
-    to= User::class,
+    from= User::class,
+    to= UserDto::class,
 )
 object UserDtoToUserMapping{
     @MapUsing(from="name", to="name")
