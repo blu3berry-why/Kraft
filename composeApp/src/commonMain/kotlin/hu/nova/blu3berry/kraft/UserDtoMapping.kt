@@ -7,22 +7,20 @@ import hu.nova.blu3berry.kraft.config.NestedMapping
 
 
 data class User(
-    val id: Int,
     val name: String,
+    val age: Int,
 )
 
 data class UserDto(
-    val id: String,
     val name: String,
+    val age: Int,
 )
 
 data class StoreDto(
-    val name: StatusDto,
     val userUser: UserDto,
 )
 
 data class Store(
-    val name: Status,
     val userUser: User,
 )
 
@@ -31,21 +29,19 @@ data class Store(
     to = StoreDto::class,
     nestedMappings = [
         NestedMapping(from = User::class, to = UserDto::class),
-        NestedMapping(from = Status::class, to = StatusDto::class)
     ]
 )
 object StoreMapping
 
 
 @MapConfig(
-    from = User::class,
-    to = (UserDto::class),
+    from= UserDto::class,
+    to= User::class,
 )
-object E {
-    val a= Unit
-
-    @MapUsing(from = "id", to = "id")
-    fun mapId(id: Int): String = "1"
+object UserDtoToUserMapping{
+    @MapUsing(from="name", to="name")
+    fun mapName(name:String):String =
+        name.uppercase()
 }
 
 enum class Status { ACTIVE, BLOCKED }
