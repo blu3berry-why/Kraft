@@ -20,6 +20,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: build with Gradle
+        run: ./gradlew build
+
       - name: SonarCloud analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR }}
