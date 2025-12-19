@@ -14,6 +14,7 @@ import hu.nova.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
 import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.FieldOverride
+import hu.nova.blu3berry.kraft.model.MappingDirection
 import hu.nova.blu3berry.kraft.processor.util.constructorPropertyMismatch
 import hu.nova.blu3berry.kraft.processor.util.missingConstructorProperty
 import hu.nova.blu3berry.kraft.processor.util.missingPrimaryConstructor
@@ -135,7 +136,13 @@ class ClassDescriptorBuilder(
             .mapNotNull { s ->
                 val name = s.property.simpleName.asString()
                 val from = s.mapFieldOther ?: return@mapNotNull null
-                name to from
+                if (mapping.direction == MappingDirection.FROM) {
+                    // FROM: otherName = to
+                    name to from
+                } else {
+                    // TO: otherName = from
+                    from to name
+                }
             }.toMap()
 
     // ---------------------------------------------------------
