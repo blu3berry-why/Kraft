@@ -39,10 +39,21 @@ kotlin {
 }
 
 dependencies {
-    // KSP for KMP
+    // KSP for KMP - common main generation
     add("kspCommonMainMetadata", "hu.nova.blu3berry.kraft:kraft-ksp:<version>")
 }
 ```
+
+Android:
+```kotlin
+plugins {
+    alias(libs.plugins.ksp)
+}
+
+dependencies {
+    implementation("hu.nova.blu3berry.kraft:kraft-annotations:<version>")
+    ksp("hu.nova.blu3berry.kraft:kraft-ksp:<version>")
+}```
 
 
 ### Configure generated function names
@@ -51,7 +62,7 @@ Use `${target}` and `$source` as variables for the class names.
 
 ```kotlin
 ksp {
-    arg("kraft.functionNameFormat", "to${'$'}{target}From${'$'}{source}")
+    arg("kraft.functionNameFormat", """to${target}From${source}""")
 }
 ```
 
