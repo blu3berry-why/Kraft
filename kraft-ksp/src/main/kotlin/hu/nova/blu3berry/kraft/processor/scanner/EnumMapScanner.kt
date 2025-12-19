@@ -11,18 +11,26 @@ import hu.nova.blu3berry.kraft.processor.util.annotationTargetError
 import hu.nova.blu3berry.kraft.processor.util.findAnnotation
 import hu.nova.blu3berry.kraft.processor.util.getKClassArgOrNull
 
+
+/**
+ * Scanner for finding and processing @EnumMap annotations.
+ */
 class EnumMapScanner(
-    private val resolver: Resolver,
-    private val logger: KSPLogger
+    protected val resolver: Resolver,
+    protected val logger: KSPLogger
 ) {
 
     companion object {
         const val CLASS = "class"
+        const val FROM = "from"
+        const val TO = "to"
         val ENUM_MAP_FQ = EnumMap::class.qualifiedName!!
     }
 
     /**
-     * Scan all @EnumMap annotations in the project
+     * Scan all @EnumMap annotations in the project.
+     *
+     * @return List of EnumMappingDescriptor objects for each valid mapping
      */
     fun scan(): List<EnumMappingDescriptor> {
         val results = mutableListOf<EnumMappingDescriptor>()
@@ -47,15 +55,18 @@ class EnumMapScanner(
     }
 
     /**
-     * Build a descriptor for a single @EnumMap annotated class/object
+     * Build a descriptor for a single @EnumMap annotated class/object.
+     *
+     * @param decl The class declaration annotated with @EnumMap
+     * @return An EnumMappingDescriptor if the mapping is valid, null otherwise
      */
-    private fun buildDescriptor(decl: KSClassDeclaration): EnumMappingDescriptor? {
+    protected fun buildDescriptor(decl: KSClassDeclaration): EnumMappingDescriptor? {
 
         val annotation = decl.findAnnotation(ENUM_MAP_FQ) ?: return null
 
         // ---- get from = X::class ----
         val fromKSType = annotation.getKClassArgOrNull(
-            name = "from",
+            name = FROM,
             logger = logger,
             symbol = decl,
             annotationFqName = ENUM_MAP_FQ
@@ -63,7 +74,7 @@ class EnumMapScanner(
 
         // ---- get to = Y::class ----
         val toKSType = annotation.getKClassArgOrNull(
-            name = "to",
+            name = TO,
             logger = logger,
             symbol = decl,
             annotationFqName = ENUM_MAP_FQ
@@ -108,9 +119,15 @@ class EnumMapScanner(
     }
 
     /**
-     * Parse @EnumMap.fieldMapping entries
+     * Parse @EnumMap.fieldMapping entries.
+     *
+     * @param annotation The @EnumMap annotation
+     * @param fromEntries List of source enum entry names
+     * @param toEntries List of target enum entry names
+     * @param decl The class declaration annotated with @EnumMap
+     * @return List of EnumEntryMapping objects for custom mappings
      */
-    private fun extractCustomMappings(
+    protected fun extractCustomMappings(
         annotation: KSAnnotation,
         fromEntries: List<String>,
         toEntries: List<String>,
@@ -127,8 +144,8 @@ class EnumMapScanner(
         for (pairAnn in arg) {
             val ann = pairAnn as KSAnnotation
 
-            val from = ann.arguments.first { it.name?.asString() == "from" }.value as String
-            val to = ann.arguments.first { it.name?.asString() == "to" }.value as String
+            val from = ann.arguments.first { it.name?.asString() == FROM }.value as String
+            val to = ann.arguments.first { it.name?.asString() == TO }.value as String
 
             if (from !in fromEntries) {
                 logger.error("EnumMap: '$from' is not a value of source enum.", decl)
@@ -146,8 +163,11 @@ class EnumMapScanner(
 
     /**
      * Extract enum entries using proper KSP approach.
+     *
+     * @param decl The enum class declaration
+     * @return A list of enum entry names
      */
-    private fun getEnumEntries(decl: KSClassDeclaration): List<String> =
+    protected fun getEnumEntries(decl: KSClassDeclaration): List<String> =
         decl.declarations
             .filterIsInstance<KSClassDeclaration>()
             .filter { it.classKind == ClassKind.ENUM_ENTRY }
