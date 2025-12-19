@@ -20,9 +20,6 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Build & Test
-        run: ./gradlew build koverXmlReport
-
       - name: SonarCloud analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR }}
