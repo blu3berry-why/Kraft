@@ -2,8 +2,7 @@ name: SonarCloud
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
 
 jobs:
@@ -15,11 +14,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build & Test
+        run: ./gradlew build koverXmlReport
+
+      - name: SonarCloud analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR }}
-        with:
-          args: >
-            -Dsonar.organization=ORG_NAME
-            -Dsonar.projectKey=PROJECT_KEY
+        run: ./gradlew sonar --stacktrace --info \
+          -Dsonar.projectKey=${{ secrets.PROJECT_KEY }} \
+          -Dsonar.organization=${{ secrets.ORG_NAME }} \
+          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
