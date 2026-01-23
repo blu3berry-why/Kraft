@@ -5,7 +5,6 @@ import hu.nova.blu3berry.kraft.config.FieldOverride
 import hu.nova.blu3berry.kraft.config.MapConfig
 import hu.nova.blu3berry.kraft.config.NestedMapping
 
-
 data class User(
     val name: String,
     val age: Int,

@@ -1,3 +1,6 @@
+package hu.nova.blu3berry.kraft.processor.descriptor
+
+import PropertyResolver
 import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
@@ -20,7 +23,6 @@ import hu.nova.blu3berry.kraft.processor.util.missingConstructorProperty
 import hu.nova.blu3berry.kraft.processor.util.missingPrimaryConstructor
 import hu.nova.blu3berry.kraft.processor.util.unsupportedTypeInConstructor
 
-
 class ClassDescriptorBuilder(
     private val logger: KSPLogger,
     private val mapping: ClassMappingScanResult,
@@ -32,8 +34,10 @@ class ClassDescriptorBuilder(
         val sourceDecl = mapping.sourceType
         val targetDecl = mapping.targetType
 
-        val sourceTypeName = sourceDecl.qualifiedName?.asString() ?: sourceDecl.simpleName.asString()
-        val targetTypeName = targetDecl.qualifiedName?.asString() ?: targetDecl.simpleName.asString()
+        val sourceTypeName =
+            sourceDecl.qualifiedName?.asString() ?: sourceDecl.simpleName.asString()
+        val targetTypeName =
+            targetDecl.qualifiedName?.asString() ?: targetDecl.simpleName.asString()
 
         val fromTypeInfo = sourceDecl.toTypeInfo(sourceDecl.asStarProjectedType())
         val toTypeInfo = targetDecl.toTypeInfo(targetDecl.asStarProjectedType())
@@ -44,7 +48,8 @@ class ClassDescriptorBuilder(
         }
 
         val sourceProps = sourceDecl.toPropertyInfoMap()
-        val targetProps = extractTargetProperties(targetDecl, targetCtor, targetTypeName) ?: return null
+        val targetProps =
+            extractTargetProperties(targetDecl, targetCtor, targetTypeName) ?: return null
 
         val classOverrides = extractClassOverrides()
         val configOverrides = configObjects.toConfigOverridesMap()
@@ -95,7 +100,8 @@ class ClassDescriptorBuilder(
                     logger.missingConstructorProperty(
                         typeName = targetTypeName,
                         parameterName = name,
-                        available = targetDecl.getDeclaredProperties().map { it.simpleName.asString() }.toList(),
+                        available = targetDecl.getDeclaredProperties()
+                            .map { it.simpleName.asString() }.toList(),
                         symbol = param
                     )
                     return null

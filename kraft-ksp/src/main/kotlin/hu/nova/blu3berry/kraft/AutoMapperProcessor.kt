@@ -1,6 +1,6 @@
 package hu.nova.blu3berry.kraft
 
-import DescriptorBuilder
+import hu.nova.blu3berry.kraft.processor.descriptor.DescriptorBuilder
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.*
 import hu.nova.blu3berry.kraft.model.MapperDescriptor

@@ -1,7 +1,8 @@
+package hu.nova.blu3berry.kraft.processor.descriptor
+
 import com.google.devtools.ksp.processing.KSPLogger
 import hu.nova.blu3berry.kraft.model.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.model.MapperDescriptor
-import hu.nova.blu3berry.kraft.processor.descriptor.ConfigDescriptorBuilder
 import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
 

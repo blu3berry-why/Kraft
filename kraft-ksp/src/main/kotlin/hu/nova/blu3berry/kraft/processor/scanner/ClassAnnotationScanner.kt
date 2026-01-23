@@ -4,6 +4,7 @@ import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
+import hu.nova.blu3berry.kraft.config.NestedMapping
 import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.MappingDirection
 import hu.nova.blu3berry.kraft.model.PropertyScanResult
@@ -18,12 +19,15 @@ class ClassAnnotationScanner(
     private val resolver: Resolver,
     private val logger: KSPLogger
 ) {
-    companion object {
+    private companion object {
         const val CLASS = "class"
         const val VALUE = "value"
+        const val OTHER_NAME = "otherName"
         val MAP_FROM_FQ = MapFrom::class.qualifiedName!!
         val MAP_TO_FQ = MapTo::class.qualifiedName!!
         val MAP_FIELD_FQ = MapField::class.qualifiedName!!
+
+        val NESTED_MAPPING_FQ = NestedMapping::class.qualifiedName!!
     }
 
     fun scan(): List<ClassMappingScanResult> {
@@ -152,7 +156,7 @@ class ClassAnnotationScanner(
             val mapFieldAnn = prop.findAnnotation(MAP_FIELD_FQ)
             val otherName: String? = mapFieldAnn
                 ?.arguments
-                ?.firstOrNull { it.name?.asString() == "otherName" }
+                ?.firstOrNull { it.name?.asString() == OTHER_NAME }
                 ?.value as? String
 
             // TODO: if you later add @MapIgnore for class-level, set isIgnored = true
@@ -164,9 +168,6 @@ class ClassAnnotationScanner(
                 isIgnored = isIgnored
             )
         }
-
-
         return props
     }
-
 }
