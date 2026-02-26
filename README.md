@@ -25,10 +25,45 @@ val dto = domainUser.toUserDto()
 ---
 
 ## 📦 Installation
+Create a github token and add these valuse into gradle properties (like local.properties or gradle.properties):
+```
+gpr.user = <your github username>
+gpr.token = <your github access token (dont push this file into version control)>
+```
 
-Add the dependencies:
+Add the resoulution for github packages into settings.gradle:
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        ...
+
+        mavenCentral()
+        maven {
+            url = uri("https://maven.pkg.github.com/blu3berry-why/Kraft")
+
+            credentials {
+                username = providers.gradleProperty("gpr.user").get()
+                password = providers.gradleProperty("gpr.token").get()
+            }
+        }
+    }
+}
+```
+
+Add google ksp dependency into the root build.gradle.kts (Project):
+```
+plugins{
+    // "com.google.devtools.ksp"
+    alias (libs.plugins.kotlin.ksp) apply false 
+}
+```
+
+Add the dependencies in the build.gradle.kts (Module):
 
 ```kotlin
+plugins{
+    alias (libs.plugins.kotlin.ksp)
+}
 
 kotlin {
     sourceSets {
@@ -37,6 +72,21 @@ kotlin {
         }
     }
 }
+
+// Add the generated folder as a source set.
+commonMain {
+            kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
+}
+
+/*
+    If you generate in androidMain and iosMain you need to add them too,
+    they are in a different folder corresponding the source set name.
+
+    androidMain {
+                kotlin.srcDir("build/generated/ksp/metadata/androidMain/kotlin")
+    }
+*/
+
 
 dependencies {
     // KSP for KMP - common main generation
@@ -53,7 +103,8 @@ plugins {
 dependencies {
     implementation("hu.nova.blu3berry.kraft:kraft-annotations:<version>")
     ksp("hu.nova.blu3berry.kraft:kraft-ksp:<version>")
-}```
+}
+```
 
 
 ### Configure generated function names
