@@ -9,6 +9,14 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
 
+    jvm {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+
+    jvmToolchain(17)
+
     // Define source sets and add dependencies for each target
     sourceSets {
 

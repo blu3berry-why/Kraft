@@ -17,7 +17,6 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
     ): PropertyMappingStrategy? {
 
         for (rule in rules) {
-            println("Trying rule: ${rule::class.simpleName}")
             val result = rule.tryResolve(target, ctx)
             if (result != null) return result
         }
