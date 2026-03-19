@@ -11,7 +11,11 @@ kotlin {
         testRuns["test"].executionTask.configure {
             useJUnitPlatform()
         }
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
+    jvmToolchain(17)
 
     sourceSets {
         val jvmMain by getting {
