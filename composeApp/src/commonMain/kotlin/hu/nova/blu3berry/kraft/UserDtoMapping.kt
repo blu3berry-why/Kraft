@@ -4,7 +4,9 @@ import hu.nova.blu3berry.kraft.config.EnumMap
 import hu.nova.blu3berry.kraft.config.FieldOverride
 import hu.nova.blu3berry.kraft.config.MapConfig
 import hu.nova.blu3berry.kraft.config.NestedMapping
+import hu.nova.blu3berry.kraft.onclass.to.MapTo
 
+@MapTo(UserDto::class)
 data class User(
     val name: String,
     val age: Int,
@@ -33,15 +35,6 @@ data class Store(
 object StoreMapping
 
 
-@MapConfig(
-    from= User::class,
-    to= UserDto::class,
-)
-object UserDtoToUserMapping{
-    @MapUsing(from="name", to="name")
-    fun mapName(name:String):String =
-        name.uppercase()
-}
 
 enum class Status { ACTIVE, BLOCKED }
 enum class StatusDto { ACTIVE, BANNED, UNKNOWN }
