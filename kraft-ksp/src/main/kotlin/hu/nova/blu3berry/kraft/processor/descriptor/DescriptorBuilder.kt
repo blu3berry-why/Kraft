@@ -1,10 +1,14 @@
 package hu.nova.blu3berry.kraft.processor.descriptor
 
 import com.google.devtools.ksp.processing.KSPLogger
-import hu.nova.blu3berry.kraft.model.EnumMappingDescriptor
-import hu.nova.blu3berry.kraft.model.MapperDescriptor
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
+import hu.nova.blu3berry.kraft.model.EnumMappingDescriptor
+import hu.nova.blu3berry.kraft.model.MapperDescriptor
+import hu.nova.blu3berry.kraft.model.MapperId
+import hu.nova.blu3berry.kraft.model.MappingDirection
+import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
 
 class DescriptorBuilder(
     private val logger: KSPLogger
@@ -16,7 +20,7 @@ class DescriptorBuilder(
         enumMappings: List<EnumMappingDescriptor>,
     ): List<MapperDescriptor> {
 
-        val descriptors = mutableListOf<MapperDescriptor>()
+        val builtDescriptors = mutableMapOf<MapperId, MapperDescriptor>()
 
         // ---------------------------
         // 1) Handle CLASS mappings
@@ -33,14 +37,14 @@ class DescriptorBuilder(
                         it.targetType.declaration == mapping.targetType
             }
 
-            val builder = ClassDescriptorBuilder(
+            val descriptor = ClassDescriptorBuilder(
                 logger,
                 mapping,
                 configsForThis,
                 enumsForThis
-            )
+            ).build()
 
-            builder.build()?.let { descriptors += it }
+            if (descriptor != null) builtDescriptors[descriptor.id] = descriptor
         }
 
         // ---------------------------
@@ -57,16 +61,106 @@ class DescriptorBuilder(
                             it.targetType.declaration == config.toType
                 }
 
-                val builder = ConfigDescriptorBuilder(
+                val descriptor = ConfigDescriptorBuilder(
                     logger = logger,
                     config = config,
                     enumMappings = enumsForThis
-                )
+                ).build()
 
-                builder.build()?.let { descriptors += it }
+                if (descriptor != null) builtDescriptors[descriptor.id] = descriptor
             }
         }
 
-        return descriptors
+        // ---------------------------
+        // 3) DFS resolution of implicit nested dependencies
+        // ---------------------------
+        val inProgress = mutableSetOf<MapperId>()
+
+        for (descriptor in builtDescriptors.values.toList()) {
+            descriptor.propertyMappings
+                .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
+                .filter { it.nestedMappingDescriptor.nestedMapperId !in builtDescriptors }
+                .forEach { strategy ->
+                    resolveImplicit(
+                        source = strategy.nestedMappingDescriptor.sourceType.declaration,
+                        target = strategy.nestedMappingDescriptor.targetType.declaration,
+                        path = listOf(descriptor.id),
+                        builtDescriptors = builtDescriptors,
+                        inProgress = inProgress
+                    )
+                }
+        }
+
+        return builtDescriptors.values.toList()
+    }
+
+    private fun resolveImplicit(
+        source: KSClassDeclaration,
+        target: KSClassDeclaration,
+        path: List<MapperId>,
+        builtDescriptors: MutableMap<MapperId, MapperDescriptor>,
+        inProgress: MutableSet<MapperId>
+    ) {
+        val id = MapperId(
+            fromQualifiedName = source.qualifiedName?.asString() ?: source.simpleName.asString(),
+            toQualifiedName = target.qualifiedName?.asString() ?: target.simpleName.asString()
+        )
+
+        if (id in builtDescriptors) return // BLACK — already done
+
+        if (id in inProgress) { // GRAY — back-edge, cycle detected
+            val cycleStart = path.indexOf(id)
+            val cyclePath = (if (cycleStart >= 0) path.drop(cycleStart) else path) + id
+            logger.error(
+                "Circular nested mapping: ${cyclePath.joinToString(" → ")}. " +
+                    "Break the cycle with a @MapUsing converter on one side.",
+                source
+            )
+            return
+        }
+
+        inProgress += id // mark GRAY
+
+        val descriptor = buildMinimalDescriptor(source, target)
+
+        if (descriptor == null) { // build failed — error already emitted by ClassDescriptorBuilder
+            inProgress -= id
+            return
+        }
+
+        // Recurse into this descriptor's own nested dependencies
+        descriptor.propertyMappings
+            .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
+            .forEach { strategy ->
+                resolveImplicit(
+                    source = strategy.nestedMappingDescriptor.sourceType.declaration,
+                    target = strategy.nestedMappingDescriptor.targetType.declaration,
+                    path = path + id,
+                    builtDescriptors = builtDescriptors,
+                    inProgress = inProgress
+                )
+            }
+
+        inProgress -= id          // unmark GRAY
+        builtDescriptors[id] = descriptor // mark BLACK
+    }
+
+    private fun buildMinimalDescriptor(
+        source: KSClassDeclaration,
+        target: KSClassDeclaration
+    ): MapperDescriptor? {
+        val syntheticMapping = ClassMappingScanResult(
+            direction = MappingDirection.FROM,
+            sourceType = source,
+            targetType = target,
+            annotatedClass = target,
+            propertyScanResults = emptyList()
+        )
+        return ClassDescriptorBuilder(
+            logger = logger,
+            mapping = syntheticMapping,
+            configObjects = emptyList(),
+            enumMappings = emptyList()
+        ).build()
     }
 }
