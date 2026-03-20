@@ -14,6 +14,7 @@ import hu.nova.blu3berry.kraft.model.MapperId
 import hu.nova.blu3berry.kraft.model.NestedMappingDescriptor
 import hu.nova.blu3berry.kraft.model.toTypeInfo
 import hu.nova.blu3berry.kraft.onclass.MapIgnore
+import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 import hu.nova.blu3berry.kraft.processor.util.*
 
 /**
@@ -30,14 +31,6 @@ class ConfigObjectScanner(
         val STRING_PAIR_FQ = hu.nova.blu3berry.kraft.config.FieldOverride::class.qualifiedName!!
         val NESTED_FQ = hu.nova.blu3berry.kraft.config.NestedMapping::class.qualifiedName!!
 
-        // Annotation parameter names
-        const val ARG_FROM = "from"
-        const val ARG_TO = "to"
-        const val ARG_FIELD_MAPPING = "fieldMappings"
-        const val ARG_NESTED_MAPPING = "nestedMappings"
-        const val ARG_VALUE = "value"
-
-        const val OBJECT = "object"
     }
 
     /**
@@ -98,7 +91,7 @@ class ConfigObjectScanner(
         if (symbol !is KSClassDeclaration || symbol.classKind != ClassKind.OBJECT) {
             logger.annotationTargetError(
                 annotationName = MapConfig::class.simpleName!!,
-                expectedTarget = OBJECT,
+                expectedTarget = KraftKspConstants.ARG_OBJECT,
                 actualNode = symbol
             )
             return false
@@ -114,14 +107,14 @@ class ConfigObjectScanner(
         symbol: KSClassDeclaration
     ): Pair<KSClassDeclaration, KSClassDeclaration>? {
         val fromKSType = annotation.getKClassArgOrNull(
-            name = ARG_FROM,
+            name = KraftKspConstants.ARG_FROM,
             logger = logger,
             symbol = symbol,
             annotationFqName = MAP_CONFIG_FQ
         ) ?: return null
 
         val toKSType = annotation.getKClassArgOrNull(
-            name = ARG_TO,
+            name = KraftKspConstants.ARG_TO,
             logger = logger,
             symbol = symbol,
             annotationFqName = MAP_CONFIG_FQ
@@ -141,7 +134,7 @@ class ConfigObjectScanner(
         symbol: KSClassDeclaration
     ): List<FieldOverride> {
         val fieldPairAnnotations = annotation.getArrayArgOrNull<KSAnnotation>(
-            name = ARG_FIELD_MAPPING,
+            name = KraftKspConstants.ARG_FIELD_MAPPINGS,
             logger = logger,
             symbol = symbol,
             annotationFqName = MAP_CONFIG_FQ
@@ -151,14 +144,14 @@ class ConfigObjectScanner(
             if (!pair.isAnnotation(STRING_PAIR_FQ)) return@mapNotNull null
 
             val from = pair.getStringArgOrNull(
-                name = ARG_FROM,
+                name = KraftKspConstants.ARG_FROM,
                 logger = logger,
                 symbol = symbol,
                 annotationFqName = STRING_PAIR_FQ
             ) ?: return@mapNotNull null
 
             val to = pair.getStringArgOrNull(
-                name = ARG_TO,
+                name = KraftKspConstants.ARG_TO,
                 logger = logger,
                 symbol = symbol,
                 annotationFqName = STRING_PAIR_FQ
@@ -176,16 +169,16 @@ class ConfigObjectScanner(
         symbol: KSClassDeclaration
     ): List<NestedMappingDescriptor> {
         val nestedAnnotations = annotation.getArrayArgOrNull<KSAnnotation>(
-            name = ARG_NESTED_MAPPING,
+            name = KraftKspConstants.ARG_NESTED_MAPPINGS,
             logger = logger,
             symbol = symbol,
             annotationFqName = MAP_CONFIG_FQ
         ) ?: emptyList()
 
         return nestedAnnotations.mapNotNull { nestedAnn ->
-            val nestedFrom = nestedAnn.getKClassArgOrNull(ARG_FROM, logger, symbol, NESTED_FQ)
+            val nestedFrom = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_FROM, logger, symbol, NESTED_FQ)
                 ?: return@mapNotNull null
-            val nestedTo = nestedAnn.getKClassArgOrNull(ARG_TO, logger, symbol, NESTED_FQ)
+            val nestedTo = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_TO, logger, symbol, NESTED_FQ)
                 ?: return@mapNotNull null
 
             val fromDecl = nestedFrom.declaration as KSClassDeclaration
@@ -255,14 +248,14 @@ class ConfigObjectScanner(
 
         // Extract from and to property names
         val fromProp = mapUsingAnn.getStringArgOrNull(
-            name = ARG_FROM,
+            name = KraftKspConstants.ARG_FROM,
             logger = logger,
             symbol = fn,
             annotationFqName = MAP_USING_FQ
         )
 
         val toProp = mapUsingAnn.getStringArgOrNull(
-            name = ARG_TO,
+            name = KraftKspConstants.ARG_TO,
             logger = logger,
             symbol = fn,
             annotationFqName = MAP_USING_FQ
@@ -300,9 +293,27 @@ class ConfigObjectScanner(
             return null
         }
 
-        // Get property declarations for type checking
-        val sourceProp = sourcePropertyMap[fromProp]!!
-        val targetProp = targetPropertyMap[toProp]!!
+        // Get property declarations for type checking.
+        // Both keys were already verified by validatePropertyExists; a null here is an
+        // internal processor error, not a user mistake.
+        val sourceProp = sourcePropertyMap[fromProp] ?: run {
+            logger.error(
+                "Internal error: property '$fromProp' (from) passed validatePropertyExists " +
+                "but was not found in sourcePropertyMap. " +
+                "Converter '${fn.simpleName.asString()}' in '${symbol.simpleName.asString()}' will be skipped.",
+                fn
+            )
+            return null
+        }
+        val targetProp = targetPropertyMap[toProp] ?: run {
+            logger.error(
+                "Internal error: property '$toProp' (to) passed validatePropertyExists " +
+                "but was not found in targetPropertyMap. " +
+                "Converter '${fn.simpleName.asString()}' in '${symbol.simpleName.asString()}' will be skipped.",
+                fn
+            )
+            return null
+        }
 
         // Get property types
         val sourceType = sourceProp.type.resolve()
@@ -385,7 +396,7 @@ class ConfigObjectScanner(
      */
     private fun getParameterType(fn: KSFunctionDeclaration): KSType {
         return if (fn.extensionReceiver != null) {
-            fn.extensionReceiver!!.resolve()
+            fn.extensionReceiver?.resolve() ?: return fn.parameters.first().type.resolve()
         } else {
             fn.parameters.first().type.resolve()
         }
@@ -466,7 +477,7 @@ class ConfigObjectScanner(
             val ignoreAnn = prop.annotations.firstOrNull { it.isAnnotation(MAP_IGNORE_FQ) }
             if (ignoreAnn != null) {
                 ignoreAnn.getStringArgOrNull(
-                    name = ARG_VALUE,
+                    name = KraftKspConstants.ARG_VALUE,
                     logger = logger,
                     symbol = prop,
                     annotationFqName = MAP_IGNORE_FQ

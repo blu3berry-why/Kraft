@@ -25,7 +25,40 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
     }
 
     companion object {
-        fun default()= listOf(
+        /**
+         * Rule evaluation order — the first rule that returns non-null wins.
+         * DO NOT reorder without understanding the constraints below.
+         *
+         * 1. [ConverterRule]         — explicit @MapUsing overrides must be checked before any
+         *                              name-based rule; otherwise DirectMatchRule could silently
+         *                              win on a same-named property and skip the converter.
+         *
+         * 2. [IgnoreRule]            — reads configOverrides for the IGNORE_VALUE sentinel and
+         *                              must run before ConfigOverrideRule, which reads the same
+         *                              map and assumes every value is a valid source property name.
+         *                              Swapping these would cause ConfigOverrideRule to log a
+         *                              bogus "unknown property" error for ignored fields.
+         *
+         * 3. [NestedRule]            — must claim a property whose type matches a nested mapping
+         *                              before DirectMatchRule tries to copy the object directly
+         *                              by name, which would produce a type-mismatch error.
+         *
+         * 4. [ClassOverrideRule]     — annotation-level renames (@MapField); evaluated before
+         *                              ConfigOverrideRule so annotation-level intent wins when
+         *                              both sources declare an override for the same property.
+         *
+         * 5. [ConfigOverrideRule]    — config-object-level renames; must precede DirectMatchRule
+         *                              so explicitly remapped fields are not also matched by name.
+         *
+         * 6. [DirectMatchRule]       — automatic name + type match; runs after all explicit rules
+         *                              have had the opportunity to claim the property.
+         *
+         * 7. [RequiredFieldErrorRule] — catch-all sentinel; MUST be last. Emits a KSP error for
+         *                              any required (non-null, no default) property that no earlier
+         *                              rule could resolve. Moving it earlier would silence valid
+         *                              matches that appear after it in the list.
+         */
+        fun default() = listOf(
                 ConverterRule(),
                 IgnoreRule(),
                 NestedRule(),
