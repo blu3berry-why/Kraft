@@ -54,6 +54,7 @@ class ClassDescriptorBuilder(
         val classOverrides = extractClassOverrides()
         val configOverrides = configObjects.toConfigOverridesMap()
         val converters = configObjects.flatMap { it.converters }
+        val nestedMappings = configObjects.flatMap { it.nestedMappings }
 
         val ctx = MappingContext(
             logger = logger,
@@ -61,6 +62,7 @@ class ClassDescriptorBuilder(
             classOverrides = classOverrides,
             configOverrides = configOverrides,
             converters = converters,
+            nestedMappings = nestedMappings,
             sourceTypeName = sourceTypeName,
             targetTypeName = targetTypeName
         )
