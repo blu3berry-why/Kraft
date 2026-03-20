@@ -7,6 +7,8 @@ import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.model.TypeInfo
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
+import hu.nova.blu3berry.kraft.processor.util.nestedMappingSourceNotFound
+import hu.nova.blu3berry.kraft.processor.util.nestedTypeNotMappable
 
 class NestedRule : MappingRule {
 
@@ -49,6 +51,16 @@ class NestedRule : MappingRule {
                 return null
             }
 
+            val nonMappableType = listOf(sourceProp.type, target.type).firstOrNull { !isMappableClass(it) }
+            if (nonMappableType != null) {
+                ctx.logger.nestedTypeNotMappable(
+                    propertyName = target.name,
+                    typeName = nonMappableType.className.simpleName,
+                    symbol = target.declaration
+                )
+                return null
+            }
+
             return PropertyMappingStrategy.NestedMapper(
                 targetProperty = target,
                 sourceProperty = sourceProp,
@@ -63,7 +75,15 @@ class NestedRule : MappingRule {
         if (nested != null) {
             val sourceProp = ctx.sourceProps.values.firstOrNull { prop ->
                 prop.type.className == nested.sourceType.className
-            } ?: return null
+            } ?: run {
+                ctx.logger.nestedMappingSourceNotFound(
+                    sourceTypeName = ctx.sourceTypeName,
+                    nestedSourceType = nested.sourceType.className.simpleName,
+                    nestedTargetType = nested.targetType.className.simpleName,
+                    symbol = target.declaration
+                )
+                return null
+            }
 
             return PropertyMappingStrategy.NestedMapper(
                 targetProperty = target,
