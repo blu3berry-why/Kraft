@@ -5,8 +5,10 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
 import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
+import hu.nova.blu3berry.kraft.model.MapNestedAnnotation
 import hu.nova.blu3berry.kraft.model.MappingDirection
 import hu.nova.blu3berry.kraft.model.PropertyScanResult
+import hu.nova.blu3berry.kraft.onclass.MapNested
 import hu.nova.blu3berry.kraft.onclass.from.MapField
 import hu.nova.blu3berry.kraft.onclass.from.MapFrom
 import hu.nova.blu3berry.kraft.onclass.to.MapTo
@@ -23,6 +25,7 @@ class ClassAnnotationScanner(
         val MAP_FROM_FQ = MapFrom::class.qualifiedName!!
         val MAP_TO_FQ = MapTo::class.qualifiedName!!
         val MAP_FIELD_FQ = MapField::class.qualifiedName!!
+        val MAP_NESTED_FQ = MapNested::class.qualifiedName!!
     }
 
     fun scan(): List<ClassMappingScanResult> {
@@ -139,7 +142,7 @@ class ClassAnnotationScanner(
     /**
      * Scan all declared properties of the annotated class for:
      *  - @MapField(otherName = "sourceName")
-     *  - (later: @MapIgnore, etc.)
+     *  - @MapNested(sourceName = "...")
      */
     private fun scanPropertyAnnotations(
         klass: KSClassDeclaration
@@ -154,13 +157,26 @@ class ClassAnnotationScanner(
                 ?.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_OTHER_NAME }
                 ?.value as? String
 
-            // TODO: if you later add @MapIgnore for class-level, set isIgnored = true
+            // TODO(T-10): implement @MapIgnore scanning; set isIgnored = true when annotation present
             val isIgnored = false
+
+            val mapNestedAnn = prop.findAnnotation(MAP_NESTED_FQ)
+            val mapNested: MapNestedAnnotation = when {
+                mapNestedAnn == null -> MapNestedAnnotation.NotAnnotated
+                else -> {
+                    val sourceName = mapNestedAnn.arguments
+                        .firstOrNull { it.name?.asString() == KraftKspConstants.ARG_SOURCE_NAME }
+                        ?.value as? String ?: ""
+                    if (sourceName.isEmpty()) MapNestedAnnotation.SameName
+                    else MapNestedAnnotation.Renamed(sourceName)
+                }
+            }
 
             props += PropertyScanResult(
                 property = prop,
                 mapFieldOther = otherName,
-                isIgnored = isIgnored
+                isIgnored = isIgnored,
+                mapNested = mapNested
             )
         }
         return props

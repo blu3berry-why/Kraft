@@ -1,4 +1,6 @@
 package hu.nova.blu3berry.kraft.onclass
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.SOURCE)
-private annotation class MapNested  // TODO in the future
+annotation class MapNested(
+    val sourceName: String = ""   // "" means: same property name as the target
+)

@@ -12,7 +12,7 @@ private fun KSPLogger.err(message: String, symbol: KSNode) {
     error(
         """
 ----------------------------------------
-AutoMapper KSP Error
+Kraft KSP Error
 ----------------------------------------
 
 $message
@@ -388,7 +388,7 @@ fun KSPLogger.unmappedEnumEntries(
 
     val alreadyMappedLines = buildList {
         customEntries.forEach { (from, to) -> add("    ✔ ${from.padEnd(maxLen)}  →  $to  (custom)") }
-        autoEntries.forEach  { name         -> add("    ✔ ${name.padEnd(maxLen)}  →  $name  (auto)") }
+        autoEntries.forEach { name -> add("    ✔ ${name.padEnd(maxLen)}  →  $name  (auto)") }
     }.joinToString("\n").ifEmpty { "    (none)" }
 
     val targetLines = availableTargetEntries
@@ -433,6 +433,106 @@ $snippetLines
         symbol
     )
 }
+
+/**
+ * @MapNested used on a property whose type is not a concrete mappable class
+ * (e.g. interface, generic type parameter, collection).
+ */
+fun KSPLogger.nestedTypeNotMappable(
+    propertyName: String,
+    typeName: String,
+    symbol: KSNode
+) = err(
+    """
+    Cannot generate nested mapper for property '$propertyName': type '$typeName' is not a concrete class.
+
+    Why:
+    Nested mapping requires both the source and target types to be concrete
+    classes with a primary constructor. Interfaces, generic type parameters,
+    and collections are not supported.
+
+    How to fix:
+      ✓ Use a @MapUsing converter for this property.
+      ✓ Or declare an explicit @MapConfig with a @NestedMapping for this pair.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * Multiple @NestedMapping declarations in @MapConfig share the same target type,
+ * making it impossible to unambiguously select one for the current target property.
+ */
+fun KSPLogger.ambiguousNestedDescriptors(
+    targetTypeName: String,
+    matchCount: Int,
+    symbol: KSNode
+) = err(
+    """
+    Ambiguous @NestedMapping declarations: $matchCount entries target '$targetTypeName'.
+
+    Why:
+    Kraft cannot determine which @NestedMapping to use when multiple declarations
+    share the same target type. The first match would be picked arbitrarily.
+
+    How to fix:
+      ✓ Remove duplicate @NestedMapping entries so only one targets '$targetTypeName'.
+      ✓ Or annotate the target property with @MapNested to resolve ambiguity explicitly.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * Multiple source properties share the type required by an explicit @NestedMapping,
+ * making it impossible to unambiguously pick the source property.
+ */
+fun KSPLogger.ambiguousNestedSourceProperty(
+    sourceTypeName: String,
+    nestedSourceType: String,
+    matchingProps: List<String>,
+    symbol: KSNode
+) = err(
+    """
+    Ambiguous source property for @NestedMapping(from = $nestedSourceType, ...):
+    ${matchingProps.size} properties of type '$nestedSourceType' exist in '$sourceTypeName'.
+
+    Matching properties:
+    ${matchingProps.joinToString("\n") { "  • $it" }}
+
+    Why:
+    Kraft cannot determine which property to use as the nested mapping source
+    when multiple candidates share the same type.
+
+    How to fix:
+      ✓ Annotate the target property with @MapNested(sourceName = "propertyName")
+        to resolve ambiguity explicitly.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * An explicit @NestedMapping declares a source type that has no corresponding
+ * property in the source class.
+ */
+fun KSPLogger.nestedMappingSourceNotFound(
+    sourceTypeName: String,
+    nestedSourceType: String,
+    nestedTargetType: String,
+    symbol: KSNode
+) = err(
+    """
+    @NestedMapping(from = $nestedSourceType, to = $nestedTargetType) declared in config
+    but no property of type '$nestedSourceType' exists in source class '$sourceTypeName'.
+
+    Why:
+    The explicit @NestedMapping specifies a source type that has no matching
+    property in '$sourceTypeName'.
+
+    How to fix:
+      ✓ Add a property of type '$nestedSourceType' to '$sourceTypeName'.
+      ✓ Or remove the @NestedMapping declaration if it is no longer needed.
+    """.trimIndent(),
+    symbol
+)
 
 private fun suggestNames(target: String, candidates: Collection<String>): List<String> =
     candidates
