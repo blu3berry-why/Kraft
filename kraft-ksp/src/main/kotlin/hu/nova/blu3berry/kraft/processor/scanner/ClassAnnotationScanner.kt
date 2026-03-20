@@ -4,7 +4,6 @@ import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
-import hu.nova.blu3berry.kraft.config.NestedMapping
 import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.MappingDirection
 import hu.nova.blu3berry.kraft.model.PropertyScanResult
