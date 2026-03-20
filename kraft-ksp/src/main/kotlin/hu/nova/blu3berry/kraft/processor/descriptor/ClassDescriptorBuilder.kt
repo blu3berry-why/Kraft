@@ -47,7 +47,7 @@ class ClassDescriptorBuilder(
             return null
         }
 
-        val sourceProps = sourceDecl.toPropertyInfoMap()
+        val sourceProps = sourceDecl.toPropertyInfoMap(logger)
         val targetProps =
             extractTargetProperties(targetDecl, targetCtor, targetTypeName) ?: return null
 

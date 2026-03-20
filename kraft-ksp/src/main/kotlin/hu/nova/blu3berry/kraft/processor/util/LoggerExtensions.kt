@@ -335,6 +335,37 @@ fun KSPLogger.constructorPropertyMismatch(
 )
 
 /**
+ * A source property's type cannot be resolved to a concrete class declaration.
+ * Triggered when the type is a generic type parameter, a type alias, or any other
+ * non-class KSDeclaration.
+ */
+fun KSPLogger.unsupportedSourcePropertyType(
+    typeName: String,
+    propName: String,
+    ksTypeName: String,
+    declarationKind: String,
+    symbol: KSNode
+) = err(
+    """
+    Property '$propName' on '$typeName' has a type AutoMapper cannot map.
+
+      Property:         $propName
+      Resolved type:    $ksTypeName
+      Declaration kind: $declarationKind
+
+      Why this is an error:
+      AutoMapper can only map properties whose type resolves to a concrete
+      class declaration. Generic type parameters (e.g. T), type aliases, and
+      other non-class declarations are not supported as direct property types.
+
+      How to fix:
+      ✓ Use a concrete type for '$propName' in '$typeName'.
+      ✓ Or handle this property with a @MapUsing converter function.
+    """.trimIndent(),
+    symbol
+)
+
+/**
  * One or more source enum entries have no mapping to the target enum.
  */
 fun KSPLogger.unmappedEnumEntries(

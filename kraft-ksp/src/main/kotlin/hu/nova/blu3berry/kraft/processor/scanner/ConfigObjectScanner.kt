@@ -396,7 +396,7 @@ class ConfigObjectScanner(
      */
     private fun getParameterType(fn: KSFunctionDeclaration): KSType {
         return if (fn.extensionReceiver != null) {
-            fn.extensionReceiver!!.resolve()
+            fn.extensionReceiver?.resolve() ?: return fn.parameters.first().type.resolve()
         } else {
             fn.parameters.first().type.resolve()
         }

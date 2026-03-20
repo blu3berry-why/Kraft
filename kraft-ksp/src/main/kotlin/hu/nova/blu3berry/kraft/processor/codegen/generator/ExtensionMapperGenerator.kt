@@ -46,9 +46,14 @@ class ExtensionMapperGenerator(
             is MappingSource.ConfigObject -> src.configObject.containingFile
         }
 
+        if (originatingFile == null) {
+            logger.warn("Skipping mapper generation for $fromClass → $toClass: no originating file found.")
+            return
+        }
+
         val dependencies = Dependencies(
             aggregating = false,
-            originatingFile ?: return
+            originatingFile
         )
 
         file.writeTo(
@@ -88,6 +93,7 @@ class ExtensionMapperGenerator(
         return block.build()
     }
 
+    @Suppress("kotlin:S1871")
     private fun addMappingLine(block: CodeBlock.Builder, strategy: PropertyMappingStrategy) {
         when (strategy) {
             is PropertyMappingStrategy.Direct -> {

@@ -162,10 +162,19 @@ class EnumMapScanner(
             ?: return results
 
         for (pairAnn in arg) {
-            val ann = pairAnn as KSAnnotation
+            val ann = pairAnn as? KSAnnotation ?: continue
 
-            val from = ann.arguments.first { it.name?.asString() == KraftKspConstants.ARG_FROM }.value as String
-            val to = ann.arguments.first { it.name?.asString() == KraftKspConstants.ARG_TO }.value as String
+            val from = ann.arguments.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_FROM }?.value as? String
+            if (from == null) {
+                logger.error("EnumMap: malformed @FieldOverride annotation — missing or non-String 'from' argument.", decl)
+                continue
+            }
+
+            val to = ann.arguments.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_TO }?.value as? String
+            if (to == null) {
+                logger.error("EnumMap: malformed @FieldOverride annotation — missing or non-String 'to' argument.", decl)
+                continue
+            }
 
             if (from !in fromEntries) {
                 logger.error("EnumMap: '$from' is not a value of source enum.", decl)

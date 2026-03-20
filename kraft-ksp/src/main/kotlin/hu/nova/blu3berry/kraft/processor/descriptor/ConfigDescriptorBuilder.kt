@@ -24,7 +24,7 @@ class ConfigDescriptorBuilder(
         val fromTypeInfo = fromDecl.toTypeInfo(fromDecl.asStarProjectedType())
         val toTypeInfo = toDecl.toTypeInfo(toDecl.asStarProjectedType())
 
-        val sourceProps = fromDecl.toPropertyInfoMap()
+        val sourceProps = fromDecl.toPropertyInfoMap(logger)
         val targetCtor = toDecl.primaryConstructor ?: run {
             logger.missingPrimaryConstructor(toDecl.simpleName.asString(), toDecl)
             return null
