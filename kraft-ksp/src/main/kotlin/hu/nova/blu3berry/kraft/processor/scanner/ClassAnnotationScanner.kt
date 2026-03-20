@@ -24,8 +24,6 @@ class ClassAnnotationScanner(
         val MAP_FROM_FQ = MapFrom::class.qualifiedName!!
         val MAP_TO_FQ = MapTo::class.qualifiedName!!
         val MAP_FIELD_FQ = MapField::class.qualifiedName!!
-
-        val NESTED_MAPPING_FQ = NestedMapping::class.qualifiedName!!
     }
 
     fun scan(): List<ClassMappingScanResult> {
