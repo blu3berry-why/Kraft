@@ -5,6 +5,7 @@ internal object KraftKspConstants {
     const val ARG_CLASS           = "class"
     const val ARG_VALUE           = "value"
     const val ARG_OTHER_NAME      = "otherName"
+    const val ARG_SOURCE_NAME     = "sourceName"
     const val ARG_FROM            = "from"
     const val ARG_TO              = "to"
     const val ARG_FIELD_MAPPINGS  = "fieldMappings"

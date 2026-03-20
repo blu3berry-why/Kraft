@@ -12,10 +12,17 @@ data class ClassMappingScanResult(
     val propertyScanResults: List<PropertyScanResult> = emptyList(),
 )
 
+sealed interface MapNestedAnnotation {
+    data object NotAnnotated : MapNestedAnnotation
+    data object SameName : MapNestedAnnotation
+    data class Renamed(val sourceName: String) : MapNestedAnnotation
+}
+
 data class PropertyScanResult(
     val property: KSPropertyDeclaration,
     val mapFieldOther: String?,
-    val isIgnored: Boolean
+    val isIgnored: Boolean,
+    val mapNested: MapNestedAnnotation = MapNestedAnnotation.NotAnnotated
 )
 
 data class ConfigObjectScanResult(
