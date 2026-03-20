@@ -96,23 +96,26 @@ class EnumMapScanner(
 
         val fromEntries = getEnumEntries(fromDecl)
         val toEntries = getEnumEntries(toDecl)
+        val toEntriesSet = toEntries.toSet()
 
         // ---- read fieldMapping = [FieldOverride("A","B"), ...] ----
-        val customMappings = extractCustomMappings(annotation, fromEntries, toEntries, decl)
+        val customMappings: List<EnumEntryMapping> = extractCustomMappings(annotation, fromEntries, toEntries, decl)
         val allMappings = customMappings.toMutableList()
+        val mappedSources = customMappings.mapTo(mutableSetOf()) { it.source }
         val autoMappedEntries = mutableListOf<String>()
 
         // ---- add default 1:1 mappings for matching names ----
         for (sourceName in fromEntries) {
-            if (allMappings.any { it.source == sourceName }) continue
-            if (sourceName in toEntries) {
+            if (sourceName in mappedSources) continue
+            if (sourceName in toEntriesSet) {
                 allMappings += EnumEntryMapping(sourceName, sourceName)
+                mappedSources += sourceName
                 autoMappedEntries += sourceName
             }
         }
 
         // ---- every source entry must be accounted for ----
-        val unmappedEntries = fromEntries.filter { name -> allMappings.none { it.source == name } }
+        val unmappedEntries = fromEntries.filter { name -> name !in mappedSources }
         if (unmappedEntries.isNotEmpty()) {
             logger.unmappedEnumEntries(
                 declaringClass = decl.simpleName.asString(),
