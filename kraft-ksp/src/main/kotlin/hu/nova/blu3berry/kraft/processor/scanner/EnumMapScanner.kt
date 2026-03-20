@@ -7,6 +7,7 @@ import hu.nova.blu3berry.kraft.config.EnumMap
 import hu.nova.blu3berry.kraft.model.EnumEntryMapping
 import hu.nova.blu3berry.kraft.model.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.model.TypeInfo
+import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 import hu.nova.blu3berry.kraft.processor.util.annotationTargetError
 import hu.nova.blu3berry.kraft.processor.util.findAnnotation
 import hu.nova.blu3berry.kraft.processor.util.getKClassArgOrNull
@@ -21,9 +22,6 @@ class EnumMapScanner(
 ) {
 
     companion object {
-        const val CLASS = "class"
-        const val FROM = "from"
-        const val TO = "to"
         val ENUM_MAP_FQ = EnumMap::class.qualifiedName!!
     }
 
@@ -42,7 +40,7 @@ class EnumMapScanner(
                 if (symbol !is KSClassDeclaration) {
                     logger.annotationTargetError(
                         annotationName = ENUM_MAP_FQ,
-                        expectedTarget = CLASS,
+                        expectedTarget = KraftKspConstants.ARG_CLASS,
                         actualNode = symbol
                     )
                     return@forEach
@@ -66,7 +64,7 @@ class EnumMapScanner(
 
         // ---- get from = X::class ----
         val fromKSType = annotation.getKClassArgOrNull(
-            name = FROM,
+            name = KraftKspConstants.ARG_FROM,
             logger = logger,
             symbol = decl,
             annotationFqName = ENUM_MAP_FQ
@@ -74,7 +72,7 @@ class EnumMapScanner(
 
         // ---- get to = Y::class ----
         val toKSType = annotation.getKClassArgOrNull(
-            name = TO,
+            name = KraftKspConstants.ARG_TO,
             logger = logger,
             symbol = decl,
             annotationFqName = ENUM_MAP_FQ
@@ -137,15 +135,15 @@ class EnumMapScanner(
         val results = mutableListOf<EnumEntryMapping>()
 
         val arg = annotation.arguments
-            .firstOrNull { it.name?.asString() == "fieldMapping" }
+            .firstOrNull { it.name?.asString() == KraftKspConstants.ARG_FIELD_MAPPING }
             ?.value as? List<*>
             ?: return results
 
         for (pairAnn in arg) {
             val ann = pairAnn as KSAnnotation
 
-            val from = ann.arguments.first { it.name?.asString() == FROM }.value as String
-            val to = ann.arguments.first { it.name?.asString() == TO }.value as String
+            val from = ann.arguments.first { it.name?.asString() == KraftKspConstants.ARG_FROM }.value as String
+            val to = ann.arguments.first { it.name?.asString() == KraftKspConstants.ARG_TO }.value as String
 
             if (from !in fromEntries) {
                 logger.error("EnumMap: '$from' is not a value of source enum.", decl)

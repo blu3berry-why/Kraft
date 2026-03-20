@@ -11,6 +11,7 @@ import hu.nova.blu3berry.kraft.processor.codegen.generator.ExtensionMapperGenera
 import hu.nova.blu3berry.kraft.processor.scanner.ClassAnnotationScanner
 import hu.nova.blu3berry.kraft.processor.scanner.ConfigObjectScanner
 import hu.nova.blu3berry.kraft.processor.scanner.EnumMapScanner
+import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 
 class AutoMapperProcessor(
     private val env: SymbolProcessorEnvironment
@@ -42,7 +43,7 @@ class AutoMapperProcessor(
             dumpDescriptor(descriptor)
         }
 
-        val template = env.options["kraft.functionNameFormat"]
+        val template = env.options[KraftKspConstants.OPTION_FUNCTION_NAME_FORMAT]
             ?: "to\${target}" // default
 
         val genConfig = GenerationConfig(

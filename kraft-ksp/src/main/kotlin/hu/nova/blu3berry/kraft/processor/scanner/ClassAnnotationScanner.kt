@@ -11,6 +11,7 @@ import hu.nova.blu3berry.kraft.model.PropertyScanResult
 import hu.nova.blu3berry.kraft.onclass.from.MapField
 import hu.nova.blu3berry.kraft.onclass.from.MapFrom
 import hu.nova.blu3berry.kraft.onclass.to.MapTo
+import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 import hu.nova.blu3berry.kraft.processor.util.annotationTargetError
 import hu.nova.blu3berry.kraft.processor.util.findAnnotation
 import hu.nova.blu3berry.kraft.processor.util.getKClassArgOrNull
@@ -20,9 +21,6 @@ class ClassAnnotationScanner(
     private val logger: KSPLogger
 ) {
     private companion object {
-        const val CLASS = "class"
-        const val VALUE = "value"
-        const val OTHER_NAME = "otherName"
         val MAP_FROM_FQ = MapFrom::class.qualifiedName!!
         val MAP_TO_FQ = MapTo::class.qualifiedName!!
         val MAP_FIELD_FQ = MapField::class.qualifiedName!!
@@ -43,7 +41,7 @@ class ClassAnnotationScanner(
                 logger.annotationTargetError(
                     actualNode = symbol,
                     annotationName = MAP_FROM_FQ,
-                    expectedTarget = CLASS
+                    expectedTarget = KraftKspConstants.ARG_CLASS
                 )
             }
         }
@@ -54,7 +52,7 @@ class ClassAnnotationScanner(
                 logger.annotationTargetError(
                     actualNode = symbol,
                     annotationName = MAP_TO_FQ,
-                    expectedTarget = CLASS
+                    expectedTarget = KraftKspConstants.ARG_CLASS
                 )
             }
         }
@@ -100,7 +98,7 @@ class ClassAnnotationScanner(
         val ann = classDeclaration.findAnnotation(MAP_FROM_FQ) ?: return
 
         val sourceType = ann.getKClassArgOrNull(
-            name = VALUE,
+            name = KraftKspConstants.ARG_VALUE,
             logger = logger,
             symbol = classDeclaration,
             annotationFqName = MAP_FROM_FQ
@@ -124,7 +122,7 @@ class ClassAnnotationScanner(
         val ann = classDeclaration.findAnnotation(MAP_TO_FQ) ?: return
 
         val targetType = ann.getKClassArgOrNull(
-            name = VALUE,
+            name = KraftKspConstants.ARG_VALUE,
             logger = logger,
             symbol = classDeclaration,
             annotationFqName = MAP_TO_FQ
@@ -156,7 +154,7 @@ class ClassAnnotationScanner(
             val mapFieldAnn = prop.findAnnotation(MAP_FIELD_FQ)
             val otherName: String? = mapFieldAnn
                 ?.arguments
-                ?.firstOrNull { it.name?.asString() == OTHER_NAME }
+                ?.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_OTHER_NAME }
                 ?.value as? String
 
             // TODO: if you later add @MapIgnore for class-level, set isIgnored = true
