@@ -1,6 +1,7 @@
 package hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.rules
 
 import com.google.devtools.ksp.symbol.ClassKind
+import com.google.devtools.ksp.symbol.Modifier
 import hu.nova.blu3berry.kraft.model.MapNestedAnnotation
 import hu.nova.blu3berry.kraft.model.MappingContext
 import hu.nova.blu3berry.kraft.model.MapperId
@@ -167,6 +168,8 @@ class NestedRule : MappingRule {
         val fqn = decl.qualifiedName?.asString() ?: return false
         return decl.classKind == ClassKind.CLASS
             && decl.primaryConstructor != null
+            && Modifier.ABSTRACT !in decl.modifiers
+            && Modifier.SEALED !in decl.modifiers
             && !fqn.startsWith("kotlin.")
             && !fqn.startsWith("java.")
     }
