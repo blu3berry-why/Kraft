@@ -11,6 +11,7 @@ import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 import hu.nova.blu3berry.kraft.processor.util.annotationTargetError
 import hu.nova.blu3berry.kraft.processor.util.findAnnotation
 import hu.nova.blu3berry.kraft.processor.util.getKClassArgOrNull
+import hu.nova.blu3berry.kraft.processor.util.unmappedEnumEntries
 
 
 /**
@@ -96,21 +97,42 @@ class EnumMapScanner(
         val fromEntries = getEnumEntries(fromDecl)
         val toEntries = getEnumEntries(toDecl)
 
-        // ---- read fieldMapping = [StringPair("A","B"), ...] ----
+        // ---- read fieldMapping = [FieldOverride("A","B"), ...] ----
         val customMappings = extractCustomMappings(annotation, fromEntries, toEntries, decl)
+        val allMappings = customMappings.toMutableList()
+        val autoMappedEntries = mutableListOf<String>()
 
         // ---- add default 1:1 mappings for matching names ----
         for (sourceName in fromEntries) {
-            if (customMappings.any { it.source == sourceName }) continue
+            if (allMappings.any { it.source == sourceName }) continue
             if (sourceName in toEntries) {
-                customMappings += EnumEntryMapping(sourceName, sourceName)
+                allMappings += EnumEntryMapping(sourceName, sourceName)
+                autoMappedEntries += sourceName
             }
+        }
+
+        // ---- every source entry must be accounted for ----
+        val unmappedEntries = fromEntries.filter { name -> allMappings.none { it.source == name } }
+        if (unmappedEntries.isNotEmpty()) {
+            logger.unmappedEnumEntries(
+                declaringClass = decl.simpleName.asString(),
+                fromQualifiedName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
+                toQualifiedName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString(),
+                fromSimpleName = fromDecl.simpleName.asString(),
+                toSimpleName = toDecl.simpleName.asString(),
+                unmappedEntries = unmappedEntries,
+                customEntries = customMappings.map { it.source to it.target },
+                autoEntries = autoMappedEntries,
+                availableTargetEntries = toEntries,
+                symbol = decl
+            )
+            return null
         }
 
         return EnumMappingDescriptor(
             sourceType = TypeInfo.fromKSType(fromKSType),
             targetType = TypeInfo.fromKSType(toKSType),
-            entries = customMappings,
+            entries = allMappings,
             allowDefault = false,
             defaultTarget = null
         )

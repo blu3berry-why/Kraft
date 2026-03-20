@@ -334,6 +334,75 @@ fun KSPLogger.constructorPropertyMismatch(
     symbol
 )
 
+/**
+ * One or more source enum entries have no mapping to the target enum.
+ */
+fun KSPLogger.unmappedEnumEntries(
+    declaringClass: String,
+    fromQualifiedName: String,
+    toQualifiedName: String,
+    fromSimpleName: String,
+    toSimpleName: String,
+    unmappedEntries: List<String>,
+    customEntries: List<Pair<String, String>>,
+    autoEntries: List<String>,
+    availableTargetEntries: List<String>,
+    symbol: KSNode
+) {
+    val maxLen = (unmappedEntries + customEntries.map { it.first } + autoEntries)
+        .maxOfOrNull { it.length } ?: 0
+
+    val unmappedLines = unmappedEntries
+        .joinToString("\n") { "    ✘ $it" }
+
+    val alreadyMappedLines = buildList {
+        customEntries.forEach { (from, to) -> add("    ✔ ${from.padEnd(maxLen)}  →  $to  (custom)") }
+        autoEntries.forEach  { name         -> add("    ✔ ${name.padEnd(maxLen)}  →  $name  (auto)") }
+    }.joinToString("\n").ifEmpty { "    (none)" }
+
+    val targetLines = availableTargetEntries
+        .joinToString("\n") { "    • $it" }
+
+    val snippetLines = unmappedEntries
+        .joinToString("\n") { "            FieldOverride(from = \"$it\", to = \"???\")," }
+
+    err(
+        """
+    @EnumMap on '$declaringClass' has unmapped source entries.
+
+      Source: $fromQualifiedName
+      Target: $toQualifiedName
+
+      Unmapped entries (must be resolved):
+$unmappedLines
+
+      Already mapped:
+$alreadyMappedLines
+
+      Available target entries:
+$targetLines
+
+      Why this is an error:
+      Every source entry must have a target. Without a full mapping a
+      non-exhaustive 'when' expression would be generated and the
+      Kotlin compiler would reject it.
+
+      How to fix — add a FieldOverride for each unmapped entry:
+
+        @EnumMap(
+            from         = $fromSimpleName::class,
+            to           = $toSimpleName::class,
+            fieldMapping = [
+$snippetLines
+            ]
+        )
+
+      ✓ Or rename the target entry to match the source name for automatic 1:1 mapping.
+        """.trimIndent(),
+        symbol
+    )
+}
+
 private fun suggestNames(target: String, candidates: Collection<String>): List<String> =
     candidates
         .map { it to levenshtein(target, it) }
