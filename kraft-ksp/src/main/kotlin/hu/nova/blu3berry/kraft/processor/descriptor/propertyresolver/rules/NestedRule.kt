@@ -74,64 +74,95 @@ class NestedRule : MappingRule {
         }
 
         // 2. Explicit nestedMappings path (from @MapConfig)
-        val nestedCandidates = ctx.nestedMappings.filter { nm ->
+        // Resolve any source override first so it can narrow the nested candidates and
+        // verify the source type matches before ambiguity is decided.
+        val explicitSourceName = ctx.configOverrides[target.name]
+        val targetCandidates = ctx.nestedMappings.filter { nm ->
             nm.targetType.className == target.type.className
         }
-        if (nestedCandidates.isNotEmpty()) {
-            if (nestedCandidates.size > 1) {
+
+        if (targetCandidates.isNotEmpty()) {
+            if (explicitSourceName != null) {
+                // Override path: resolve the source property, then filter by both target and
+                // source type so the descriptor match is verified before creating the mapper.
+                val overrideProp = ctx.sourceProps[explicitSourceName] ?: run {
+                    ctx.logger.nestedMappingSourceNotFound(
+                        sourceTypeName = ctx.sourceTypeName,
+                        nestedSourceType = targetCandidates.first().sourceType.className.simpleName,
+                        nestedTargetType = target.type.className.simpleName,
+                        symbol = target.declaration
+                    )
+                    return null
+                }
+
+                val nestedCandidates = targetCandidates.filter { nm ->
+                    nm.sourceType.className == overrideProp.type.className
+                }
+                return when {
+                    nestedCandidates.isEmpty() -> {
+                        ctx.logger.nestedMappingSourceNotFound(
+                            sourceTypeName = ctx.sourceTypeName,
+                            nestedSourceType = overrideProp.type.className.simpleName,
+                            nestedTargetType = target.type.className.simpleName,
+                            symbol = target.declaration
+                        )
+                        null
+                    }
+                    nestedCandidates.size > 1 -> {
+                        ctx.logger.ambiguousNestedDescriptors(
+                            targetTypeName = target.type.className.simpleName,
+                            matchCount = nestedCandidates.size,
+                            symbol = target.declaration
+                        )
+                        null
+                    }
+                    else -> PropertyMappingStrategy.NestedMapper(
+                        targetProperty = target,
+                        sourceProperty = overrideProp,
+                        nestedMappingDescriptor = nestedCandidates.single()
+                    )
+                }
+            }
+
+            // No override: disambiguate by target type, then find source property by type.
+            if (targetCandidates.size > 1) {
                 ctx.logger.ambiguousNestedDescriptors(
                     targetTypeName = target.type.className.simpleName,
-                    matchCount = nestedCandidates.size,
+                    matchCount = targetCandidates.size,
                     symbol = target.declaration
                 )
                 return null
             }
-            val nested = nestedCandidates.single()
+            val nested = targetCandidates.single()
 
-            // Prefer an explicit source property name from configOverrides before type-matching.
-            val explicitSourceName = ctx.configOverrides[target.name]
-            val sourceProp = if (explicitSourceName != null) {
-                ctx.sourceProps[explicitSourceName] ?: run {
+            val sourcePropCandidates = ctx.sourceProps.values.filter { prop ->
+                prop.type.className == nested.sourceType.className
+            }
+            return when (sourcePropCandidates.size) {
+                0 -> {
                     ctx.logger.nestedMappingSourceNotFound(
                         sourceTypeName = ctx.sourceTypeName,
                         nestedSourceType = nested.sourceType.className.simpleName,
                         nestedTargetType = nested.targetType.className.simpleName,
                         symbol = target.declaration
                     )
-                    return null
+                    null
                 }
-            } else {
-                val sourcePropCandidates = ctx.sourceProps.values.filter { prop ->
-                    prop.type.className == nested.sourceType.className
-                }
-                when (sourcePropCandidates.size) {
-                    0 -> {
-                        ctx.logger.nestedMappingSourceNotFound(
-                            sourceTypeName = ctx.sourceTypeName,
-                            nestedSourceType = nested.sourceType.className.simpleName,
-                            nestedTargetType = nested.targetType.className.simpleName,
-                            symbol = target.declaration
-                        )
-                        return null
-                    }
-                    1 -> sourcePropCandidates.single()
-                    else -> {
-                        ctx.logger.ambiguousNestedSourceProperty(
-                            sourceTypeName = ctx.sourceTypeName,
-                            nestedSourceType = nested.sourceType.className.simpleName,
-                            matchingProps = sourcePropCandidates.map { it.name }.sorted(),
-                            symbol = target.declaration
-                        )
-                        return null
-                    }
+                1 -> PropertyMappingStrategy.NestedMapper(
+                    targetProperty = target,
+                    sourceProperty = sourcePropCandidates.single(),
+                    nestedMappingDescriptor = nested
+                )
+                else -> {
+                    ctx.logger.ambiguousNestedSourceProperty(
+                        sourceTypeName = ctx.sourceTypeName,
+                        nestedSourceType = nested.sourceType.className.simpleName,
+                        matchingProps = sourcePropCandidates.map { it.name }.sorted(),
+                        symbol = target.declaration
+                    )
+                    null
                 }
             }
-
-            return PropertyMappingStrategy.NestedMapper(
-                targetProperty = target,
-                sourceProperty = sourceProp,
-                nestedMappingDescriptor = nested
-            )
         }
 
         // 3. Auto-detection fallback: same name, different types, both mappable classes
