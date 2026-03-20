@@ -9,6 +9,8 @@ import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.model.TypeInfo
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
+import hu.nova.blu3berry.kraft.processor.util.ambiguousNestedDescriptors
+import hu.nova.blu3berry.kraft.processor.util.ambiguousNestedSourceProperty
 import hu.nova.blu3berry.kraft.processor.util.nestedMappingSourceNotFound
 import hu.nova.blu3berry.kraft.processor.util.nestedTypeNotMappable
 
@@ -71,20 +73,57 @@ class NestedRule : MappingRule {
         }
 
         // 2. Explicit nestedMappings path (from @MapConfig)
-        val nested = ctx.nestedMappings.firstOrNull { nm ->
+        val nestedCandidates = ctx.nestedMappings.filter { nm ->
             nm.targetType.className == target.type.className
         }
-        if (nested != null) {
-            val sourceProp = ctx.sourceProps.values.firstOrNull { prop ->
-                prop.type.className == nested.sourceType.className
-            } ?: run {
-                ctx.logger.nestedMappingSourceNotFound(
-                    sourceTypeName = ctx.sourceTypeName,
-                    nestedSourceType = nested.sourceType.className.simpleName,
-                    nestedTargetType = nested.targetType.className.simpleName,
+        if (nestedCandidates.isNotEmpty()) {
+            if (nestedCandidates.size > 1) {
+                ctx.logger.ambiguousNestedDescriptors(
+                    targetTypeName = target.type.className.simpleName,
+                    matchCount = nestedCandidates.size,
                     symbol = target.declaration
                 )
                 return null
+            }
+            val nested = nestedCandidates.single()
+
+            // Prefer an explicit source property name from configOverrides before type-matching.
+            val explicitSourceName = ctx.configOverrides[target.name]
+            val sourceProp = if (explicitSourceName != null) {
+                ctx.sourceProps[explicitSourceName] ?: run {
+                    ctx.logger.nestedMappingSourceNotFound(
+                        sourceTypeName = ctx.sourceTypeName,
+                        nestedSourceType = nested.sourceType.className.simpleName,
+                        nestedTargetType = nested.targetType.className.simpleName,
+                        symbol = target.declaration
+                    )
+                    return null
+                }
+            } else {
+                val sourcePropCandidates = ctx.sourceProps.values.filter { prop ->
+                    prop.type.className == nested.sourceType.className
+                }
+                when (sourcePropCandidates.size) {
+                    0 -> {
+                        ctx.logger.nestedMappingSourceNotFound(
+                            sourceTypeName = ctx.sourceTypeName,
+                            nestedSourceType = nested.sourceType.className.simpleName,
+                            nestedTargetType = nested.targetType.className.simpleName,
+                            symbol = target.declaration
+                        )
+                        return null
+                    }
+                    1 -> sourcePropCandidates.single()
+                    else -> {
+                        ctx.logger.ambiguousNestedSourceProperty(
+                            sourceTypeName = ctx.sourceTypeName,
+                            nestedSourceType = nested.sourceType.className.simpleName,
+                            matchingProps = sourcePropCandidates.map { it.name }.sorted(),
+                            symbol = target.declaration
+                        )
+                        return null
+                    }
+                }
             }
 
             return PropertyMappingStrategy.NestedMapper(

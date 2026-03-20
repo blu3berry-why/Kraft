@@ -459,6 +459,57 @@ fun KSPLogger.nestedTypeNotMappable(
 )
 
 /**
+ * Multiple @NestedMapping declarations in @MapConfig share the same target type,
+ * making it impossible to unambiguously select one for the current target property.
+ */
+fun KSPLogger.ambiguousNestedDescriptors(
+    targetTypeName: String,
+    matchCount: Int,
+    symbol: KSNode
+) = err(
+    """
+    Ambiguous @NestedMapping declarations: $matchCount entries target '$targetTypeName'.
+
+    Why:
+    Kraft cannot determine which @NestedMapping to use when multiple declarations
+    share the same target type. The first match would be picked arbitrarily.
+
+    How to fix:
+      ✓ Remove duplicate @NestedMapping entries so only one targets '$targetTypeName'.
+      ✓ Or annotate the target property with @MapNested to resolve ambiguity explicitly.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * Multiple source properties share the type required by an explicit @NestedMapping,
+ * making it impossible to unambiguously pick the source property.
+ */
+fun KSPLogger.ambiguousNestedSourceProperty(
+    sourceTypeName: String,
+    nestedSourceType: String,
+    matchingProps: List<String>,
+    symbol: KSNode
+) = err(
+    """
+    Ambiguous source property for @NestedMapping(from = $nestedSourceType, ...):
+    ${matchingProps.size} properties of type '$nestedSourceType' exist in '$sourceTypeName'.
+
+    Matching properties:
+    ${matchingProps.joinToString("\n") { "  • $it" }}
+
+    Why:
+    Kraft cannot determine which property to use as the nested mapping source
+    when multiple candidates share the same type.
+
+    How to fix:
+      ✓ Annotate the target property with @MapNested(sourceName = "propertyName")
+        to resolve ambiguity explicitly.
+    """.trimIndent(),
+    symbol
+)
+
+/**
  * An explicit @NestedMapping declares a source type that has no corresponding
  * property in the source class.
  */

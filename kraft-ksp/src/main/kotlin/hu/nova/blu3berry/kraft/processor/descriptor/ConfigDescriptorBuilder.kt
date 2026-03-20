@@ -95,6 +95,7 @@ class ConfigDescriptorBuilder(
                     actualType = ksType.toString(),
                     symbol = param
                 )
+                if (!param.hasDefault) return null
                 return@mapNotNull null
             }
 
