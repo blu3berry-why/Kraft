@@ -293,9 +293,27 @@ class ConfigObjectScanner(
             return null
         }
 
-        // Get property declarations for type checking
-        val sourceProp = sourcePropertyMap[fromProp] ?: return null
-        val targetProp = targetPropertyMap[toProp] ?: return null
+        // Get property declarations for type checking.
+        // Both keys were already verified by validatePropertyExists; a null here is an
+        // internal processor error, not a user mistake.
+        val sourceProp = sourcePropertyMap[fromProp] ?: run {
+            logger.error(
+                "Internal error: property '$fromProp' (from) passed validatePropertyExists " +
+                "but was not found in sourcePropertyMap. " +
+                "Converter '${fn.simpleName.asString()}' in '${symbol.simpleName.asString()}' will be skipped.",
+                fn
+            )
+            return null
+        }
+        val targetProp = targetPropertyMap[toProp] ?: run {
+            logger.error(
+                "Internal error: property '$toProp' (to) passed validatePropertyExists " +
+                "but was not found in targetPropertyMap. " +
+                "Converter '${fn.simpleName.asString()}' in '${symbol.simpleName.asString()}' will be skipped.",
+                fn
+            )
+            return null
+        }
 
         // Get property types
         val sourceType = sourceProp.type.resolve()
