@@ -17,6 +17,7 @@ import hu.nova.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
 import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.FieldOverride
+import hu.nova.blu3berry.kraft.model.MapNestedAnnotation
 import hu.nova.blu3berry.kraft.model.MappingDirection
 import hu.nova.blu3berry.kraft.processor.util.constructorPropertyMismatch
 import hu.nova.blu3berry.kraft.processor.util.missingConstructorProperty
@@ -55,6 +56,7 @@ class ClassDescriptorBuilder(
         val configOverrides = configObjects.toConfigOverridesMap()
         val converters = configObjects.flatMap { it.converters }
         val nestedMappings = configObjects.flatMap { it.nestedMappings }
+        val classNestedOverrides = extractClassNestedOverrides()
 
         val ctx = MappingContext(
             logger = logger,
@@ -63,6 +65,7 @@ class ClassDescriptorBuilder(
             configOverrides = configOverrides,
             converters = converters,
             nestedMappings = nestedMappings,
+            classNestedOverrides = classNestedOverrides,
             sourceTypeName = sourceTypeName,
             targetTypeName = targetTypeName
         )
@@ -135,6 +138,14 @@ class ClassDescriptorBuilder(
 
         return props
     }
+
+    // ---------------------------------------------------------
+    // Extract class-level nested overrides (@MapNested)
+    // ---------------------------------------------------------
+    private fun extractClassNestedOverrides(): Map<String, MapNestedAnnotation> =
+        mapping.propertyScanResults
+            .filter { it.mapNested != MapNestedAnnotation.NotAnnotated }
+            .associate { it.property.simpleName.asString() to it.mapNested }
 
     // ---------------------------------------------------------
     // Extract class-level overrides (@MapField)

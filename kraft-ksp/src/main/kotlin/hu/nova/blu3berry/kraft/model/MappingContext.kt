@@ -9,6 +9,7 @@ data class MappingContext(
     val configOverrides: Map<String, String>,
     val converters: List<ConverterDescriptor>,
     val nestedMappings: List<NestedMappingDescriptor> = emptyList(),
+    val classNestedOverrides: Map<String, MapNestedAnnotation> = emptyMap(),
     val sourceTypeName: String,
     val targetTypeName: String
 )
