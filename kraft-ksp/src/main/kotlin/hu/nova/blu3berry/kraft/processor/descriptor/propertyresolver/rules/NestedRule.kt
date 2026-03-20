@@ -1,6 +1,11 @@
+import com.google.devtools.ksp.symbol.ClassKind
+import hu.nova.blu3berry.kraft.model.MapNestedAnnotation
 import hu.nova.blu3berry.kraft.model.MappingContext
+import hu.nova.blu3berry.kraft.model.MapperId
+import hu.nova.blu3berry.kraft.model.NestedMappingDescriptor
 import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
+import hu.nova.blu3berry.kraft.model.TypeInfo
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
 
 class NestedRule : MappingRule {
@@ -10,20 +15,98 @@ class NestedRule : MappingRule {
         ctx: MappingContext
     ): PropertyMappingStrategy? {
 
-        // Find nested mapping whose TARGET TYPE matches the property
+        // 1. @MapNested path (highest priority)
+        val mapNested = ctx.classNestedOverrides[target.name]
+        if (mapNested != null) {
+            if (target.name in ctx.classOverrides) {
+                ctx.logger.warn(
+                    "@MapNested and @MapField both present on '${target.name}' — @MapNested takes precedence.",
+                    target.declaration
+                )
+            }
+
+            val sourceName = when (mapNested) {
+                is MapNestedAnnotation.SameName -> target.name
+                is MapNestedAnnotation.Renamed -> {
+                    if (mapNested.sourceName == target.name) {
+                        ctx.logger.warn(
+                            "@MapNested sourceName '${mapNested.sourceName}' equals the property name — sourceName is redundant here.",
+                            target.declaration
+                        )
+                    }
+                    mapNested.sourceName
+                }
+                is MapNestedAnnotation.NotAnnotated ->
+                    error("NotAnnotated entry in classNestedOverrides for '${target.name}' — this is a bug in extractClassNestedOverrides")
+            }
+
+            val sourceProp = ctx.sourceProps[sourceName] ?: run {
+                ctx.logger.error(
+                    "@MapNested on '${target.name}': source property '$sourceName' does not exist in " +
+                        "${ctx.sourceTypeName}. Available: ${ctx.sourceProps.keys.sorted()}",
+                    target.declaration
+                )
+                return null
+            }
+
+            return PropertyMappingStrategy.NestedMapper(
+                targetProperty = target,
+                sourceProperty = sourceProp,
+                nestedMappingDescriptor = synthesiseDescriptor(sourceProp.type, target.type)
+            )
+        }
+
+        // 2. Explicit nestedMappings path (from @MapConfig)
         val nested = ctx.nestedMappings.firstOrNull { nm ->
             nm.targetType.className == target.type.className
-        } ?: return null
+        }
+        if (nested != null) {
+            val sourceProp = ctx.sourceProps.values.firstOrNull { prop ->
+                prop.type.className == nested.sourceType.className
+            } ?: return null
 
-        // Find matching SOURCE PROPERTY in parent mapper
-        val sourceProp = ctx.sourceProps.values.firstOrNull { prop ->
-            prop.type.className == nested.sourceType.className
-        } ?: return null
+            return PropertyMappingStrategy.NestedMapper(
+                targetProperty = target,
+                sourceProperty = sourceProp,
+                nestedMappingDescriptor = nested
+            )
+        }
+
+        // 3. Auto-detection fallback: same name, different types, both mappable classes
+        val sourceProp = ctx.sourceProps[target.name] ?: return null
+        if (sourceProp.type.className == target.type.className) return null
+        if (!isMappableClass(sourceProp.type) || !isMappableClass(target.type)) return null
 
         return PropertyMappingStrategy.NestedMapper(
             targetProperty = target,
             sourceProperty = sourceProp,
-            nestedMappingDescriptor = nested
+            nestedMappingDescriptor = synthesiseDescriptor(sourceProp.type, target.type)
         )
+    }
+
+    // Produces a NestedMappingDescriptor (declaration of intent).
+    // The actual child MapperDescriptor is built later in DescriptorBuilder (Task 8).
+    private fun synthesiseDescriptor(sourceType: TypeInfo, targetType: TypeInfo): NestedMappingDescriptor =
+        NestedMappingDescriptor(
+            nestedMapperId = MapperId(
+                fromQualifiedName = sourceType.declaration.qualifiedName?.asString()
+                    ?: sourceType.declaration.simpleName.asString(),
+                toQualifiedName = targetType.declaration.qualifiedName?.asString()
+                    ?: targetType.declaration.simpleName.asString()
+            ),
+            sourceType = sourceType,
+            targetType = targetType
+        )
+
+    // Guards auto-detection: only trigger for concrete, non-stdlib classes that
+    // Kraft can structurally map (has a primary constructor, not an interface/enum/object,
+    // not a Kotlin or Java stdlib type).
+    private fun isMappableClass(type: TypeInfo): Boolean {
+        val decl = type.declaration
+        val fqn = decl.qualifiedName?.asString() ?: return false
+        return decl.classKind == ClassKind.CLASS
+            && decl.primaryConstructor != null
+            && !fqn.startsWith("kotlin.")
+            && !fqn.startsWith("java.")
     }
 }
