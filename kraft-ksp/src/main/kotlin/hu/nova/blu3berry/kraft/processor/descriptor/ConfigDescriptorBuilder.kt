@@ -41,7 +41,10 @@ class ConfigDescriptorBuilder(
 
 
         return MapperDescriptor(
-            id = MapperId(fromDecl.toString(), toDecl.toString()),
+            id = MapperId(
+                fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
+                toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString()
+            ),
             fromType = fromTypeInfo,
             toType = toTypeInfo,
             source = MappingSource.ConfigObject(config.configObject),
