@@ -294,8 +294,8 @@ class ConfigObjectScanner(
         }
 
         // Get property declarations for type checking
-        val sourceProp = sourcePropertyMap[fromProp]!!
-        val targetProp = targetPropertyMap[toProp]!!
+        val sourceProp = sourcePropertyMap[fromProp] ?: return null
+        val targetProp = targetPropertyMap[toProp] ?: return null
 
         // Get property types
         val sourceType = sourceProp.type.resolve()
