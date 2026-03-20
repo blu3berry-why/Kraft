@@ -12,7 +12,7 @@ private fun KSPLogger.err(message: String, symbol: KSNode) {
     error(
         """
 ----------------------------------------
-AutoMapper KSP Error
+Kraft KSP Error
 ----------------------------------------
 
 $message

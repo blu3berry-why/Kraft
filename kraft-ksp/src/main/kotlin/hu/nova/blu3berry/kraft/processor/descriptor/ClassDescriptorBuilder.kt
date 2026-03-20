@@ -1,6 +1,6 @@
 package hu.nova.blu3berry.kraft.processor.descriptor
 
-import PropertyResolver
+import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolver
 import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
@@ -191,6 +191,7 @@ class ClassDescriptorBuilder(
 
 
 fun List<ConfigObjectScanResult>.toConfigOverridesMap() =
-    this.flatMap { it.fieldOverrides }.associateKeys()
+    this.flatMap { it.fieldOverrides }.toTargetToSourceMap()
 
-fun List<FieldOverride>.associateKeys() = this.associate { it.to to it.from }
+/** Maps each [FieldOverride] as targetPropertyName → sourcePropertyName. */
+fun List<FieldOverride>.toTargetToSourceMap() = this.associate { it.to to it.from }

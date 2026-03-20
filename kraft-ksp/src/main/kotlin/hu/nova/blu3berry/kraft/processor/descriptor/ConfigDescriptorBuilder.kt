@@ -1,15 +1,24 @@
 package hu.nova.blu3berry.kraft.processor.descriptor
 
-import PropertyResolver
-import hu.nova.blu3berry.kraft.model.*
-import hu.nova.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
-import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
-import hu.nova.blu3berry.kraft.processor.util.missingConstructorProperty
-import hu.nova.blu3berry.kraft.processor.util.missingPrimaryConstructor
-import com.google.devtools.ksp.processing.KSPLogger
+import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolver
 import com.google.devtools.ksp.getDeclaredProperties
+import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
+import hu.nova.blu3berry.kraft.model.EnumMappingDescriptor
+import hu.nova.blu3berry.kraft.model.MapperDescriptor
+import hu.nova.blu3berry.kraft.model.MapperId
+import hu.nova.blu3berry.kraft.model.MappingContext
+import hu.nova.blu3berry.kraft.model.MappingSource
+import hu.nova.blu3berry.kraft.model.NestedMappingDescriptor
+import hu.nova.blu3berry.kraft.model.PropertyInfo
+import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
+import hu.nova.blu3berry.kraft.model.toTypeInfo
+import hu.nova.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
+import hu.nova.blu3berry.kraft.processor.util.missingConstructorProperty
+import hu.nova.blu3berry.kraft.processor.util.missingPrimaryConstructor
+import hu.nova.blu3berry.kraft.processor.util.unsupportedTypeInConstructor
 
 class ConfigDescriptorBuilder(
     private val logger: KSPLogger,
@@ -35,7 +44,7 @@ class ConfigDescriptorBuilder(
         val ctx = buildMappingContext(fromDecl, toDecl, sourceProps, config.nestedMappings)
 
         val resolver = PropertyResolver()
-        val mappings = resolveTargetProperties(targetProps, resolver, ctx) ?: return null
+        val mappings = resolveAllProperties(targetProps, resolver, ctx) ?: return null
 
         val enums = enumMappingsFor(fromDecl, toDecl)
 
@@ -79,7 +88,15 @@ class ConfigDescriptorBuilder(
                 }
 
             val ksType = param.type.resolve()
-            val classDecl = ksType.declaration as? KSClassDeclaration ?: return@mapNotNull null
+            val classDecl = ksType.declaration as? KSClassDeclaration ?: run {
+                logger.unsupportedTypeInConstructor(
+                    typeName = toDecl.simpleName.asString(),
+                    parameterName = name,
+                    actualType = ksType.toString(),
+                    symbol = param
+                )
+                return@mapNotNull null
+            }
 
             PropertyInfo(
                 name = name,
@@ -115,7 +132,7 @@ class ConfigDescriptorBuilder(
     // ---------------------------------------------------------
     // Use chain resolver to map all target properties
     // ---------------------------------------------------------
-    private fun resolveTargetProperties(
+    private fun resolveAllProperties(
         targetProps: List<PropertyInfo>,
         resolver: PropertyResolver,
         ctx: MappingContext

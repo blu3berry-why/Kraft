@@ -142,7 +142,7 @@ class ClassAnnotationScanner(
     /**
      * Scan all declared properties of the annotated class for:
      *  - @MapField(otherName = "sourceName")
-     *  - (later: @MapIgnore, etc.)
+     *  - @MapNested(sourceName = "...")
      */
     private fun scanPropertyAnnotations(
         klass: KSClassDeclaration
@@ -157,7 +157,7 @@ class ClassAnnotationScanner(
                 ?.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_OTHER_NAME }
                 ?.value as? String
 
-            // TODO: if you later add @MapIgnore for class-level, set isIgnored = true
+            // TODO(T-10): implement @MapIgnore scanning; set isIgnored = true when annotation present
             val isIgnored = false
 
             val mapNestedAnn = prop.findAnnotation(MAP_NESTED_FQ)

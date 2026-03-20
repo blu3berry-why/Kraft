@@ -1,3 +1,5 @@
+package hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.rules
+
 import com.google.devtools.ksp.symbol.ClassKind
 import hu.nova.blu3berry.kraft.model.MapNestedAnnotation
 import hu.nova.blu3berry.kraft.model.MappingContext
@@ -104,8 +106,8 @@ class NestedRule : MappingRule {
         )
     }
 
-    // Produces a NestedMappingDescriptor (declaration of intent).
-    // The actual child MapperDescriptor is built later in DescriptorBuilder (Task 8).
+    // Produces a NestedMappingDescriptor (declaration of intent only).
+    // The actual child MapperDescriptor is built later by DescriptorBuilder.resolveImplicit().
     private fun synthesiseDescriptor(sourceType: TypeInfo, targetType: TypeInfo): NestedMappingDescriptor =
         NestedMappingDescriptor(
             nestedMapperId = MapperId(
