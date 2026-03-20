@@ -9,6 +9,7 @@ import hu.nova.blu3berry.kraft.model.MapNestedAnnotation
 import hu.nova.blu3berry.kraft.model.MappingDirection
 import hu.nova.blu3berry.kraft.model.PropertyScanResult
 import hu.nova.blu3berry.kraft.onclass.MapNested
+import hu.nova.blu3berry.kraft.onclass.MapIgnore
 import hu.nova.blu3berry.kraft.onclass.from.MapField
 import hu.nova.blu3berry.kraft.onclass.from.MapFrom
 import hu.nova.blu3berry.kraft.onclass.to.MapTo
@@ -26,6 +27,7 @@ class ClassAnnotationScanner(
         val MAP_TO_FQ = MapTo::class.qualifiedName!!
         val MAP_FIELD_FQ = MapField::class.qualifiedName!!
         val MAP_NESTED_FQ = MapNested::class.qualifiedName!!
+        val MAP_IGNORE_FQ = MapIgnore::class.qualifiedName!!
     }
 
     fun scan(): List<ClassMappingScanResult> {
@@ -143,6 +145,7 @@ class ClassAnnotationScanner(
      * Scan all declared properties of the annotated class for:
      *  - @MapField(otherName = "sourceName")
      *  - @MapNested(sourceName = "...")
+     *  - @MapIgnore
      */
     private fun scanPropertyAnnotations(
         klass: KSClassDeclaration
@@ -157,8 +160,7 @@ class ClassAnnotationScanner(
                 ?.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_OTHER_NAME }
                 ?.value as? String
 
-            // TODO(T-10): implement @MapIgnore scanning; set isIgnored = true when annotation present
-            val isIgnored = false
+            val isIgnored = prop.findAnnotation(MAP_IGNORE_FQ) != null
 
             val mapNestedAnn = prop.findAnnotation(MAP_NESTED_FQ)
             val mapNested: MapNestedAnnotation = when {

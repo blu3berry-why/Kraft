@@ -53,6 +53,7 @@ class ClassDescriptorBuilder(
             extractTargetProperties(targetDecl, targetCtor, targetTypeName) ?: return null
 
         val classOverrides = extractClassOverrides()
+        val classIgnoredProperties = extractClassIgnoredProperties()
         val configOverrides = configObjects.toConfigOverridesMap()
         val converters = configObjects.flatMap { it.converters }
         val nestedMappings = configObjects.flatMap { it.nestedMappings }
@@ -64,6 +65,7 @@ class ClassDescriptorBuilder(
             classOverrides = classOverrides,
             configOverrides = configOverrides,
             converters = converters,
+            classIgnoredProperties = classIgnoredProperties,
             nestedMappings = nestedMappings,
             classNestedOverrides = classNestedOverrides,
             sourceTypeName = sourceTypeName,
@@ -163,6 +165,15 @@ class ClassDescriptorBuilder(
                     from to name
                 }
             }.toMap()
+
+    // ---------------------------------------------------------
+    // Extract class-level ignored properties (@MapIgnore)
+    // ---------------------------------------------------------
+    private fun extractClassIgnoredProperties(): Set<String> =
+        mapping.propertyScanResults
+            .filter { it.isIgnored }
+            .map { it.property.simpleName.asString() }
+            .toSet()
 
     // ---------------------------------------------------------
     // Resolve all mappings with the chain resolver

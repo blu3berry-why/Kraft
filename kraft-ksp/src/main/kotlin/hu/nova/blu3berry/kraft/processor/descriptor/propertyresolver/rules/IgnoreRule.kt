@@ -13,6 +13,10 @@ class IgnoreRule : MappingRule {
         ctx: MappingContext
     ): PropertyMappingStrategy? {
 
+        if (target.name in ctx.classIgnoredProperties) {
+            return PropertyMappingStrategy.Ignored(target)
+        }
+
         if (ctx.configOverrides.containsKey(target.name) &&
             ctx.configOverrides[target.name] == KraftKspConstants.IGNORE_VALUE) {
             return PropertyMappingStrategy.Ignored(target)
