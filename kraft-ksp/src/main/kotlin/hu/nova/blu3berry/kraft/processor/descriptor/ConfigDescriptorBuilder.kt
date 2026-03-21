@@ -5,6 +5,7 @@ import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import hu.nova.blu3berry.kraft.config.IgnoreDirection
 import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.model.MapperDescriptor
@@ -41,7 +42,8 @@ class ConfigDescriptorBuilder(
 
         val targetProps = extractTargetProperties(toDecl, targetCtor) ?: return null
 
-        val ctx = buildMappingContext(fromDecl, toDecl, sourceProps, config.nestedMappings)
+        val ignoredProperties = buildIgnoredProperties(targetProps, toDecl.simpleName.asString())
+        val ctx = buildMappingContext(fromDecl, toDecl, sourceProps, config.nestedMappings, ignoredProperties)
 
         val resolver = PropertyResolver()
         val mappings = resolveAllProperties(targetProps, resolver, ctx) ?: return null
@@ -115,9 +117,9 @@ class ConfigDescriptorBuilder(
         fromDecl: KSClassDeclaration,
         toDecl: KSClassDeclaration,
         sourceProps: Map<String, PropertyInfo>,
-        nestedMappings: List<NestedMappingDescriptor>
+        nestedMappings: List<NestedMappingDescriptor>,
+        ignoredProperties: Set<String>
     ): MappingContext {
-
         return MappingContext(
             logger = logger,
             sourceProps = sourceProps,
@@ -125,9 +127,48 @@ class ConfigDescriptorBuilder(
             configOverrides = config.fieldOverrides.associate { it.to to it.from },
             converters = config.converters,
             nestedMappings = nestedMappings,
+            classIgnoredProperties = ignoredProperties,
             sourceTypeName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
             targetTypeName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString()
         )
+    }
+
+    // ---------------------------------------------------------
+    // Build the set of target property names to ignore
+    // ---------------------------------------------------------
+    // REVERSE entries are skipped — reserved for future reverse-mapping generation.
+    // BOTH entries are applied when the name exists in the forward target; silently
+    // skipped otherwise (the name may be valid for the reverse target once added).
+    private fun buildIgnoredProperties(
+        targetProps: List<PropertyInfo>,
+        targetTypeName: String
+    ): Set<String> {
+        val targetPropNames = targetProps.map { it.name }.toSet()
+        val result = mutableSetOf<String>()
+
+        for (ignored in config.ignoredMappings) {
+            when (ignored.direction) {
+                IgnoreDirection.REVERSE -> continue
+                IgnoreDirection.FORWARD -> {
+                    if (ignored.name !in targetPropNames) {
+                        logger.error(
+                            "@IgnoreField(\"${ignored.name}\", FORWARD): property not found " +
+                                "in target '$targetTypeName' constructor. " +
+                                "Available: ${targetPropNames.sorted()}",
+                            config.configObject
+                        )
+                    } else {
+                        result.add(ignored.name)
+                    }
+                }
+                IgnoreDirection.BOTH -> {
+                    if (ignored.name in targetPropNames) result.add(ignored.name)
+                    // Not in this target → may be valid for the reverse direction; skip silently.
+                }
+            }
+        }
+
+        return result
     }
 
     // ---------------------------------------------------------

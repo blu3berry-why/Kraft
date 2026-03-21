@@ -82,7 +82,9 @@ fun KSAnnotation.getEnumArgOrNull(
     val arg = arguments.firstOrNull { it.name?.asString() == name }
         ?: return null // absent → annotation default applies
 
-    val type = arg.value as? KSType ?: run {
+    // KSP surfaces enum annotation arguments as KSClassDeclaration (enum entry nodes),
+    // not as KSType — cast accordingly.
+    val enumEntry = arg.value as? KSClassDeclaration ?: run {
         logger.error(
             "@$annotationFqName argument '$name' must be an enum value. " +
                 "Found: ${arg.value?.let { it::class.simpleName }}",
@@ -90,7 +92,7 @@ fun KSAnnotation.getEnumArgOrNull(
         )
         return null
     }
-    return type.declaration.simpleName.asString()
+    return enumEntry.simpleName.asString()
 }
 
 /**

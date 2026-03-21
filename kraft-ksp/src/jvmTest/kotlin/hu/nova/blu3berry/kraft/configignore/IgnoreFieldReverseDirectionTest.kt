@@ -28,7 +28,7 @@ class IgnoreFieldReverseDirectionTest {
             )
             object ReportMapper
 
-            data class ReportDto(val id: Int, val title: String, val notes: String? = null)
+            data class ReportDto(val id: Int, val title: String, val notes: String)
             """
         )
 
