@@ -109,7 +109,7 @@ class ClassAnnotationScanner(
         val propertyScanResults = scanPropertyAnnotations(classDeclaration)
 
         results += ClassMappingScanResult(
-            direction = MappingDirection.FROM,
+            direction = MappingDirection.MAP_FROM,
             sourceType = sourceType.declaration as KSClassDeclaration,
             targetType = classDeclaration,
             annotatedClass = classDeclaration,
@@ -133,7 +133,7 @@ class ClassAnnotationScanner(
         val propertyScanResults = scanPropertyAnnotations(classDeclaration)
 
         results += ClassMappingScanResult(
-            direction = MappingDirection.TO,
+            direction = MappingDirection.MAP_TO,
             sourceType = classDeclaration,
             targetType = targetType.declaration as KSClassDeclaration,
             annotatedClass = classDeclaration,

@@ -159,7 +159,7 @@ class ClassDescriptorBuilder(
             .mapNotNull { s ->
                 val name = s.property.simpleName.asString()
                 val from = s.mapFieldSourceName ?: return@mapNotNull null
-                if (mapping.direction == MappingDirection.FROM) {
+                if (mapping.direction == MappingDirection.MAP_FROM) {
                     // FROM: otherName = to
                     name to from
                 } else {

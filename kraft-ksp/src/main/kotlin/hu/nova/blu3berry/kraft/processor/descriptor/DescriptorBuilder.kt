@@ -162,7 +162,7 @@ class DescriptorBuilder(
         target: KSClassDeclaration
     ): MapperDescriptor? {
         val syntheticMapping = ClassMappingScanResult(
-            direction = MappingDirection.FROM,
+            direction = MappingDirection.MAP_FROM,
             sourceType = source,
             targetType = target,
             annotatedClass = target,
