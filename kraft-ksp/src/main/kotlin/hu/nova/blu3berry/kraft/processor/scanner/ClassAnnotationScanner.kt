@@ -143,7 +143,7 @@ class ClassAnnotationScanner(
 
     /**
      * Scan all declared properties of the annotated class for:
-     *  - @MapField(otherName = "sourceName")
+     *  - @MapField(counterPartName = "...")
      *  - @MapNested(sourceName = "...")
      *  - @MapIgnore
      */
@@ -155,7 +155,7 @@ class ClassAnnotationScanner(
 
         for (prop in klass.getDeclaredProperties()) {
             val mapFieldAnn = prop.findAnnotation(MAP_FIELD_FQ)
-            val otherName: String? = mapFieldAnn
+            val counterPartName: String? = mapFieldAnn
                 ?.arguments
                 ?.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_OTHER_NAME }
                 ?.value as? String
@@ -176,7 +176,7 @@ class ClassAnnotationScanner(
 
             props += PropertyScanResult(
                 property = prop,
-                mapFieldSourceName = otherName,
+                mapFieldSourceName = counterPartName,
                 isIgnored = isIgnored,
                 mapNested = mapNested
             )

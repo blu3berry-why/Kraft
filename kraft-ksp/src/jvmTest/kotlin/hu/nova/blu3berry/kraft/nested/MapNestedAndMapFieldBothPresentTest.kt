@@ -24,7 +24,7 @@ class MapNestedAndMapFieldBothPresentTest {
             data class PersonDto(
                 val name: String,
                 @hu.nova.blu3berry.kraft.mapping.MapNested(sourceName = "homeAddress")
-                @hu.nova.blu3berry.kraft.mapping.MapField(otherName = "homeAddress")
+                @hu.nova.blu3berry.kraft.mapping.MapField(counterPartName = "homeAddress")
                 val address: AddressDto
             )
             """

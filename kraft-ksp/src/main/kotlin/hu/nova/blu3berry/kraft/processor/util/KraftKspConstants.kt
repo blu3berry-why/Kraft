@@ -5,7 +5,7 @@ internal object KraftKspConstants {
     const val ARG_CLASS            = "class"
     const val ARG_VALUE            = "value"
     const val ARG_NAME             = "name"
-    const val ARG_OTHER_NAME       = "otherName"
+    const val ARG_OTHER_NAME       = "counterPartName"
     const val ARG_SOURCE_NAME      = "sourceName"
     const val ARG_SOURCE           = "source"
     const val ARG_TARGET           = "target"
