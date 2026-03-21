@@ -499,6 +499,7 @@ class ConfigObjectScanner(
                 return@mapNotNull null
             }
 
+
             val directionName = ignoreAnn.getEnumArgOrNull(
                 name = KraftKspConstants.ARG_DIRECTION,
                 logger = logger,

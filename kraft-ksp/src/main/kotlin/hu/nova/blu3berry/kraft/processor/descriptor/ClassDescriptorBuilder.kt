@@ -171,14 +171,11 @@ class ClassDescriptorBuilder(
     // ---------------------------------------------------------
     // Extract class-level ignored properties (@MapIgnore)
     // ---------------------------------------------------------
-<<<<<<< HEAD
     // Note: propertyScanResults contains the annotated class's properties.
     // For @MapFrom the annotated class IS the target, so the ignored property name
     // matches the target parameter directly.  For @MapTo the annotated class IS the
     // source, so @MapIgnore only works when the source and target share the same
     // property name — the annotated source name is checked against target parameters.
-=======
->>>>>>> cdd785e (Add MapIgnore functionality for in class annotation and tests.)
     private fun extractClassIgnoredProperties(): Set<String> =
         mapping.propertyScanResults
             .filter { it.isIgnored }
@@ -187,6 +184,9 @@ class ClassDescriptorBuilder(
 
     // ---------------------------------------------------------
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 1330c22 (Add IgnoreMapping for Config objects with mindset of creating mapping for both directions.)
     // Build config-level ignored properties (@IgnoreField in @MapConfig)
     // ---------------------------------------------------------
     // Only FORWARD and BOTH entries are applied here (forward-only generation).
@@ -229,8 +229,6 @@ class ClassDescriptorBuilder(
     }
 
     // ---------------------------------------------------------
-=======
->>>>>>> cdd785e (Add MapIgnore functionality for in class annotation and tests.)
     // Resolve all mappings with the chain resolver
     // ---------------------------------------------------------
     private fun resolveAllProperties(
