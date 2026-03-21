@@ -127,7 +127,7 @@ class ConfigDescriptorBuilder(
             configOverrides = config.fieldOverrides.associate { it.target to it.source },
             converters = config.converters,
             nestedMappings = nestedMappings,
-            classIgnoredProperties = ignoredProperties,
+            ignoredProperties = ignoredProperties,
             sourceTypeName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
             targetTypeName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString()
         )

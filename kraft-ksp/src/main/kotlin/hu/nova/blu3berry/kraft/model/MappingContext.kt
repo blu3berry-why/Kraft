@@ -7,6 +7,7 @@ import com.google.devtools.ksp.processing.KSPLogger
  * during property resolution.
  *
  * @param sourceProps          All properties of the source class, keyed by name.
+ * @param ignoredProperties    Properties to skip (merged from `@MapIgnore` and `@MapIgnoreField`).
  * @param classOverrides       Renames from `@MapField` on the annotated target class:
  *                             targetName → sourceName.
  * @param configOverrides      Renames from `@MapConfig.fieldOverrides`:
@@ -25,7 +26,7 @@ data class MappingContext(
     val configOverrides: Map<String, String>,
     val converters: List<ConverterDescriptor>,
     val nestedMappings: List<NestedMappingDescriptor> = emptyList(),
-    val classIgnoredProperties: Set<String> = emptySet(),
+    val ignoredProperties: Set<String> = emptySet(),
     val classNestedOverrides: Map<String, MapNestedAnnotation> = emptyMap(),
     val sourceTypeName: String,
     val targetTypeName: String
