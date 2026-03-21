@@ -11,7 +11,6 @@ internal object KraftKspConstants {
     const val ARG_TO               = "to"
     const val ARG_DIRECTION        = "direction"
     const val ARG_FIELD_MAPPINGS   = "fieldMappings"
-    const val ARG_FIELD_MAPPING    = "fieldMapping"
     const val ARG_NESTED_MAPPINGS  = "nestedMappings"
     const val ARG_IGNORED_MAPPINGS = "ignoredMappings"
     const val ARG_OBJECT           = "object"

@@ -399,7 +399,7 @@ fun KSPLogger.unmappedEnumEntries(
 
     err(
         """
-    @EnumMap on '$declaringClass' has unmapped source entries.
+    @MapEnum on '$declaringClass' has unmapped source entries.
 
       Source: $fromQualifiedName
       Target: $toQualifiedName
@@ -420,10 +420,10 @@ $targetLines
 
       How to fix — add a FieldOverride for each unmapped entry:
 
-        @EnumMap(
-            from         = $fromSimpleName::class,
-            to           = $toSimpleName::class,
-            fieldMapping = [
+        @MapEnum(
+            from          = $fromSimpleName::class,
+            to            = $toSimpleName::class,
+            fieldMappings = [
 $snippetLines
             ]
         )
