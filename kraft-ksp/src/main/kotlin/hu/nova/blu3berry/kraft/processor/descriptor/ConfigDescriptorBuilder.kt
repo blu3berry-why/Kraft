@@ -162,8 +162,16 @@ class ConfigDescriptorBuilder(
                     }
                 }
                 IgnoreDirection.BOTH -> {
-                    if (ignored.name in targetPropNames) result.add(ignored.name)
-                    // Not in this target → may be valid for the reverse direction; skip silently.
+                    if (ignored.name in targetPropNames) {
+                        result.add(ignored.name)
+                    } else {
+                        logger.warn(
+                            "@IgnoreField(\"${ignored.name}\", BOTH): property not found in " +
+                                "target '$targetTypeName' constructor; skipped for forward direction. " +
+                                "Available: ${targetPropNames.sorted()}",
+                            config.configObject
+                        )
+                    }
                 }
             }
         }

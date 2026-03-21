@@ -100,7 +100,7 @@ each is processed independently.
 
 ## 3. Data Flow
 
-```
+```text
 ClassAnnotationScanner                    ConfigObjectScanner
   ↓ scans @MapIgnore on properties          ↓ scans @IgnoreField in @MapConfig
   PropertyScanResult.isIgnored = true       IgnoredMappingConfig(name, direction)

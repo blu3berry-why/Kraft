@@ -23,7 +23,7 @@ class IgnoreRule : MappingRule {
     ): PropertyMappingStrategy? {
         if (target.name !in ctx.classIgnoredProperties) return null
 
-        if (!target.hasDefault && !target.type.isNullable) {
+        if (!target.hasDefault) {
             ctx.logger.ignoredRequiredProperty(
                 targetType = ctx.targetTypeName,
                 propertyName = target.name,

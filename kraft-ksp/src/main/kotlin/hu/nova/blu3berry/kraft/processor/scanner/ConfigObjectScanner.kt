@@ -494,6 +494,11 @@ class ConfigObjectScanner(
                 annotationFqName = IGNORE_FIELD_FQ
             ) ?: return@mapNotNull null
 
+            if (name.isBlank()) {
+                logger.error("@IgnoreField name must not be blank.", symbol)
+                return@mapNotNull null
+            }
+
             val directionName = ignoreAnn.getEnumArgOrNull(
                 name = KraftKspConstants.ARG_DIRECTION,
                 logger = logger,

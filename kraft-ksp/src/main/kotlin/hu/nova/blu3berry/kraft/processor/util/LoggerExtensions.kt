@@ -435,7 +435,7 @@ $snippetLines
 }
 
 /**
- * @MapIgnore or @IgnoreField targets a property that is non-nullable and has no default value.
+ * @MapIgnore or @IgnoreField targets a property that has no default value.
  * Omitting it from the constructor call produces invalid code.
  */
 fun KSPLogger.ignoredRequiredProperty(
@@ -445,14 +445,13 @@ fun KSPLogger.ignoredRequiredProperty(
 ) = err(
     """
     @MapIgnore / @IgnoreField targets '$propertyName' in '$targetType',
-    but the property is non-nullable and has no default value.
+    but the property has no default value.
 
     The generated constructor call will omit '$propertyName', producing
     code that does not compile.
 
     How to fix:
       ✓ Add a default value to '$propertyName' in the target constructor.
-      ✓ Or make '$propertyName' nullable (e.g. $propertyName: Type? = null).
       ✓ Or remove the ignore declaration.
     """.trimIndent(),
     symbol

@@ -33,6 +33,6 @@ class IgnoreFieldNonNullNoDefaultTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        assertThat(result.messages).contains("non-nullable and has no default value")
+        assertThat(result.messages).contains("has no default value")
     }
 }

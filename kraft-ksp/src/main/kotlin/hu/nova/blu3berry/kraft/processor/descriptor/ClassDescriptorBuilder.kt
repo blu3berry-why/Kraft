@@ -55,7 +55,7 @@ class ClassDescriptorBuilder(
 
         val classOverrides = extractClassOverrides()
         val classIgnoredProperties = extractClassIgnoredProperties() +
-            buildConfigIgnoredProperties(targetProps, targetDecl.simpleName.asString())
+            buildConfigIgnoredProperties(targetProps, targetTypeName)
         val configOverrides = configObjects.toConfigOverridesMap()
         val converters = configObjects.flatMap { it.converters }
         val nestedMappings = configObjects.flatMap { it.nestedMappings }
