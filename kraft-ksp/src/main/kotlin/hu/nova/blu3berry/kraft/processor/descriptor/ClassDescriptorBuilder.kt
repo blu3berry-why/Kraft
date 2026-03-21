@@ -183,10 +183,6 @@ class ClassDescriptorBuilder(
             .toSet()
 
     // ---------------------------------------------------------
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 1330c22 (Add IgnoreMapping for Config objects with mindset of creating mapping for both directions.)
     // Build config-level ignored properties (@IgnoreField in @MapConfig)
     // ---------------------------------------------------------
     // Only FORWARD and BOTH entries are applied here (forward-only generation).
