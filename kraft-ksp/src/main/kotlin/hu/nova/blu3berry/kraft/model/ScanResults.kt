@@ -2,7 +2,7 @@ package hu.nova.blu3berry.kraft.model
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
-import hu.nova.blu3berry.kraft.config.IgnoreDirection
+import hu.nova.blu3berry.kraft.config.IgnoreSide
 
 
 data class ClassMappingScanResult(
@@ -26,10 +26,10 @@ data class PropertyScanResult(
     val mapNested: MapNestedAnnotation = MapNestedAnnotation.NotAnnotated
 )
 
-/** A single ignore declaration extracted from [@IgnoreField][hu.nova.blu3berry.kraft.config.IgnoreField]. */
+/** A single ignore declaration extracted from [@MapIgnoreField][hu.nova.blu3berry.kraft.config.MapIgnoreField]. */
 data class IgnoredMappingConfig(
     val name: String,
-    val direction: IgnoreDirection
+    val direction: IgnoreSide
 )
 
 data class ConfigObjectScanResult(

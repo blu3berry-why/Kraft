@@ -5,10 +5,10 @@ import com.tschuchort.compiletesting.SourceFile
 import hu.nova.blu3berry.kraft.TestKspRunner
 import org.junit.jupiter.api.Test
 
-class IgnoreFieldMultipleEntriesTest {
+class MapIgnoreFieldMultipleEntriesTest {
 
     @Test
-    fun `multiple IgnoreField entries each suppress their respective property`() {
+    fun `multiple MapIgnoreField entries each suppress their respective property`() {
         val source = SourceFile.kotlin(
             "Models.kt",
             """
@@ -18,9 +18,9 @@ class IgnoreFieldMultipleEntriesTest {
                 from = Product::class,
                 to   = ProductDto::class,
                 ignoredMappings = [
-                    hu.nova.blu3berry.kraft.config.IgnoreField("cost"),
-                    hu.nova.blu3berry.kraft.config.IgnoreField("tax"),
-                    hu.nova.blu3berry.kraft.config.IgnoreField("fee")
+                    hu.nova.blu3berry.kraft.config.MapIgnoreField("cost"),
+                    hu.nova.blu3berry.kraft.config.MapIgnoreField("tax"),
+                    hu.nova.blu3berry.kraft.config.MapIgnoreField("fee")
                 ]
             )
             object ProductMapper

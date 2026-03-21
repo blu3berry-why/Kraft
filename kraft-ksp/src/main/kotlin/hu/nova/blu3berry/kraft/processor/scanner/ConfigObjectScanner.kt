@@ -6,8 +6,8 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
 import hu.nova.blu3berry.kraft.MapUsing
-import hu.nova.blu3berry.kraft.config.IgnoreDirection
-import hu.nova.blu3berry.kraft.config.IgnoreField
+import hu.nova.blu3berry.kraft.config.IgnoreSide
+import hu.nova.blu3berry.kraft.config.MapIgnoreField
 import hu.nova.blu3berry.kraft.config.MapConfig
 import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.ConverterDescriptor
@@ -29,7 +29,7 @@ class ConfigObjectScanner(
     companion object {
         val MAP_CONFIG_FQ    = MapConfig::class.qualifiedName!!
         val MAP_USING_FQ     = MapUsing::class.qualifiedName!!
-        val IGNORE_FIELD_FQ  = IgnoreField::class.qualifiedName!!
+        val IGNORE_FIELD_FQ  = MapIgnoreField::class.qualifiedName!!
         val STRING_PAIR_FQ   = hu.nova.blu3berry.kraft.config.FieldOverride::class.qualifiedName!!
         val NESTED_FQ        = hu.nova.blu3berry.kraft.config.NestedMapping::class.qualifiedName!!
     }
@@ -471,7 +471,8 @@ class ConfigObjectScanner(
     }
 
     /**
-     * Extracts [IgnoredMappingConfig] entries from the [ignoredMappings] array of [@MapConfig][MapConfig].
+     * Extracts [IgnoredMappingConfig] entries from the [ignoredMappings] array of [@MapConfig][MapConfig],
+     * populated from [@MapIgnoreField][hu.nova.blu3berry.kraft.config.MapIgnoreField] entries.
      */
     private fun extractIgnoredMappings(
         annotation: KSAnnotation,
@@ -495,7 +496,7 @@ class ConfigObjectScanner(
             ) ?: return@mapNotNull null
 
             if (name.isBlank()) {
-                logger.error("@IgnoreField name must not be blank.", symbol)
+                logger.error("@MapIgnoreField name must not be blank.", symbol)
                 return@mapNotNull null
             }
 
@@ -505,13 +506,13 @@ class ConfigObjectScanner(
                 logger = logger,
                 symbol = symbol,
                 annotationFqName = IGNORE_FIELD_FQ
-            ) ?: IgnoreDirection.BOTH.name
+            ) ?: IgnoreSide.BOTH.name
 
             val direction = try {
-                IgnoreDirection.valueOf(directionName)
+                IgnoreSide.valueOf(directionName)
             } catch (_: IllegalArgumentException) {
                 logger.error(
-                    "@IgnoreField unknown direction '$directionName' on property '$name'.",
+                    "@MapIgnoreField unknown direction '$directionName' on property '$name'.",
                     symbol
                 )
                 return@mapNotNull null

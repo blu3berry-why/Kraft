@@ -5,30 +5,28 @@ import com.tschuchort.compiletesting.SourceFile
 import hu.nova.blu3berry.kraft.TestKspRunner
 import org.junit.jupiter.api.Test
 
-class IgnoreFieldBothWithSameNameTest {
+class MapIgnoreFieldWithFieldOverrideTest {
 
     @Test
-    fun `IgnoreField with BOTH direction suppresses property when name exists in forward target`() {
-        // Both source and target have 'notes'. BOTH is the correct annotation when the
-        // same ignore should apply in each direction once reverse mapping is added.
+    fun `MapIgnoreField and FieldOverride coexist correctly in the same MapConfig`() {
         val source = SourceFile.kotlin(
             "Models.kt",
             """
-            data class User(val id: Int, val notes: String)
+            data class User(val id: Int, val email: String, val notes: String)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
                 from = User::class,
                 to   = UserDto::class,
+                fieldMappings = [
+                    hu.nova.blu3berry.kraft.config.FieldOverride(from = "email", to = "contactEmail")
+                ],
                 ignoredMappings = [
-                    hu.nova.blu3berry.kraft.config.IgnoreField(
-                        "notes",
-                        direction = hu.nova.blu3berry.kraft.config.IgnoreDirection.BOTH
-                    )
+                    hu.nova.blu3berry.kraft.config.MapIgnoreField("notes")
                 ]
             )
             object UserMapper
 
-            data class UserDto(val id: Int, val notes: String? = null)
+            data class UserDto(val id: Int, val contactEmail: String, val notes: String? = null)
             """
         )
 
@@ -37,6 +35,7 @@ class IgnoreFieldBothWithSameNameTest {
 
         assertThat(content).contains("fun User.toUserDto()")
         assertThat(content).contains("id = this.id")
+        assertThat(content).contains("contactEmail = this.email")
         assertThat(content).doesNotContain("notes")
     }
 }

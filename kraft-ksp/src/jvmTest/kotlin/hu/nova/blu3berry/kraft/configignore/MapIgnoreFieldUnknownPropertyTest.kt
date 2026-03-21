@@ -8,10 +8,10 @@ import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCompilerApi::class)
-class IgnoreFieldUnknownPropertyTest {
+class MapIgnoreFieldUnknownPropertyTest {
 
     @Test
-    fun `IgnoreField with FORWARD direction and unknown property name emits a KSP error`() {
+    fun `MapIgnoreField with TARGET direction and unknown property name emits a KSP error`() {
         val source = SourceFile.kotlin(
             "Models.kt",
             """
@@ -21,9 +21,9 @@ class IgnoreFieldUnknownPropertyTest {
                 from = Item::class,
                 to   = ItemDto::class,
                 ignoredMappings = [
-                    hu.nova.blu3berry.kraft.config.IgnoreField(
+                    hu.nova.blu3berry.kraft.config.MapIgnoreField(
                         "nonExistent",
-                        direction = hu.nova.blu3berry.kraft.config.IgnoreDirection.FORWARD
+                        direction = hu.nova.blu3berry.kraft.config.IgnoreSide.TARGET
                     )
                 ]
             )
@@ -41,7 +41,7 @@ class IgnoreFieldUnknownPropertyTest {
     }
 
     @Test
-    fun `IgnoreField with BOTH direction and name absent from forward target is silently skipped`() {
+    fun `MapIgnoreField with BOTH direction and name absent from forward target is silently skipped`() {
         // BOTH is designed for bidirectional use. A name not present in the forward target
         // is not an error — it may be valid for the reverse target once that is added.
         // The forward mapper must compile cleanly and map all resolvable properties.
@@ -54,7 +54,7 @@ class IgnoreFieldUnknownPropertyTest {
                 from = Item::class,
                 to   = ItemDto::class,
                 ignoredMappings = [
-                    hu.nova.blu3berry.kraft.config.IgnoreField("futureReverseOnly")
+                    hu.nova.blu3berry.kraft.config.MapIgnoreField("futureReverseOnly")
                 ]
             )
             object ItemMapper

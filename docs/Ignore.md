@@ -20,7 +20,7 @@ before the rule chain runs:
 | Path | Annotation | Where it lives |
 |---|---|---|
 | **Class-level** | `@MapIgnore` | On a property in the `@MapFrom`/`@MapTo`-annotated class |
-| **Config-level** | `@IgnoreField` inside `@MapConfig.ignoredMappings` | On the mapping config object |
+| **Config-level** | `@MapIgnoreField` inside `@MapConfig.ignoredMappings` | On the mapping config object |
 
 Both paths feed into `MappingContext.classIgnoredProperties: Set<String>`, which
 `IgnoreRule` consumes. There is no separate code path per source.
@@ -50,33 +50,33 @@ the full asymmetry explanation.
 
 ---
 
-### `@IgnoreField`
+### `@MapIgnoreField`
 
 ```kotlin
-annotation class IgnoreField(
+annotation class MapIgnoreField(
     val name: String,
-    val direction: IgnoreDirection = IgnoreDirection.BOTH
+    val direction: IgnoreSide = IgnoreSide.BOTH
 )
 ```
 
 Used inside `@MapConfig.ignoredMappings`. `name` is always the **target-side** constructor
 parameter name for the direction being generated:
-- `FORWARD` — the `to`-class parameter name.
-- `REVERSE` — the `from`-class parameter name (reserved; not applied yet).
+- `TARGET` — the `to`-class parameter name.
+- `SOURCE` — the `from`-class parameter name (reserved; not applied yet).
 - `BOTH` — applied wherever the name exists in each direction's target constructor.
 
 ---
 
-### `IgnoreDirection`
+### `IgnoreSide`
 
 ```kotlin
-enum class IgnoreDirection { FORWARD, REVERSE, BOTH }
+enum class IgnoreSide { TARGET, SOURCE, BOTH }
 ```
 
 | Value | Behaviour today |
 |---|---|
-| `FORWARD` | Applied. Unknown name emits a KSP error. |
-| `REVERSE` | Parsed and stored; **not applied** (reverse generation not yet implemented). |
+| `TARGET` | Applied. Unknown name emits a KSP error. |
+| `SOURCE` | Parsed and stored; **not applied** (reverse generation not yet implemented). |
 | `BOTH` | Applied if the name exists in the forward target constructor; silently skipped if it does not (may be valid for the future reverse direction). |
 
 ---
@@ -89,11 +89,11 @@ annotation class MapConfig(
     val to: KClass<*>,
     val fieldMappings: Array<FieldOverride> = [],
     val nestedMappings: Array<NestedMapping> = [],
-    val ignoredMappings: Array<IgnoreField> = [],
+    val ignoredMappings: Array<MapIgnoreField> = [],
 )
 ```
 
-`ignoredMappings` is an array of `@IgnoreField` entries. Multiple entries are supported;
+`ignoredMappings` is an array of `@MapIgnoreField` entries. Multiple entries are supported;
 each is processed independently.
 
 ---
@@ -102,7 +102,7 @@ each is processed independently.
 
 ```text
 ClassAnnotationScanner                    ConfigObjectScanner
-  ↓ scans @MapIgnore on properties          ↓ scans @IgnoreField in @MapConfig
+  ↓ scans @MapIgnore on properties          ↓ scans @MapIgnoreField in @MapConfig
   PropertyScanResult.isIgnored = true       IgnoredMappingConfig(name, direction)
                                             stored in ConfigObjectScanResult.ignoredMappings
 
@@ -139,7 +139,7 @@ PropertyResolver rule chain (per target property)
  * Two sources are merged into [MappingContext.classIgnoredProperties] before the rule
  * is invoked:
  *  - `@MapIgnore` on the `@MapFrom`/`@MapTo` annotated class.
- *  - `@IgnoreField` entries in `@MapConfig.ignoredMappings`, filtered to the current
+ *  - `@MapIgnoreField` entries in `@MapConfig.ignoredMappings`, filtered to the current
  *    mapping direction by [ClassDescriptorBuilder].
  */
 class IgnoreRule : MappingRule {
@@ -196,7 +196,7 @@ works only because `ReportDto` also has a `summary` parameter — the ignore is 
 
 **Consequence:** `@MapIgnore` on a `@MapTo` source property has no effect if the target
 class uses a different name for the corresponding parameter. In that case, use
-`@IgnoreField` in a `@MapConfig` object, which always operates on the target name directly.
+`@MapIgnoreField` in a `@MapConfig` object, which always operates on the target name directly.
 
 ---
 
@@ -204,20 +204,20 @@ class uses a different name for the corresponding parameter. In that case, use
 
 | Scenario | Level | Behaviour |
 |---|---|---|
-| `@IgnoreField(name, FORWARD)` — `name` not in target constructor | **error** | KSP error with available property names listed |
-| `@IgnoreField(name, BOTH)` — `name` not in this direction's target | silent | Skipped; may be valid for the reverse direction |
-| `@IgnoreField` with unrecognised direction string | **error** | KSP error: `"@IgnoreField unknown direction '...' on property '...'"` |
-| `@MapIgnore` / `@IgnoreField` on non-null, no-default property | **error** | KSP error: `"non-nullable and has no default value"` |
+| `@MapIgnoreField(name, TARGET)` — `name` not in target constructor | **error** | KSP error with available property names listed |
+| `@MapIgnoreField(name, BOTH)` — `name` not in this direction's target | silent | Skipped; may be valid for the reverse direction |
+| `@MapIgnoreField` with unrecognised direction string | **error** | KSP error: `"@MapIgnoreField unknown direction '...' on property '...'"` |
+| `@MapIgnore` / `@MapIgnoreField` on non-null, no-default property | **error** | KSP error: `"has no default value"` |
 
 ---
 
 ## 7. Known Limitations
 
 - **`@MapIgnore` on `@MapTo` requires same-name target property.** Annotating a source
-  property whose target uses a different name has no effect. Use `@IgnoreField` in
+  property whose target uses a different name has no effect. Use `@MapIgnoreField` in
   `@MapConfig` for cross-name ignores.
 
-- **REVERSE direction not applied.** `@IgnoreField(direction = REVERSE)` entries are
+- **SOURCE direction not applied.** `@MapIgnoreField(direction = SOURCE)` entries are
   scanned and stored in `ConfigObjectScanResult.ignoredMappings` but are never added to
   `classIgnoredProperties`. They will activate automatically once reverse-mapping
   generation is implemented.
@@ -243,9 +243,9 @@ assertThat(content).doesNotContain("summary")
 
 ```kotlin
 @OptIn(ExperimentalCompilerApi::class)
-class IgnoreFieldUnknownPropertyTest {
+class MapIgnoreFieldUnknownPropertyTest {
     @Test
-    fun `FORWARD with unknown name emits KSP error`() {
+    fun `TARGET with unknown name emits KSP error`() {
         val result = TestKspRunner.compile(source)
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         assertThat(result.messages).contains("property not found in target")
@@ -308,7 +308,7 @@ fun Report.toReportDto() = ReportDto(
 
 ---
 
-### Config-level `@IgnoreField` — forward only
+### Config-level `@MapIgnoreField` — target only
 
 ```kotlin
 data class User(val name: String, val internalNotes: String, val auditLog: String)
@@ -318,8 +318,8 @@ data class UserDto(val name: String, val internalNotes: String = "", val auditLo
     from = User::class,
     to = UserDto::class,
     ignoredMappings = [
-        IgnoreField("internalNotes", direction = IgnoreDirection.FORWARD),
-        IgnoreField("auditLog",      direction = IgnoreDirection.FORWARD),
+        MapIgnoreField("internalNotes", direction = IgnoreSide.TARGET),
+        MapIgnoreField("auditLog",      direction = IgnoreSide.TARGET),
     ]
 )
 object UserMapping
@@ -336,14 +336,14 @@ fun User.toUserDto() = UserDto(
 
 ---
 
-### Config-level `@IgnoreField` — BOTH direction
+### Config-level `@MapIgnoreField` — BOTH direction
 
 ```kotlin
 @MapConfig(
     from = Order::class,
     to = OrderDto::class,
     ignoredMappings = [
-        IgnoreField("metadata")   // default direction = BOTH
+        MapIgnoreField("metadata")   // default direction = BOTH
     ]
 )
 object OrderMapping
@@ -357,7 +357,7 @@ reverse generation is implemented.
 
 ### Interaction with `@MapField` (config override)
 
-`@IgnoreField` takes priority over `@MapField` / `fieldMappings` for the same target
+`@MapIgnoreField` takes priority over `@MapField` / `fieldMappings` for the same target
 property name. `IgnoreRule` runs before `ConfigOverrideRule` in the rule chain, so the
 property is claimed as ignored before any rename override can fire.
 
@@ -366,7 +366,7 @@ property is claimed as ignored before any rename override can fire.
     from = Product::class,
     to = ProductDto::class,
     fieldMappings     = [FieldOverride(from = "internalId", to = "id")],
-    ignoredMappings   = [IgnoreField("id")]
+    ignoredMappings   = [MapIgnoreField("id")]
 )
 object ProductMapping
 ```

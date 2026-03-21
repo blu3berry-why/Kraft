@@ -5,28 +5,30 @@ import com.tschuchort.compiletesting.SourceFile
 import hu.nova.blu3berry.kraft.TestKspRunner
 import org.junit.jupiter.api.Test
 
-class IgnoreFieldForwardDirectionTest {
+class MapIgnoreFieldBothWithSameNameTest {
 
     @Test
-    fun `IgnoreField with FORWARD direction omits property from generated constructor call`() {
+    fun `MapIgnoreField with BOTH direction suppresses property when name exists in forward target`() {
+        // Both source and target have 'notes'. BOTH is the correct annotation when the
+        // same ignore should apply in each direction once reverse mapping is added.
         val source = SourceFile.kotlin(
             "Models.kt",
             """
-            data class User(val id: Int, val name: String, val secret: String)
+            data class User(val id: Int, val notes: String)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
                 from = User::class,
                 to   = UserDto::class,
                 ignoredMappings = [
-                    hu.nova.blu3berry.kraft.config.IgnoreField(
-                        "secret",
-                        direction = hu.nova.blu3berry.kraft.config.IgnoreDirection.FORWARD
+                    hu.nova.blu3berry.kraft.config.MapIgnoreField(
+                        "notes",
+                        direction = hu.nova.blu3berry.kraft.config.IgnoreSide.BOTH
                     )
                 ]
             )
             object UserMapper
 
-            data class UserDto(val id: Int, val name: String, val secret: String? = null)
+            data class UserDto(val id: Int, val notes: String? = null)
             """
         )
 
@@ -35,7 +37,6 @@ class IgnoreFieldForwardDirectionTest {
 
         assertThat(content).contains("fun User.toUserDto()")
         assertThat(content).contains("id = this.id")
-        assertThat(content).contains("name = this.name")
-        assertThat(content).doesNotContain("secret")
+        assertThat(content).doesNotContain("notes")
     }
 }

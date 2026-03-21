@@ -5,10 +5,10 @@ import com.tschuchort.compiletesting.SourceFile
 import hu.nova.blu3berry.kraft.TestKspRunner
 import org.junit.jupiter.api.Test
 
-class IgnoreFieldDefaultDirectionTest {
+class MapIgnoreFieldDefaultDirectionTest {
 
     @Test
-    fun `IgnoreField with default direction omits property from generated constructor call`() {
+    fun `MapIgnoreField with default direction omits property from generated constructor call`() {
         val source = SourceFile.kotlin(
             "Models.kt",
             """
@@ -18,7 +18,7 @@ class IgnoreFieldDefaultDirectionTest {
                 from = UserSource::class,
                 to   = UserDto::class,
                 ignoredMappings = [
-                    hu.nova.blu3berry.kraft.config.IgnoreField("internalNotes")
+                    hu.nova.blu3berry.kraft.config.MapIgnoreField("internalNotes")
                 ]
             )
             object UserMapper

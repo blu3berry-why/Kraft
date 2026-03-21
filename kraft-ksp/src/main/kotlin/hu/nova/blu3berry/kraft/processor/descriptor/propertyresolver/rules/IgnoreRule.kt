@@ -12,7 +12,7 @@ import hu.nova.blu3berry.kraft.processor.util.ignoredRequiredProperty
  * Two sources are merged into [MappingContext.classIgnoredProperties] before the rule
  * is invoked:
  *  - `@MapIgnore` on the `@MapFrom`/`@MapTo` annotated class.
- *  - `@IgnoreField` entries in `@MapConfig.ignoredMappings`, filtered to the current
+ *  - `@MapIgnoreField` entries in `@MapConfig.ignoredMappings`, filtered to the current
  *    mapping direction by [hu.nova.blu3berry.kraft.processor.descriptor.ClassDescriptorBuilder].
  */
 class IgnoreRule : MappingRule {
