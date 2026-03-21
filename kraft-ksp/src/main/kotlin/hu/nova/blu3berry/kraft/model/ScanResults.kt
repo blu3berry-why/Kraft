@@ -21,7 +21,7 @@ sealed interface MapNestedAnnotation {
 
 data class PropertyScanResult(
     val property: KSPropertyDeclaration,
-    val mapFieldOther: String?,
+    val mapFieldSourceName: String?,
     val isIgnored: Boolean,
     val mapNested: MapNestedAnnotation = MapNestedAnnotation.NotAnnotated
 )

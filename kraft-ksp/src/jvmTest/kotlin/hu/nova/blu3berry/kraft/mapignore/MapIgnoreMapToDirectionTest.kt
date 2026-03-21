@@ -17,6 +17,8 @@ class MapIgnoreMapToDirectionTest {
             @hu.nova.blu3berry.kraft.onclass.to.MapTo(ReportDto::class)
             data class Report(
                 val title: String,
+                // @MapIgnore is on the source class (Report); the same-named target property
+                // (ReportDto.summary) is skipped. Requires the target property to have a default.
                 @hu.nova.blu3berry.kraft.onclass.MapIgnore
                 val summary: String
             )

@@ -176,7 +176,7 @@ class ClassAnnotationScanner(
 
             props += PropertyScanResult(
                 property = prop,
-                mapFieldOther = otherName,
+                mapFieldSourceName = otherName,
                 isIgnored = isIgnored,
                 mapNested = mapNested
             )
