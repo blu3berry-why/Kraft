@@ -6,10 +6,10 @@ import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 data class ConverterDescriptor(
     val enclosingObject: KSClassDeclaration?,   // null for top-level functions (if you allow)
     val function: KSFunctionDeclaration,
-    val mapUsingFrom: String,
-    val mapUsingTo: String,
-    val fromType: TypeInfo,
-    val toType: TypeInfo
+    val sourcePropertyName: String,
+    val targetPropertyName: String,
+    val sourceType: TypeInfo,
+    val targetType: TypeInfo
 ) {
     val functionName: String
         get() = function.simpleName.asString()

@@ -3,7 +3,7 @@ package hu.nova.blu3berry.kraft.processor.scanner
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
-import hu.nova.blu3berry.kraft.config.EnumMap
+import hu.nova.blu3berry.kraft.config.MapEnum
 import hu.nova.blu3berry.kraft.model.EnumEntryMapping
 import hu.nova.blu3berry.kraft.model.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.model.TypeInfo
@@ -15,7 +15,7 @@ import hu.nova.blu3berry.kraft.processor.util.unmappedEnumEntries
 
 
 /**
- * Scanner for finding and processing @EnumMap annotations.
+ * Scanner for finding and processing @MapEnum annotations.
  */
 class EnumMapScanner(
     protected val resolver: Resolver,
@@ -23,11 +23,11 @@ class EnumMapScanner(
 ) {
 
     companion object {
-        val ENUM_MAP_FQ = EnumMap::class.qualifiedName!!
+        val ENUM_MAP_FQ = MapEnum::class.qualifiedName!!
     }
 
     /**
-     * Scan all @EnumMap annotations in the project.
+     * Scan all @MapEnum annotations in the project.
      *
      * @return List of EnumMappingDescriptor objects for each valid mapping
      */
@@ -54,43 +54,43 @@ class EnumMapScanner(
     }
 
     /**
-     * Build a descriptor for a single @EnumMap annotated class/object.
+     * Build a descriptor for a single @MapEnum annotated class/object.
      *
-     * @param decl The class declaration annotated with @EnumMap
+     * @param decl The class declaration annotated with @MapEnum
      * @return An EnumMappingDescriptor if the mapping is valid, null otherwise
      */
     protected fun buildDescriptor(decl: KSClassDeclaration): EnumMappingDescriptor? {
 
         val annotation = decl.findAnnotation(ENUM_MAP_FQ) ?: return null
 
-        // ---- get from = X::class ----
-        val fromKSType = annotation.getKClassArgOrNull(
-            name = KraftKspConstants.ARG_FROM,
+        // ---- get source = X::class ----
+        val sourceKSType = annotation.getKClassArgOrNull(
+            name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
             symbol = decl,
             annotationFqName = ENUM_MAP_FQ
         ) ?: return null
 
-        // ---- get to = Y::class ----
-        val toKSType = annotation.getKClassArgOrNull(
-            name = KraftKspConstants.ARG_TO,
+        // ---- get target = Y::class ----
+        val targetKSType = annotation.getKClassArgOrNull(
+            name = KraftKspConstants.ARG_TARGET,
             logger = logger,
             symbol = decl,
             annotationFqName = ENUM_MAP_FQ
         ) ?: return null
 
-        val fromDecl = fromKSType.declaration as? KSClassDeclaration
-        val toDecl = toKSType.declaration as? KSClassDeclaration
+        val fromDecl = sourceKSType.declaration as? KSClassDeclaration
+        val toDecl = targetKSType.declaration as? KSClassDeclaration
 
         if (fromDecl == null || toDecl == null) {
-            logger.error("@EnumMap 'from' and 'to' must reference enum classes.", decl)
+            logger.error("@MapEnum 'source' and 'target' must reference enum classes.", decl)
             return null
         }
 
         if (fromDecl.classKind != ClassKind.ENUM_CLASS ||
             toDecl.classKind != ClassKind.ENUM_CLASS
         ) {
-            logger.error("@EnumMap supports only mapping between enum classes.", decl)
+            logger.error("@MapEnum supports only mapping between enum classes.", decl)
             return null
         }
 
@@ -98,7 +98,7 @@ class EnumMapScanner(
         val toEntries = getEnumEntries(toDecl)
         val toEntriesSet = toEntries.toSet()
 
-        // ---- read fieldMapping = [FieldOverride("A","B"), ...] ----
+        // ---- read fieldMappings = [FieldMapping("A","B"), ...] ----
         val customMappings: List<EnumEntryMapping> = extractCustomMappings(annotation, fromEntries, toEntries, decl)
         val allMappings = customMappings.toMutableList()
         val mappedSources = customMappings.mapTo(mutableSetOf()) { it.source }
@@ -119,8 +119,8 @@ class EnumMapScanner(
         if (unmappedEntries.isNotEmpty()) {
             logger.unmappedEnumEntries(
                 declaringClass = decl.simpleName.asString(),
-                fromQualifiedName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
-                toQualifiedName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString(),
+                sourceQualifiedName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
+                targetQualifiedName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString(),
                 fromSimpleName = fromDecl.simpleName.asString(),
                 toSimpleName = toDecl.simpleName.asString(),
                 unmappedEntries = unmappedEntries,
@@ -133,8 +133,8 @@ class EnumMapScanner(
         }
 
         return EnumMappingDescriptor(
-            sourceType = TypeInfo.fromKSType(fromKSType),
-            targetType = TypeInfo.fromKSType(toKSType),
+            sourceType = TypeInfo.fromKSType(sourceKSType),
+            targetType = TypeInfo.fromKSType(targetKSType),
             entries = allMappings,
             allowDefault = false,
             defaultTarget = null
@@ -142,12 +142,12 @@ class EnumMapScanner(
     }
 
     /**
-     * Parse @EnumMap.fieldMapping entries.
+     * Parse @MapEnum.fieldMappings entries.
      *
-     * @param annotation The @EnumMap annotation
+     * @param annotation The @MapEnum annotation
      * @param fromEntries List of source enum entry names
      * @param toEntries List of target enum entry names
-     * @param decl The class declaration annotated with @EnumMap
+     * @param decl The class declaration annotated with @MapEnum
      * @return List of EnumEntryMapping objects for custom mappings
      */
     protected fun extractCustomMappings(
@@ -160,31 +160,31 @@ class EnumMapScanner(
         val results = mutableListOf<EnumEntryMapping>()
 
         val arg = annotation.arguments
-            .firstOrNull { it.name?.asString() == KraftKspConstants.ARG_FIELD_MAPPING }
+            .firstOrNull { it.name?.asString() == KraftKspConstants.ARG_FIELD_MAPPINGS }
             ?.value as? List<*>
             ?: return results
 
         for (pairAnn in arg) {
             val ann = pairAnn as? KSAnnotation ?: continue
 
-            val from = ann.arguments.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_FROM }?.value as? String
+            val from = ann.arguments.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_SOURCE }?.value as? String
             if (from == null) {
-                logger.error("EnumMap: malformed @FieldOverride annotation — missing or non-String 'from' argument.", decl)
+                logger.error("@MapEnum: malformed @FieldMapping annotation — missing or non-String 'source' argument.", decl)
                 continue
             }
 
-            val to = ann.arguments.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_TO }?.value as? String
+            val to = ann.arguments.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_TARGET }?.value as? String
             if (to == null) {
-                logger.error("EnumMap: malformed @FieldOverride annotation — missing or non-String 'to' argument.", decl)
+                logger.error("@MapEnum: malformed @FieldMapping annotation — missing or non-String 'target' argument.", decl)
                 continue
             }
 
             if (from !in fromEntries) {
-                logger.error("EnumMap: '$from' is not a value of source enum.", decl)
+                logger.error("@MapEnum: '$from' is not a value of source enum.", decl)
             }
 
             if (to !in toEntries) {
-                logger.error("EnumMap: '$to' is not a value of target enum.", decl)
+                logger.error("@MapEnum: '$to' is not a value of target enum.", decl)
             }
 
             results += EnumEntryMapping(source = from, target = to)

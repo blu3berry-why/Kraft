@@ -5,37 +5,34 @@ import com.tschuchort.compiletesting.SourceFile
 import hu.nova.blu3berry.kraft.TestKspRunner
 import org.junit.jupiter.api.Test
 
-class IgnoreFieldForwardDirectionTest {
+class MapIgnoreFieldDefaultDirectionTest {
 
     @Test
-    fun `IgnoreField with FORWARD direction omits property from generated constructor call`() {
+    fun `MapIgnoreField with default direction omits property from generated constructor call`() {
         val source = SourceFile.kotlin(
             "Models.kt",
             """
-            data class User(val id: Int, val name: String, val secret: String)
+            data class UserSource(val id: Int, val name: String)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = User::class,
-                to   = UserDto::class,
+                source = UserSource::class,
+                target   = UserDto::class,
                 ignoredMappings = [
-                    hu.nova.blu3berry.kraft.config.IgnoreField(
-                        "secret",
-                        direction = hu.nova.blu3berry.kraft.config.IgnoreDirection.FORWARD
-                    )
+                    hu.nova.blu3berry.kraft.config.MapIgnoreField("internalNotes")
                 ]
             )
             object UserMapper
 
-            data class UserDto(val id: Int, val name: String, val secret: String? = null)
+            data class UserDto(val id: Int, val name: String, val internalNotes: String? = null)
             """
         )
 
         val content = TestKspRunner.compileAndReturnGenerated(source)
             .first().readText()
 
-        assertThat(content).contains("fun User.toUserDto()")
+        assertThat(content).contains("fun UserSource.toUserDto()")
         assertThat(content).contains("id = this.id")
         assertThat(content).contains("name = this.name")
-        assertThat(content).doesNotContain("secret")
+        assertThat(content).doesNotContain("internalNotes")
     }
 }

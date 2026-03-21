@@ -10,8 +10,8 @@ data class GenerationConfig(
 ) {
 
     fun functionNameFor(descriptor: MapperDescriptor): String {
-        val sourceSimple = descriptor.fromType.className.simpleName
-        val targetSimple = descriptor.toType.className.simpleName
+        val sourceSimple = descriptor.sourceType.className.simpleName
+        val targetSimple = descriptor.targetType.className.simpleName
 
         return functionNameTemplate
             .replace("\${source}", sourceSimple)

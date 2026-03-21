@@ -1,8 +1,8 @@
 package hu.nova.blu3berry.kraft.model
 
 data class MapperId(
-    val fromQualifiedName: String,
-    val toQualifiedName: String
+    val sourceQualifiedName: String,
+    val targetQualifiedName: String
 ) {
-    override fun toString(): String = "$fromQualifiedName -> $toQualifiedName"
+    override fun toString(): String = "$sourceQualifiedName -> $targetQualifiedName"
 }

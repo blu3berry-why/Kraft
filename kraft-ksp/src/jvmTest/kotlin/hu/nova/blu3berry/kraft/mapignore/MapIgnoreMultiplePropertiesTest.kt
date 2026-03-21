@@ -14,14 +14,14 @@ class MapIgnoreMultiplePropertiesTest {
             """
             data class OrderSource(val id: Int, val total: Double, val discount: Double, val tax: Double)
 
-            @hu.nova.blu3berry.kraft.onclass.from.MapFrom(OrderSource::class)
+            @hu.nova.blu3berry.kraft.mapping.MapFrom(OrderSource::class)
             data class OrderDto(
                 val id: Int,
-                @hu.nova.blu3berry.kraft.onclass.MapIgnore
+                @hu.nova.blu3berry.kraft.mapping.MapIgnore
                 val total: Double = 0.0,
-                @hu.nova.blu3berry.kraft.onclass.MapIgnore
+                @hu.nova.blu3berry.kraft.mapping.MapIgnore
                 val discount: Double = 0.0,
-                @hu.nova.blu3berry.kraft.onclass.MapIgnore
+                @hu.nova.blu3berry.kraft.mapping.MapIgnore
                 val tax: Double? = null
             )
             """

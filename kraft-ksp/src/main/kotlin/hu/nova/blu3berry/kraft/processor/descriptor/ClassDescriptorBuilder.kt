@@ -14,7 +14,7 @@ import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.model.toTypeInfo
 import hu.nova.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
-import hu.nova.blu3berry.kraft.config.IgnoreDirection
+import hu.nova.blu3berry.kraft.config.IgnoreSide
 import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.FieldOverride
@@ -54,7 +54,7 @@ class ClassDescriptorBuilder(
             extractTargetProperties(targetDecl, targetCtor, targetTypeName) ?: return null
 
         val classOverrides = extractClassOverrides()
-        val classIgnoredProperties = extractClassIgnoredProperties() +
+        val ignoredProperties = extractClassIgnoredProperties() +
             buildConfigIgnoredProperties(targetProps, targetTypeName)
         val configOverrides = configObjects.toConfigOverridesMap()
         val converters = configObjects.flatMap { it.converters }
@@ -67,7 +67,7 @@ class ClassDescriptorBuilder(
             classOverrides = classOverrides,
             configOverrides = configOverrides,
             converters = converters,
-            classIgnoredProperties = classIgnoredProperties,
+            ignoredProperties = ignoredProperties,
             nestedMappings = nestedMappings,
             classNestedOverrides = classNestedOverrides,
             sourceTypeName = sourceTypeName,
@@ -79,8 +79,8 @@ class ClassDescriptorBuilder(
 
         return MapperDescriptor(
             id = MapperId(sourceTypeName, targetTypeName),
-            fromType = fromTypeInfo,
-            toType = toTypeInfo,
+            sourceType = fromTypeInfo,
+            targetType = toTypeInfo,
             source = MappingSource.ClassAnnotation(mapping.annotatedClass, mapping.direction),
             propertyMappings = mappings,
             enumMappings = enumMappings.filter {
@@ -159,11 +159,11 @@ class ClassDescriptorBuilder(
             .mapNotNull { s ->
                 val name = s.property.simpleName.asString()
                 val from = s.mapFieldSourceName ?: return@mapNotNull null
-                if (mapping.direction == MappingDirection.FROM) {
-                    // FROM: otherName = to
+                if (mapping.direction == MappingDirection.MAP_FROM) {
+                    // MAP_FROM: counterPartName = source property name
                     name to from
                 } else {
-                    // TO: otherName = from
+                    // MAP_TO: counterPartName = target property name
                     from to name
                 }
             }.toMap()
@@ -183,10 +183,10 @@ class ClassDescriptorBuilder(
             .toSet()
 
     // ---------------------------------------------------------
-    // Build config-level ignored properties (@IgnoreField in @MapConfig)
+    // Build config-level ignored properties (@MapIgnoreField in @MapConfig)
     // ---------------------------------------------------------
-    // Only FORWARD and BOTH entries are applied here (forward-only generation).
-    // REVERSE entries are stored in ConfigObjectScanResult for future use when
+    // Only TARGET and BOTH entries are applied here (forward-only generation).
+    // SOURCE entries are stored in ConfigObjectScanResult for future use when
     // reverse-mapping generation is added.
     // BOTH with a name absent from the current target's constructor is silently
     // skipped — the property may legitimately exist only on the reverse target.
@@ -200,11 +200,11 @@ class ClassDescriptorBuilder(
         for (configObj in configObjects) {
             for (ignored in configObj.ignoredMappings) {
                 when (ignored.direction) {
-                    IgnoreDirection.REVERSE -> continue
-                    IgnoreDirection.FORWARD -> {
+                    IgnoreSide.SOURCE -> continue
+                    IgnoreSide.TARGET -> {
                         if (ignored.name !in targetPropNames) {
                             logger.error(
-                                "@IgnoreField(\"${ignored.name}\", FORWARD): property not found " +
+                                "@MapIgnoreField(\"${ignored.name}\", TARGET): property not found " +
                                     "in target '$targetTypeName' constructor. " +
                                     "Available: ${targetPropNames.sorted()}",
                                 configObj.configObject
@@ -213,7 +213,7 @@ class ClassDescriptorBuilder(
                             result.add(ignored.name)
                         }
                     }
-                    IgnoreDirection.BOTH -> {
+                    IgnoreSide.BOTH -> {
                         if (ignored.name in targetPropNames) result.add(ignored.name)
                         // Not in this target → may be valid for the reverse direction; skip silently.
                     }
@@ -254,4 +254,4 @@ fun List<ConfigObjectScanResult>.toConfigOverridesMap() =
     this.flatMap { it.fieldOverrides }.toTargetToSourceMap()
 
 /** Maps each [FieldOverride] as targetPropertyName → sourcePropertyName. */
-fun List<FieldOverride>.toTargetToSourceMap() = this.associate { it.to to it.from }
+fun List<FieldOverride>.toTargetToSourceMap() = this.associate { it.target to it.source }

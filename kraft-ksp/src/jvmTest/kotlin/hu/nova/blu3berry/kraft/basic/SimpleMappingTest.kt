@@ -16,8 +16,8 @@ class SimpleMappingTest {
             data class User(val name: String, val age: Int)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = UserDto::class,
-                to = User::class
+                source = UserDto::class,
+                target = User::class
             )
             object UserMapper
             """

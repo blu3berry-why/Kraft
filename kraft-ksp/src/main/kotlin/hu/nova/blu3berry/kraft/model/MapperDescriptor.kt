@@ -2,8 +2,8 @@ package hu.nova.blu3berry.kraft.model
 
 data class MapperDescriptor(
     val id: MapperId,
-    val fromType: TypeInfo,
-    val toType: TypeInfo,
+    val sourceType: TypeInfo,
+    val targetType: TypeInfo,
     val source: MappingSource,
     val propertyMappings: List<PropertyMappingStrategy>,
     val nestedMappings: List<NestedMappingDescriptor> = emptyList(),

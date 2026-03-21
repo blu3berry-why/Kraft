@@ -28,7 +28,7 @@ class CircularNestedMappingTest {
 
             data class Container(val node: NodeSource)
 
-            @hu.nova.blu3berry.kraft.onclass.from.MapFrom(Container::class)
+            @hu.nova.blu3berry.kraft.mapping.MapFrom(Container::class)
             data class ContainerDto(val node: NodeDto)
             """
         )

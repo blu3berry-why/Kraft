@@ -5,11 +5,11 @@ import com.tschuchort.compiletesting.SourceFile
 import hu.nova.blu3berry.kraft.TestKspRunner
 import org.junit.jupiter.api.Test
 
-class IgnoreFieldReverseDirectionTest {
+class MapIgnoreFieldSourceDirectionTest {
 
     @Test
-    fun `IgnoreField with REVERSE direction has no effect on current forward-only generation`() {
-        // REVERSE entries are reserved for future reverse-mapping support.
+    fun `MapIgnoreField with SOURCE direction has no effect on current forward-only generation`() {
+        // SOURCE entries are reserved for future reverse-mapping support.
         // The forward mapper must still include the property.
         val source = SourceFile.kotlin(
             "Models.kt",
@@ -17,12 +17,12 @@ class IgnoreFieldReverseDirectionTest {
             data class Report(val id: Int, val title: String, val notes: String)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = Report::class,
-                to   = ReportDto::class,
+                source = Report::class,
+                target   = ReportDto::class,
                 ignoredMappings = [
-                    hu.nova.blu3berry.kraft.config.IgnoreField(
+                    hu.nova.blu3berry.kraft.config.MapIgnoreField(
                         "notes",
-                        direction = hu.nova.blu3berry.kraft.config.IgnoreDirection.REVERSE
+                        direction = hu.nova.blu3berry.kraft.config.IgnoreSide.SOURCE
                     )
                 ]
             )
@@ -36,7 +36,7 @@ class IgnoreFieldReverseDirectionTest {
             .first().readText()
 
         assertThat(content).contains("fun Report.toReportDto()")
-        // REVERSE entry must not suppress the forward mapping
+        // SOURCE entry must not suppress the forward mapping
         assertThat(content).contains("notes = this.notes")
     }
 }

@@ -36,8 +36,8 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
          *                              name-based rule; otherwise DirectMatchRule could silently
          *                              win on a same-named property and skip the converter.
          *
-         * 2. [IgnoreRule]            — checks classIgnoredProperties (populated from @MapIgnore
-         *                              and @IgnoreField); must run before ConfigOverrideRule so
+         * 2. [IgnoreRule]            — checks ignoredProperties (populated from @MapIgnore
+         *                              and @MapIgnoreField); must run before ConfigOverrideRule so
          *                              an ignored property is never mistakenly treated as a
          *                              source-name override.
          *

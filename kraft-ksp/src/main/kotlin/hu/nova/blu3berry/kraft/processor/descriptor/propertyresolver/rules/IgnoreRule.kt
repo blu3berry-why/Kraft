@@ -9,10 +9,10 @@ import hu.nova.blu3berry.kraft.processor.util.ignoredRequiredProperty
 /**
  * Returns [PropertyMappingStrategy.Ignored] if the target property should be skipped.
  *
- * Two sources are merged into [MappingContext.classIgnoredProperties] before the rule
+ * Two sources are merged into [MappingContext.ignoredProperties] before the rule
  * is invoked:
  *  - `@MapIgnore` on the `@MapFrom`/`@MapTo` annotated class.
- *  - `@IgnoreField` entries in `@MapConfig.ignoredMappings`, filtered to the current
+ *  - `@MapIgnoreField` entries in `@MapConfig.ignoredMappings`, filtered to the current
  *    mapping direction by [hu.nova.blu3berry.kraft.processor.descriptor.ClassDescriptorBuilder].
  */
 class IgnoreRule : MappingRule {
@@ -21,7 +21,7 @@ class IgnoreRule : MappingRule {
         target: PropertyInfo,
         ctx: MappingContext
     ): PropertyMappingStrategy? {
-        if (target.name !in ctx.classIgnoredProperties) return null
+        if (target.name !in ctx.ignoredProperties) return null
 
         if (!target.hasDefault) {
             ctx.logger.ignoredRequiredProperty(

@@ -112,7 +112,7 @@ fun KSPLogger.noSuchProperty(
 
         Fix:
         - Check the spelling of the property.
-        - Update your @MapField or @MapFieldOverride accordingly.
+        - Update your @MapField or @FieldMapping accordingly.
         """.trimIndent(),
         symbol
     )
@@ -131,7 +131,7 @@ fun KSPLogger.unmappedNonNullableProperty(
     but no mapping was provided.
 
     Fix:
-    - Add @MapField(other = "sourceName")
+    - Add @MapField(counterPartName = "sourceName")
     - Or add @MapUsing with a converter
     - Or make '$propertyName' nullable
     """.trimIndent(),
@@ -171,12 +171,12 @@ ${
     Config-level overrides:
 ${
         if (configOverrides.isEmpty()) "      (none)"
-        else configOverrides.joinToString("\n") { "      • ${it.to} ← ${it.from}" }
+        else configOverrides.joinToString("\n") { "      • ${it.target} ← ${it.source}" }
     }
 
     How to fix:
       ✓ Add @MapField("sourceName") to the target property '${targetProperty.name}'
-      ✓ Or add a config override: FieldOverride(from = "sourceName", to = "${targetProperty.name}")
+      ✓ Or add a config override: FieldMapping(source = "sourceName", target = "${targetProperty.name}")
       ✓ Or make the property nullable
       ✓ Or provide a default value in the target constructor
     """.trimIndent(),
@@ -370,8 +370,8 @@ fun KSPLogger.unsupportedSourcePropertyType(
  */
 fun KSPLogger.unmappedEnumEntries(
     declaringClass: String,
-    fromQualifiedName: String,
-    toQualifiedName: String,
+    sourceQualifiedName: String,
+    targetQualifiedName: String,
     fromSimpleName: String,
     toSimpleName: String,
     unmappedEntries: List<String>,
@@ -395,14 +395,14 @@ fun KSPLogger.unmappedEnumEntries(
         .joinToString("\n") { "    • $it" }
 
     val snippetLines = unmappedEntries
-        .joinToString("\n") { "            FieldOverride(from = \"$it\", to = \"???\")," }
+        .joinToString("\n") { "            FieldMapping(source = \"$it\", target = \"???\")," }
 
     err(
         """
-    @EnumMap on '$declaringClass' has unmapped source entries.
+    @MapEnum on '$declaringClass' has unmapped source entries.
 
-      Source: $fromQualifiedName
-      Target: $toQualifiedName
+      Source: $sourceQualifiedName
+      Target: $targetQualifiedName
 
       Unmapped entries (must be resolved):
 $unmappedLines
@@ -418,12 +418,12 @@ $targetLines
       non-exhaustive 'when' expression would be generated and the
       Kotlin compiler would reject it.
 
-      How to fix — add a FieldOverride for each unmapped entry:
+      How to fix — add a FieldMapping for each unmapped entry:
 
-        @EnumMap(
-            from         = $fromSimpleName::class,
-            to           = $toSimpleName::class,
-            fieldMapping = [
+        @MapEnum(
+            source        = $fromSimpleName::class,
+            target        = $toSimpleName::class,
+            fieldMappings = [
 $snippetLines
             ]
         )
@@ -435,7 +435,7 @@ $snippetLines
 }
 
 /**
- * @MapIgnore or @IgnoreField targets a property that has no default value.
+ * @MapIgnore or @MapIgnoreField targets a property that has no default value.
  * Omitting it from the constructor call produces invalid code.
  */
 fun KSPLogger.ignoredRequiredProperty(
@@ -444,7 +444,7 @@ fun KSPLogger.ignoredRequiredProperty(
     symbol: KSNode
 ) = err(
     """
-    @MapIgnore / @IgnoreField targets '$propertyName' in '$targetType',
+    @MapIgnore / @MapIgnoreField targets '$propertyName' in '$targetType',
     but the property has no default value.
 
     The generated constructor call will omit '$propertyName', producing
@@ -515,7 +515,7 @@ fun KSPLogger.ambiguousNestedSourceProperty(
     symbol: KSNode
 ) = err(
     """
-    Ambiguous source property for @NestedMapping(from = $nestedSourceType, ...):
+    Ambiguous source property for @NestedMapping(source = $nestedSourceType, ...):
     ${matchingProps.size} properties of type '$nestedSourceType' exist in '$sourceTypeName'.
 
     Matching properties:
@@ -543,7 +543,7 @@ fun KSPLogger.nestedMappingSourceNotFound(
     symbol: KSNode
 ) = err(
     """
-    @NestedMapping(from = $nestedSourceType, to = $nestedTargetType) declared in config
+    @NestedMapping(source = $nestedSourceType, target = $nestedTargetType) declared in config
     but no property of type '$nestedSourceType' exists in source class '$sourceTypeName'.
 
     Why:

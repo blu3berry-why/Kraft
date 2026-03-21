@@ -22,12 +22,12 @@ class NestedMappingSourceNotFoundTest {
             data class PersonDto(val name: String, val address: AddressDto)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = PersonSource::class,
-                to   = PersonDto::class,
+                source = PersonSource::class,
+                target   = PersonDto::class,
                 nestedMappings = [
                     hu.nova.blu3berry.kraft.config.NestedMapping(
-                        from = AddressSource::class,
-                        to   = AddressDto::class
+                        source = AddressSource::class,
+                        target   = AddressDto::class
                     )
                 ]
             )

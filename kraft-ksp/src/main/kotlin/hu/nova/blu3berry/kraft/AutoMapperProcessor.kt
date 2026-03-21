@@ -66,7 +66,7 @@ class AutoMapperProcessor(
 
 
     private fun dumpDescriptor(desc: MapperDescriptor) {
-        logger.warn("=== Mapper: ${desc.id.fromQualifiedName} → ${desc.id.toQualifiedName} ===")
+        logger.warn("=== Mapper: ${desc.id.sourceQualifiedName} → ${desc.id.targetQualifiedName} ===")
 
         for (strategy in desc.propertyMappings) {
             logger.warn("  * ${strategy}")

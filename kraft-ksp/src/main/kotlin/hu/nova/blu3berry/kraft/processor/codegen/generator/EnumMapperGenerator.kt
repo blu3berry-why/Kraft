@@ -98,11 +98,11 @@ class EnumMapperGenerator(
         // Unknown source entries
         for (mapping in desc.entries) {
             if (mapping.source !in fromEntries) {
-                logger.error("EnumMap error: source entry '${mapping.source}' does not exist", desc.sourceType.declaration)
+                logger.error("@MapEnum error: source entry '${mapping.source}' does not exist", desc.sourceType.declaration)
                 ok = false
             }
             if (mapping.target !in toEntries) {
-                logger.error("EnumMap error: target entry '${mapping.target}' does not exist", desc.targetType.declaration)
+                logger.error("@MapEnum error: target entry '${mapping.target}' does not exist", desc.targetType.declaration)
                 ok = false
             }
         }
@@ -110,7 +110,7 @@ class EnumMapperGenerator(
         // Default target must exist
         if (desc.allowDefault && desc.defaultTarget != null && desc.defaultTarget !in toEntries) {
             logger.error(
-                "EnumMap error: defaultTarget '${desc.defaultTarget}' is not a valid entry of ${desc.targetType.className}",
+                "@MapEnum error: defaultTarget '${desc.defaultTarget}' is not a valid entry of ${desc.targetType.className}",
                 desc.targetType.declaration
             )
             ok = false

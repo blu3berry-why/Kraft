@@ -8,11 +8,11 @@ import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.MapNestedAnnotation
 import hu.nova.blu3berry.kraft.model.MappingDirection
 import hu.nova.blu3berry.kraft.model.PropertyScanResult
-import hu.nova.blu3berry.kraft.onclass.MapNested
-import hu.nova.blu3berry.kraft.onclass.MapIgnore
-import hu.nova.blu3berry.kraft.onclass.from.MapField
-import hu.nova.blu3berry.kraft.onclass.from.MapFrom
-import hu.nova.blu3berry.kraft.onclass.to.MapTo
+import hu.nova.blu3berry.kraft.mapping.MapField
+import hu.nova.blu3berry.kraft.mapping.MapFrom
+import hu.nova.blu3berry.kraft.mapping.MapIgnore
+import hu.nova.blu3berry.kraft.mapping.MapNested
+import hu.nova.blu3berry.kraft.mapping.MapTo
 import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 import hu.nova.blu3berry.kraft.processor.util.annotationTargetError
 import hu.nova.blu3berry.kraft.processor.util.findAnnotation
@@ -100,7 +100,7 @@ class ClassAnnotationScanner(
         val ann = classDeclaration.findAnnotation(MAP_FROM_FQ) ?: return
 
         val sourceType = ann.getKClassArgOrNull(
-            name = KraftKspConstants.ARG_VALUE,
+            name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
             symbol = classDeclaration,
             annotationFqName = MAP_FROM_FQ
@@ -109,7 +109,7 @@ class ClassAnnotationScanner(
         val propertyScanResults = scanPropertyAnnotations(classDeclaration)
 
         results += ClassMappingScanResult(
-            direction = MappingDirection.FROM,
+            direction = MappingDirection.MAP_FROM,
             sourceType = sourceType.declaration as KSClassDeclaration,
             targetType = classDeclaration,
             annotatedClass = classDeclaration,
@@ -124,7 +124,7 @@ class ClassAnnotationScanner(
         val ann = classDeclaration.findAnnotation(MAP_TO_FQ) ?: return
 
         val targetType = ann.getKClassArgOrNull(
-            name = KraftKspConstants.ARG_VALUE,
+            name = KraftKspConstants.ARG_TARGET,
             logger = logger,
             symbol = classDeclaration,
             annotationFqName = MAP_TO_FQ
@@ -133,7 +133,7 @@ class ClassAnnotationScanner(
         val propertyScanResults = scanPropertyAnnotations(classDeclaration)
 
         results += ClassMappingScanResult(
-            direction = MappingDirection.TO,
+            direction = MappingDirection.MAP_TO,
             sourceType = classDeclaration,
             targetType = targetType.declaration as KSClassDeclaration,
             annotatedClass = classDeclaration,
@@ -143,7 +143,7 @@ class ClassAnnotationScanner(
 
     /**
      * Scan all declared properties of the annotated class for:
-     *  - @MapField(otherName = "sourceName")
+     *  - @MapField(counterPartName = "...")
      *  - @MapNested(sourceName = "...")
      *  - @MapIgnore
      */
@@ -155,7 +155,7 @@ class ClassAnnotationScanner(
 
         for (prop in klass.getDeclaredProperties()) {
             val mapFieldAnn = prop.findAnnotation(MAP_FIELD_FQ)
-            val otherName: String? = mapFieldAnn
+            val counterPartName: String? = mapFieldAnn
                 ?.arguments
                 ?.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_OTHER_NAME }
                 ?.value as? String
@@ -176,7 +176,7 @@ class ClassAnnotationScanner(
 
             props += PropertyScanResult(
                 property = prop,
-                mapFieldSourceName = otherName,
+                mapFieldSourceName = counterPartName,
                 isIgnored = isIgnored,
                 mapNested = mapNested
             )

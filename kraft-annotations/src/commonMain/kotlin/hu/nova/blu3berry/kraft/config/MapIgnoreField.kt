@@ -7,9 +7,9 @@ package hu.nova.blu3berry.kraft.config
  *
  * [name] is always the **target-side** constructor parameter name for the direction
  * being generated:
- * - [IgnoreDirection.FORWARD]: the `to`-class parameter name.
- * - [IgnoreDirection.REVERSE]: the `from`-class parameter name (future).
- * - [IgnoreDirection.BOTH]: the processor checks which target(s) declare the
+ * - [IgnoreSide.TARGET]: the `target`-class parameter name.
+ * - [IgnoreSide.SOURCE]: the `source`-class parameter name (future).
+ * - [IgnoreSide.BOTH]: the processor checks which target(s) declare the
  *   property and applies it where it exists.
  *
  * The skipped property must have a default value, otherwise the generated code
@@ -18,17 +18,17 @@ package hu.nova.blu3berry.kraft.config
  * Example:
  * ```
  * @MapConfig(
- *     from = User::class,
- *     to = UserDto::class,
+ *     source = User::class,
+ *     target = UserDto::class,
  *     ignoredMappings = [
- *         IgnoreField("internalNotes"),
- *         IgnoreField("auditLog", direction = IgnoreDirection.FORWARD),
+ *         MapIgnoreField("internalNotes"),
+ *         MapIgnoreField("auditLog", direction = IgnoreSide.TARGET),
  *     ]
  * )
  * object UserMapping
  * ```
  */
-annotation class IgnoreField(
+annotation class MapIgnoreField(
     val name: String,
-    val direction: IgnoreDirection = IgnoreDirection.BOTH
+    val direction: IgnoreSide = IgnoreSide.BOTH
 )

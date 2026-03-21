@@ -1,10 +1,10 @@
 package hu.nova.blu3berry.kraft
 
-import hu.nova.blu3berry.kraft.config.EnumMap
-import hu.nova.blu3berry.kraft.config.FieldOverride
+import hu.nova.blu3berry.kraft.config.MapEnum
+import hu.nova.blu3berry.kraft.config.FieldMapping
 import hu.nova.blu3berry.kraft.config.MapConfig
 import hu.nova.blu3berry.kraft.config.NestedMapping
-import hu.nova.blu3berry.kraft.onclass.to.MapTo
+import hu.nova.blu3berry.kraft.mapping.MapTo
 
 @MapTo(UserDto::class)
 data class User(
@@ -26,10 +26,10 @@ data class Store(
 )
 
 @MapConfig(
-    from = Store::class,
-    to = StoreDto::class,
+    source = Store::class,
+    target = StoreDto::class,
     nestedMappings = [
-        NestedMapping(from = User::class, to = UserDto::class),
+        NestedMapping(source = User::class, target = UserDto::class),
     ]
 )
 object StoreMapping
@@ -39,11 +39,11 @@ object StoreMapping
 enum class Status { ACTIVE, BLOCKED }
 enum class StatusDto { ACTIVE, BANNED, UNKNOWN }
 
-@EnumMap(
-from = Status::class,
-to = StatusDto::class,
-fieldMapping = [
-    FieldOverride(from = "BLOCKED", to = "BANNED"),
-]
-    )
+@MapEnum(
+    source = Status::class,
+    target = StatusDto::class,
+    fieldMappings = [
+        FieldMapping(source = "BLOCKED", target = "BANNED"),
+    ]
+)
 object StatusMapping

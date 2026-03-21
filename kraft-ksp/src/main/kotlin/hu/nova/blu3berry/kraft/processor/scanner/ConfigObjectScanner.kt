@@ -5,9 +5,9 @@ import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
-import hu.nova.blu3berry.kraft.MapUsing
-import hu.nova.blu3berry.kraft.config.IgnoreDirection
-import hu.nova.blu3berry.kraft.config.IgnoreField
+import hu.nova.blu3berry.kraft.config.MapUsing
+import hu.nova.blu3berry.kraft.config.IgnoreSide
+import hu.nova.blu3berry.kraft.config.MapIgnoreField
 import hu.nova.blu3berry.kraft.config.MapConfig
 import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.ConverterDescriptor
@@ -29,8 +29,8 @@ class ConfigObjectScanner(
     companion object {
         val MAP_CONFIG_FQ    = MapConfig::class.qualifiedName!!
         val MAP_USING_FQ     = MapUsing::class.qualifiedName!!
-        val IGNORE_FIELD_FQ  = IgnoreField::class.qualifiedName!!
-        val STRING_PAIR_FQ   = hu.nova.blu3berry.kraft.config.FieldOverride::class.qualifiedName!!
+        val IGNORE_FIELD_FQ  = MapIgnoreField::class.qualifiedName!!
+        val STRING_PAIR_FQ   = hu.nova.blu3berry.kraft.config.FieldMapping::class.qualifiedName!!
         val NESTED_FQ        = hu.nova.blu3berry.kraft.config.NestedMapping::class.qualifiedName!!
     }
 
@@ -75,8 +75,8 @@ class ConfigObjectScanner(
         val ignoredMappings = extractIgnoredMappings(annotation, classDeclaration)
 
         return ConfigObjectScanResult(
-            fromType = fromType,
-            toType = toType,
+            sourceType = fromType,
+            targetType = toType,
             configObject = classDeclaration,
             fieldOverrides = fieldOverrides,
             ignoredMappings = ignoredMappings,
@@ -108,14 +108,14 @@ class ConfigObjectScanner(
         symbol: KSClassDeclaration
     ): Pair<KSClassDeclaration, KSClassDeclaration>? {
         val fromKSType = annotation.getKClassArgOrNull(
-            name = KraftKspConstants.ARG_FROM,
+            name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
             symbol = symbol,
             annotationFqName = MAP_CONFIG_FQ
         ) ?: return null
 
         val toKSType = annotation.getKClassArgOrNull(
-            name = KraftKspConstants.ARG_TO,
+            name = KraftKspConstants.ARG_TARGET,
             logger = logger,
             symbol = symbol,
             annotationFqName = MAP_CONFIG_FQ
@@ -145,20 +145,20 @@ class ConfigObjectScanner(
             if (!pair.isAnnotation(STRING_PAIR_FQ)) return@mapNotNull null
 
             val from = pair.getStringArgOrNull(
-                name = KraftKspConstants.ARG_FROM,
+                name = KraftKspConstants.ARG_SOURCE,
                 logger = logger,
                 symbol = symbol,
                 annotationFqName = STRING_PAIR_FQ
             ) ?: return@mapNotNull null
 
             val to = pair.getStringArgOrNull(
-                name = KraftKspConstants.ARG_TO,
+                name = KraftKspConstants.ARG_TARGET,
                 logger = logger,
                 symbol = symbol,
                 annotationFqName = STRING_PAIR_FQ
             ) ?: return@mapNotNull null
 
-            FieldOverride(from = from, to = to)
+            FieldOverride(source = from, target = to)
         }
     }
 
@@ -177,9 +177,9 @@ class ConfigObjectScanner(
         ) ?: emptyList()
 
         return nestedAnnotations.mapNotNull { nestedAnn ->
-            val nestedFrom = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_FROM, logger, symbol, NESTED_FQ)
+            val nestedFrom = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_SOURCE, logger, symbol, NESTED_FQ)
                 ?: return@mapNotNull null
-            val nestedTo = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_TO, logger, symbol, NESTED_FQ)
+            val nestedTo = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_TARGET, logger, symbol, NESTED_FQ)
                 ?: return@mapNotNull null
 
             val fromDecl = nestedFrom.declaration as KSClassDeclaration
@@ -187,8 +187,8 @@ class ConfigObjectScanner(
 
             NestedMappingDescriptor(
                 nestedMapperId = MapperId(
-                    fromQualifiedName = fromDecl.qualifiedName!!.asString(),
-                    toQualifiedName = toDecl.qualifiedName!!.asString(),
+                    sourceQualifiedName = fromDecl.qualifiedName!!.asString(),
+                    targetQualifiedName = toDecl.qualifiedName!!.asString(),
                 ),
                 sourceType = fromDecl.toTypeInfo(fromDecl.asStarProjectedType()),
                 targetType = toDecl.toTypeInfo(toDecl.asStarProjectedType())
@@ -247,25 +247,25 @@ class ConfigObjectScanner(
     ): ConverterDescriptor? {
         val mapUsingAnn = fn.annotations.first { it.isAnnotation(MAP_USING_FQ) }
 
-        // Extract from and to property names
+        // Extract source and target property names
         val fromProp = mapUsingAnn.getStringArgOrNull(
-            name = KraftKspConstants.ARG_FROM,
+            name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
             symbol = fn,
             annotationFqName = MAP_USING_FQ
         )
 
         val toProp = mapUsingAnn.getStringArgOrNull(
-            name = KraftKspConstants.ARG_TO,
+            name = KraftKspConstants.ARG_TARGET,
             logger = logger,
             symbol = fn,
             annotationFqName = MAP_USING_FQ
         )
 
-        // Validate non-empty from and to values
+        // Validate non-empty source and target values
         if (fromProp.isNullOrBlank() || toProp.isNullOrBlank()) {
             logger.error(
-                "@MapUsing must specify non-empty 'from' and 'to' values",
+                "@MapUsing must specify non-empty 'source' and 'target' values",
                 fn
             )
             return null
@@ -349,10 +349,10 @@ class ConfigObjectScanner(
         return ConverterDescriptor(
             enclosingObject = symbol,
             function = fn,
-            mapUsingFrom = fromProp,
-            mapUsingTo = toProp,
-            fromType = fromTypeInfo,
-            toType = toTypeInfo
+            sourcePropertyName = fromProp,
+            targetPropertyName = toProp,
+            sourceType = fromTypeInfo,
+            targetType = toTypeInfo
         )
     }
 
@@ -471,7 +471,8 @@ class ConfigObjectScanner(
     }
 
     /**
-     * Extracts [IgnoredMappingConfig] entries from the [ignoredMappings] array of [@MapConfig][MapConfig].
+     * Extracts [IgnoredMappingConfig] entries from the [ignoredMappings] array of [@MapConfig][MapConfig],
+     * populated from [@MapIgnoreField][hu.nova.blu3berry.kraft.config.MapIgnoreField] entries.
      */
     private fun extractIgnoredMappings(
         annotation: KSAnnotation,
@@ -495,22 +496,23 @@ class ConfigObjectScanner(
             ) ?: return@mapNotNull null
 
             if (name.isBlank()) {
-                logger.error("@IgnoreField name must not be blank.", symbol)
+                logger.error("@MapIgnoreField name must not be blank.", symbol)
                 return@mapNotNull null
             }
+
 
             val directionName = ignoreAnn.getEnumArgOrNull(
                 name = KraftKspConstants.ARG_DIRECTION,
                 logger = logger,
                 symbol = symbol,
                 annotationFqName = IGNORE_FIELD_FQ
-            ) ?: IgnoreDirection.BOTH.name
+            ) ?: IgnoreSide.BOTH.name
 
             val direction = try {
-                IgnoreDirection.valueOf(directionName)
+                IgnoreSide.valueOf(directionName)
             } catch (_: IllegalArgumentException) {
                 logger.error(
-                    "@IgnoreField unknown direction '$directionName' on property '$name'.",
+                    "@MapIgnoreField unknown direction '$directionName' on property '$name'.",
                     symbol
                 )
                 return@mapNotNull null

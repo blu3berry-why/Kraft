@@ -1,4 +1,4 @@
-package hu.nova.blu3berry.kraft.mapignore
+package hu.nova.blu3berry.kraft.mapenum
 
 import com.google.common.truth.Truth.assertThat
 import com.tschuchort.compiletesting.KotlinCompilation
@@ -8,27 +8,27 @@ import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCompilerApi::class)
-class MapIgnoreNonNullNoDefaultTest {
+class MapEnumUnmappedEntryTest {
 
     @Test
-    fun `@MapIgnore on non-null property with no default produces a compilation error`() {
+    fun `@MapEnum emits a KSP error when a source entry has no target mapping`() {
         val source = SourceFile.kotlin(
             "Models.kt",
             """
-            data class ItemSource(val name: String, val quantity: Int)
+            enum class Flag    { A, B, C }
+            enum class FlagDto { A, B }   // C has no match in target and no fieldMappings entry
 
-            @hu.nova.blu3berry.kraft.mapping.MapFrom(ItemSource::class)
-            data class ItemDto(
-                val name: String,
-                @hu.nova.blu3berry.kraft.mapping.MapIgnore
-                val quantity: Int   // non-null, no default — ignored property leaves constructor incomplete
+            @hu.nova.blu3berry.kraft.config.MapEnum(
+                source = Flag::class,
+                target   = FlagDto::class
             )
+            object FlagMapping
             """
         )
 
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        assertThat(result.messages).contains("has no default value")
+        assertThat(result.messages).contains("unmapped source entries")
     }
 }
