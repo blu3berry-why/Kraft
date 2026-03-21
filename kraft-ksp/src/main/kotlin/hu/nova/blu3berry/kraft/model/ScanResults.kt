@@ -2,6 +2,7 @@ package hu.nova.blu3berry.kraft.model
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
+import hu.nova.blu3berry.kraft.config.IgnoreDirection
 
 
 data class ClassMappingScanResult(
@@ -25,12 +26,18 @@ data class PropertyScanResult(
     val mapNested: MapNestedAnnotation = MapNestedAnnotation.NotAnnotated
 )
 
+/** A single ignore declaration extracted from [@IgnoreField][hu.nova.blu3berry.kraft.config.IgnoreField]. */
+data class IgnoredMappingConfig(
+    val name: String,
+    val direction: IgnoreDirection
+)
+
 data class ConfigObjectScanResult(
     val fromType: KSClassDeclaration,
     val toType: KSClassDeclaration,
     val configObject: KSClassDeclaration,
     val fieldOverrides: List<FieldOverride>,
-    val ignoredFields: List<String>,
+    val ignoredMappings: List<IgnoredMappingConfig> = emptyList(),
     val converters: List<ConverterDescriptor>,
     val nestedMappings: List<NestedMappingDescriptor> = emptyList(),
 )

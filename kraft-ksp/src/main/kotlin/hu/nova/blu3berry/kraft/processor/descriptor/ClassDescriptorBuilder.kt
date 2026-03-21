@@ -14,6 +14,7 @@ import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.model.toTypeInfo
 import hu.nova.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
+import hu.nova.blu3berry.kraft.config.IgnoreDirection
 import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.FieldOverride
@@ -53,7 +54,8 @@ class ClassDescriptorBuilder(
             extractTargetProperties(targetDecl, targetCtor, targetTypeName) ?: return null
 
         val classOverrides = extractClassOverrides()
-        val classIgnoredProperties = extractClassIgnoredProperties()
+        val classIgnoredProperties = extractClassIgnoredProperties() +
+            buildConfigIgnoredProperties(targetProps, targetDecl.simpleName.asString())
         val configOverrides = configObjects.toConfigOverridesMap()
         val converters = configObjects.flatMap { it.converters }
         val nestedMappings = configObjects.flatMap { it.nestedMappings }
@@ -169,11 +171,58 @@ class ClassDescriptorBuilder(
     // ---------------------------------------------------------
     // Extract class-level ignored properties (@MapIgnore)
     // ---------------------------------------------------------
+    // Note: propertyScanResults contains the annotated class's properties.
+    // For @MapFrom the annotated class IS the target, so the ignored property name
+    // matches the target parameter directly.  For @MapTo the annotated class IS the
+    // source, so @MapIgnore only works when the source and target share the same
+    // property name — the annotated source name is checked against target parameters.
     private fun extractClassIgnoredProperties(): Set<String> =
         mapping.propertyScanResults
             .filter { it.isIgnored }
             .map { it.property.simpleName.asString() }
             .toSet()
+
+    // ---------------------------------------------------------
+    // Build config-level ignored properties (@IgnoreField in @MapConfig)
+    // ---------------------------------------------------------
+    // Only FORWARD and BOTH entries are applied here (forward-only generation).
+    // REVERSE entries are stored in ConfigObjectScanResult for future use when
+    // reverse-mapping generation is added.
+    // BOTH with a name absent from the current target's constructor is silently
+    // skipped — the property may legitimately exist only on the reverse target.
+    private fun buildConfigIgnoredProperties(
+        targetProps: List<PropertyInfo>,
+        targetTypeName: String
+    ): Set<String> {
+        val targetPropNames = targetProps.map { it.name }.toSet()
+        val result = mutableSetOf<String>()
+
+        for (configObj in configObjects) {
+            for (ignored in configObj.ignoredMappings) {
+                when (ignored.direction) {
+                    IgnoreDirection.REVERSE -> continue
+                    IgnoreDirection.FORWARD -> {
+                        if (ignored.name !in targetPropNames) {
+                            logger.error(
+                                "@IgnoreField(\"${ignored.name}\", FORWARD): property not found " +
+                                    "in target '$targetTypeName' constructor. " +
+                                    "Available: ${targetPropNames.sorted()}",
+                                configObj.configObject
+                            )
+                        } else {
+                            result.add(ignored.name)
+                        }
+                    }
+                    IgnoreDirection.BOTH -> {
+                        if (ignored.name in targetPropNames) result.add(ignored.name)
+                        // Not in this target → may be valid for the reverse direction; skip silently.
+                    }
+                }
+            }
+        }
+
+        return result
+    }
 
     // ---------------------------------------------------------
     // Resolve all mappings with the chain resolver

@@ -6,14 +6,16 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
 import hu.nova.blu3berry.kraft.MapUsing
+import hu.nova.blu3berry.kraft.config.IgnoreDirection
+import hu.nova.blu3berry.kraft.config.IgnoreField
 import hu.nova.blu3berry.kraft.config.MapConfig
 import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.ConverterDescriptor
 import hu.nova.blu3berry.kraft.model.FieldOverride
+import hu.nova.blu3berry.kraft.model.IgnoredMappingConfig
 import hu.nova.blu3berry.kraft.model.MapperId
 import hu.nova.blu3berry.kraft.model.NestedMappingDescriptor
 import hu.nova.blu3berry.kraft.model.toTypeInfo
-import hu.nova.blu3berry.kraft.onclass.MapIgnore
 import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 import hu.nova.blu3berry.kraft.processor.util.*
 
@@ -25,12 +27,11 @@ class ConfigObjectScanner(
     private val logger: KSPLogger
 ) {
     companion object {
-        val MAP_CONFIG_FQ = MapConfig::class.qualifiedName!!
-        val MAP_USING_FQ = MapUsing::class.qualifiedName!!
-        val MAP_IGNORE_FQ = MapIgnore::class.qualifiedName!!
-        val STRING_PAIR_FQ = hu.nova.blu3berry.kraft.config.FieldOverride::class.qualifiedName!!
-        val NESTED_FQ = hu.nova.blu3berry.kraft.config.NestedMapping::class.qualifiedName!!
-
+        val MAP_CONFIG_FQ    = MapConfig::class.qualifiedName!!
+        val MAP_USING_FQ     = MapUsing::class.qualifiedName!!
+        val IGNORE_FIELD_FQ  = IgnoreField::class.qualifiedName!!
+        val STRING_PAIR_FQ   = hu.nova.blu3berry.kraft.config.FieldOverride::class.qualifiedName!!
+        val NESTED_FQ        = hu.nova.blu3berry.kraft.config.NestedMapping::class.qualifiedName!!
     }
 
     /**
@@ -70,15 +71,15 @@ class ConfigObjectScanner(
         // Extract and validate converter functions
         val converters = extractConverterFunctions(classDeclaration, fromType, toType)
 
-        // Extract ignored fields
-        val ignoredFields = extractIgnoredFields(classDeclaration)
+        // Extract ignored mappings
+        val ignoredMappings = extractIgnoredMappings(annotation, classDeclaration)
 
         return ConfigObjectScanResult(
             fromType = fromType,
             toType = toType,
             configObject = classDeclaration,
             fieldOverrides = fieldOverrides,
-            ignoredFields = ignoredFields,
+            ignoredMappings = ignoredMappings,
             converters = converters,
             nestedMappings = nestedMappings
         )
@@ -470,20 +471,48 @@ class ConfigObjectScanner(
     }
 
     /**
-     * Extracts ignored fields from the configuration object.
+     * Extracts [IgnoredMappingConfig] entries from the [ignoredMappings] array of [@MapConfig][MapConfig].
      */
-    private fun extractIgnoredFields(symbol: KSClassDeclaration): List<String> {
-        return symbol.getDeclaredProperties().mapNotNull { prop ->
-            val ignoreAnn = prop.annotations.firstOrNull { it.isAnnotation(MAP_IGNORE_FQ) }
-            if (ignoreAnn != null) {
-                ignoreAnn.getStringArgOrNull(
-                    name = KraftKspConstants.ARG_VALUE,
-                    logger = logger,
-                    symbol = prop,
-                    annotationFqName = MAP_IGNORE_FQ
-                ) ?: prop.simpleName.asString()
-            } else null
-        }.toList()
+    private fun extractIgnoredMappings(
+        annotation: KSAnnotation,
+        symbol: KSClassDeclaration
+    ): List<IgnoredMappingConfig> {
+        val ignoreAnnotations = annotation.getArrayArgOrNull<KSAnnotation>(
+            name = KraftKspConstants.ARG_IGNORED_MAPPINGS,
+            logger = logger,
+            symbol = symbol,
+            annotationFqName = MAP_CONFIG_FQ
+        ) ?: emptyList()
+
+        return ignoreAnnotations.mapNotNull { ignoreAnn ->
+            if (!ignoreAnn.isAnnotation(IGNORE_FIELD_FQ)) return@mapNotNull null
+
+            val name = ignoreAnn.getStringArgOrNull(
+                name = KraftKspConstants.ARG_NAME,
+                logger = logger,
+                symbol = symbol,
+                annotationFqName = IGNORE_FIELD_FQ
+            ) ?: return@mapNotNull null
+
+            val directionName = ignoreAnn.getEnumArgOrNull(
+                name = KraftKspConstants.ARG_DIRECTION,
+                logger = logger,
+                symbol = symbol,
+                annotationFqName = IGNORE_FIELD_FQ
+            ) ?: IgnoreDirection.BOTH.name
+
+            val direction = try {
+                IgnoreDirection.valueOf(directionName)
+            } catch (_: IllegalArgumentException) {
+                logger.error(
+                    "@IgnoreField unknown direction '$directionName' on property '$name'.",
+                    symbol
+                )
+                return@mapNotNull null
+            }
+
+            IgnoredMappingConfig(name = name, direction = direction)
+        }
     }
 }
 

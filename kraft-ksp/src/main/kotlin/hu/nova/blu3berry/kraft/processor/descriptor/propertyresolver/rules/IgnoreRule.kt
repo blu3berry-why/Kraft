@@ -4,24 +4,25 @@ import hu.nova.blu3berry.kraft.model.MappingContext
 import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
-import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 
+/**
+ * Returns [PropertyMappingStrategy.Ignored] if the target property should be skipped.
+ *
+ * Two sources are merged into [MappingContext.classIgnoredProperties] before the rule
+ * is invoked:
+ *  - `@MapIgnore` on the `@MapFrom`/`@MapTo` annotated class.
+ *  - `@IgnoreField` entries in `@MapConfig.ignoredMappings`, filtered to the current
+ *    mapping direction by [hu.nova.blu3berry.kraft.processor.descriptor.ClassDescriptorBuilder].
+ */
 class IgnoreRule : MappingRule {
 
     override fun tryResolve(
         target: PropertyInfo,
         ctx: MappingContext
     ): PropertyMappingStrategy? {
-
-        if (target.name in ctx.classIgnoredProperties) {
-            return PropertyMappingStrategy.Ignored(target)
-        }
-
-        if (ctx.configOverrides.containsKey(target.name) &&
-            ctx.configOverrides[target.name] == KraftKspConstants.IGNORE_VALUE) {
-            return PropertyMappingStrategy.Ignored(target)
-        }
-
-        return null
+        return if (target.name in ctx.classIgnoredProperties)
+            PropertyMappingStrategy.Ignored(target)
+        else
+            null
     }
 }

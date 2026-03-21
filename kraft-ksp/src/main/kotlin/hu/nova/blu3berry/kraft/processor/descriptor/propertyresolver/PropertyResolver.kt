@@ -36,11 +36,10 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
          *                              name-based rule; otherwise DirectMatchRule could silently
          *                              win on a same-named property and skip the converter.
          *
-         * 2. [IgnoreRule]            — reads configOverrides for the IGNORE_VALUE sentinel and
-         *                              must run before ConfigOverrideRule, which reads the same
-         *                              map and assumes every value is a valid source property name.
-         *                              Swapping these would cause ConfigOverrideRule to log a
-         *                              bogus "unknown property" error for ignored fields.
+         * 2. [IgnoreRule]            — checks classIgnoredProperties (populated from @MapIgnore
+         *                              and @IgnoreField); must run before ConfigOverrideRule so
+         *                              an ignored property is never mistakenly treated as a
+         *                              source-name override.
          *
          * 3. [NestedRule]            — must claim a property whose type matches a nested mapping
          *                              before DirectMatchRule tries to copy the object directly

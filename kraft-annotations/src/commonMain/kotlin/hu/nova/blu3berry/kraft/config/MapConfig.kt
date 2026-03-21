@@ -16,4 +16,5 @@ public annotation class MapConfig(
     val to: KClass<*>,
     val fieldMappings: Array<FieldOverride> = [],
     val nestedMappings: Array<NestedMapping> = [],
+    val ignoredMappings: Array<IgnoreField> = [],
 )
