@@ -30,7 +30,7 @@ class ConfigObjectScanner(
         val MAP_CONFIG_FQ    = MapConfig::class.qualifiedName!!
         val MAP_USING_FQ     = MapUsing::class.qualifiedName!!
         val IGNORE_FIELD_FQ  = MapIgnoreField::class.qualifiedName!!
-        val STRING_PAIR_FQ   = hu.nova.blu3berry.kraft.config.FieldOverride::class.qualifiedName!!
+        val STRING_PAIR_FQ   = hu.nova.blu3berry.kraft.config.FieldMapping::class.qualifiedName!!
         val NESTED_FQ        = hu.nova.blu3berry.kraft.config.NestedMapping::class.qualifiedName!!
     }
 

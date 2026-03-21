@@ -14,7 +14,7 @@ import kotlin.reflect.KClass
 public annotation class MapConfig(
     val from: KClass<*>,
     val to: KClass<*>,
-    val fieldMappings: Array<FieldOverride> = [],
+    val fieldMappings: Array<FieldMapping> = [],
     val nestedMappings: Array<NestedMapping> = [],
     val ignoredMappings: Array<MapIgnoreField> = [],
 )

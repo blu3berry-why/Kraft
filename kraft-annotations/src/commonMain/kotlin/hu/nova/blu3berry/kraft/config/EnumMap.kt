@@ -7,5 +7,5 @@ import kotlin.reflect.KClass
 annotation class MapEnum(
     val from: KClass<*>,
     val to: KClass<*>,
-    val fieldMappings: Array<FieldOverride> = []
+    val fieldMappings: Array<FieldMapping> = []
 )

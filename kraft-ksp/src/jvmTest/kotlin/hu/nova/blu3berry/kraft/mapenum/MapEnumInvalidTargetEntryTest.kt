@@ -22,7 +22,7 @@ class MapEnumInvalidTargetEntryTest {
                 from = Color::class,
                 to   = ColorDto::class,
                 fieldMappings = [
-                    hu.nova.blu3berry.kraft.config.FieldOverride(from = "RED", to = "YELLOW")
+                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "RED", to = "YELLOW")
                 ]
             )
             object ColorMapping

@@ -19,9 +19,9 @@ class MapEnumCustomMappingTest {
                 from = OrderState::class,
                 to   = OrderStatus::class,
                 fieldMappings = [
-                    hu.nova.blu3berry.kraft.config.FieldOverride(from = "PENDING",   to = "IN_PROGRESS"),
-                    hu.nova.blu3berry.kraft.config.FieldOverride(from = "SHIPPED",   to = "DELIVERED"),
-                    hu.nova.blu3berry.kraft.config.FieldOverride(from = "CANCELLED", to = "REJECTED")
+                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "PENDING",   to = "IN_PROGRESS"),
+                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "SHIPPED",   to = "DELIVERED"),
+                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "CANCELLED", to = "REJECTED")
                 ]
             )
             object OrderStateMapping

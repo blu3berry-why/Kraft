@@ -112,7 +112,7 @@ fun KSPLogger.noSuchProperty(
 
         Fix:
         - Check the spelling of the property.
-        - Update your @MapField or @MapFieldOverride accordingly.
+        - Update your @MapField or @FieldMapping accordingly.
         """.trimIndent(),
         symbol
     )
@@ -176,7 +176,7 @@ ${
 
     How to fix:
       ✓ Add @MapField("sourceName") to the target property '${targetProperty.name}'
-      ✓ Or add a config override: FieldOverride(from = "sourceName", to = "${targetProperty.name}")
+      ✓ Or add a config override: FieldMapping(from = "sourceName", to = "${targetProperty.name}")
       ✓ Or make the property nullable
       ✓ Or provide a default value in the target constructor
     """.trimIndent(),
@@ -395,7 +395,7 @@ fun KSPLogger.unmappedEnumEntries(
         .joinToString("\n") { "    • $it" }
 
     val snippetLines = unmappedEntries
-        .joinToString("\n") { "            FieldOverride(from = \"$it\", to = \"???\")," }
+        .joinToString("\n") { "            FieldMapping(from = \"$it\", to = \"???\")," }
 
     err(
         """
@@ -418,7 +418,7 @@ $targetLines
       non-exhaustive 'when' expression would be generated and the
       Kotlin compiler would reject it.
 
-      How to fix — add a FieldOverride for each unmapped entry:
+      How to fix — add a FieldMapping for each unmapped entry:
 
         @MapEnum(
             from          = $fromSimpleName::class,

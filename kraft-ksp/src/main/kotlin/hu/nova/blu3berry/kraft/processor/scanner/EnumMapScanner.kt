@@ -98,7 +98,7 @@ class EnumMapScanner(
         val toEntries = getEnumEntries(toDecl)
         val toEntriesSet = toEntries.toSet()
 
-        // ---- read fieldMappings = [FieldOverride("A","B"), ...] ----
+        // ---- read fieldMappings = [FieldMapping("A","B"), ...] ----
         val customMappings: List<EnumEntryMapping> = extractCustomMappings(annotation, fromEntries, toEntries, decl)
         val allMappings = customMappings.toMutableList()
         val mappedSources = customMappings.mapTo(mutableSetOf()) { it.source }
@@ -169,13 +169,13 @@ class EnumMapScanner(
 
             val from = ann.arguments.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_FROM }?.value as? String
             if (from == null) {
-                logger.error("@MapEnum: malformed @FieldOverride annotation — missing or non-String 'from' argument.", decl)
+                logger.error("@MapEnum: malformed @FieldMapping annotation — missing or non-String 'from' argument.", decl)
                 continue
             }
 
             val to = ann.arguments.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_TO }?.value as? String
             if (to == null) {
-                logger.error("@MapEnum: malformed @FieldOverride annotation — missing or non-String 'to' argument.", decl)
+                logger.error("@MapEnum: malformed @FieldMapping annotation — missing or non-String 'to' argument.", decl)
                 continue
             }
 

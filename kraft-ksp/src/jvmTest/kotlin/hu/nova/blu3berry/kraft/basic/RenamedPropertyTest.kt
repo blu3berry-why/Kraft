@@ -19,7 +19,7 @@ class RenamedPropertyTest {
                 from = PersonDto::class,
                 to = Person::class,
                 fieldMappings = [
-                    hu.nova.blu3berry.kraft.config.FieldOverride("fullName", "name")
+                    hu.nova.blu3berry.kraft.config.FieldMapping("fullName", "name")
                 ]
             )
             object PersonMapper

@@ -5,10 +5,10 @@ import com.tschuchort.compiletesting.SourceFile
 import hu.nova.blu3berry.kraft.TestKspRunner
 import org.junit.jupiter.api.Test
 
-class MapIgnoreFieldWithFieldOverrideTest {
+class MapIgnoreFieldWithFieldMappingTest {
 
     @Test
-    fun `MapIgnoreField and FieldOverride coexist correctly in the same MapConfig`() {
+    fun `MapIgnoreField and FieldMapping coexist correctly in the same MapConfig`() {
         val source = SourceFile.kotlin(
             "Models.kt",
             """
@@ -18,7 +18,7 @@ class MapIgnoreFieldWithFieldOverrideTest {
                 from = User::class,
                 to   = UserDto::class,
                 fieldMappings = [
-                    hu.nova.blu3berry.kraft.config.FieldOverride(from = "email", to = "contactEmail")
+                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "email", to = "contactEmail")
                 ],
                 ignoredMappings = [
                     hu.nova.blu3berry.kraft.config.MapIgnoreField("notes")

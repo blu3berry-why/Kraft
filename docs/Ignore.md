@@ -87,7 +87,7 @@ enum class IgnoreSide { TARGET, SOURCE, BOTH }
 annotation class MapConfig(
     val from: KClass<*>,
     val to: KClass<*>,
-    val fieldMappings: Array<FieldOverride> = [],
+    val fieldMappings: Array<FieldMapping> = [],
     val nestedMappings: Array<NestedMapping> = [],
     val ignoredMappings: Array<MapIgnoreField> = [],
 )
@@ -365,7 +365,7 @@ property is claimed as ignored before any rename override can fire.
 @MapConfig(
     from = Product::class,
     to = ProductDto::class,
-    fieldMappings     = [FieldOverride(from = "internalId", to = "id")],
+    fieldMappings     = [FieldMapping(from = "internalId", to = "id")],
     ignoredMappings   = [MapIgnoreField("id")]
 )
 object ProductMapping

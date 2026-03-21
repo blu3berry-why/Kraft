@@ -21,8 +21,8 @@ class MapEnumMixedMappingTest {
                 from = PaymentState::class,
                 to   = PaymentStatus::class,
                 fieldMappings = [
-                    hu.nova.blu3berry.kraft.config.FieldOverride(from = "PENDING", to = "AWAITING"),
-                    hu.nova.blu3berry.kraft.config.FieldOverride(from = "FAILED",  to = "ERROR")
+                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "PENDING", to = "AWAITING"),
+                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "FAILED",  to = "ERROR")
                 ]
             )
             object PaymentMapping
