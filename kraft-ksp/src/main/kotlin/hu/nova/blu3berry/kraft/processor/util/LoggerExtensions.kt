@@ -435,7 +435,7 @@ $snippetLines
 }
 
 /**
- * @MapIgnore or @IgnoreField targets a property that has no default value.
+ * @MapIgnore or @MapIgnoreField targets a property that has no default value.
  * Omitting it from the constructor call produces invalid code.
  */
 fun KSPLogger.ignoredRequiredProperty(
@@ -444,7 +444,7 @@ fun KSPLogger.ignoredRequiredProperty(
     symbol: KSNode
 ) = err(
     """
-    @MapIgnore / @IgnoreField targets '$propertyName' in '$targetType',
+    @MapIgnore / @MapIgnoreField targets '$propertyName' in '$targetType',
     but the property has no default value.
 
     The generated constructor call will omit '$propertyName', producing
