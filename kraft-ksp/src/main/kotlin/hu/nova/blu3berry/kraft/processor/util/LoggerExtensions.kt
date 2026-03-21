@@ -435,6 +435,29 @@ $snippetLines
 }
 
 /**
+ * @MapIgnore or @IgnoreField targets a property that has no default value.
+ * Omitting it from the constructor call produces invalid code.
+ */
+fun KSPLogger.ignoredRequiredProperty(
+    targetType: String,
+    propertyName: String,
+    symbol: KSNode
+) = err(
+    """
+    @MapIgnore / @IgnoreField targets '$propertyName' in '$targetType',
+    but the property has no default value.
+
+    The generated constructor call will omit '$propertyName', producing
+    code that does not compile.
+
+    How to fix:
+      ✓ Add a default value to '$propertyName' in the target constructor.
+      ✓ Or remove the ignore declaration.
+    """.trimIndent(),
+    symbol
+)
+
+/**
  * @MapNested used on a property whose type is not a concrete mappable class
  * (e.g. interface, generic type parameter, collection).
  */

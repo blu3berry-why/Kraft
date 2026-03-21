@@ -66,6 +66,36 @@ fun KSAnnotation.getStringArgOrNull(
 }
 
 /**
+ * Extract an enum annotation argument as its constant name string.
+ *
+ * In KSP, enum annotation values are surfaced as [KSType] instances; this helper
+ * returns the simple name of the enum entry (e.g. `"FORWARD"`) so the caller can
+ * map it to the actual enum via `valueOf`.  Returns `null` if the argument is absent
+ * (caller should apply the default) or the value is not a [KSType].
+ */
+fun KSAnnotation.getEnumArgOrNull(
+    name: String,
+    logger: KSPLogger,
+    symbol: KSNode,
+    annotationFqName: String
+): String? {
+    val arg = arguments.firstOrNull { it.name?.asString() == name }
+        ?: return null // absent → annotation default applies
+
+    // KSP surfaces enum annotation arguments as KSClassDeclaration (enum entry nodes),
+    // not as KSType — cast accordingly.
+    val enumEntry = arg.value as? KSClassDeclaration ?: run {
+        logger.error(
+            "@$annotationFqName argument '$name' must be an enum value. " +
+                "Found: ${arg.value?.let { it::class.simpleName }}",
+            symbol
+        )
+        return null
+    }
+    return enumEntry.simpleName.asString()
+}
+
+/**
  * Extract an array argument (used for fieldMapping).
  */
 @Suppress("UNCHECKED_CAST")
