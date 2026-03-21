@@ -14,10 +14,10 @@ class MapIgnoreNullablePropertyTest {
             """
             data class UserSource(val name: String, val email: String)
 
-            @hu.nova.blu3berry.kraft.onclass.from.MapFrom(UserSource::class)
+            @hu.nova.blu3berry.kraft.mapping.MapFrom(UserSource::class)
             data class UserDto(
                 val name: String,
-                @hu.nova.blu3berry.kraft.onclass.MapIgnore
+                @hu.nova.blu3berry.kraft.mapping.MapIgnore
                 val email: String? = null
             )
             """

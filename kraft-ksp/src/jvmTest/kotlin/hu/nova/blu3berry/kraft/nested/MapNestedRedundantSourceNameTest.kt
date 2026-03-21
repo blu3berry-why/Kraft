@@ -20,10 +20,10 @@ class MapNestedRedundantSourceNameTest {
 
             data class AddressDto(val street: String, val city: String)
 
-            @hu.nova.blu3berry.kraft.onclass.from.MapFrom(PersonSource::class)
+            @hu.nova.blu3berry.kraft.mapping.MapFrom(PersonSource::class)
             data class PersonDto(
                 val name: String,
-                @hu.nova.blu3berry.kraft.onclass.MapNested(sourceName = "address")
+                @hu.nova.blu3berry.kraft.mapping.MapNested(sourceName = "address")
                 val address: AddressDto
             )
             """

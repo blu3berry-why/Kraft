@@ -1,4 +1,4 @@
-package hu.nova.blu3berry.kraft.onclass.from
+package hu.nova.blu3berry.kraft.mapping
 
 import kotlin.reflect.KClass
 

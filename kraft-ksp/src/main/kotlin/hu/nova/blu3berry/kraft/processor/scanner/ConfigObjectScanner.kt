@@ -5,7 +5,7 @@ import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
-import hu.nova.blu3berry.kraft.MapUsing
+import hu.nova.blu3berry.kraft.config.MapUsing
 import hu.nova.blu3berry.kraft.config.IgnoreSide
 import hu.nova.blu3berry.kraft.config.MapIgnoreField
 import hu.nova.blu3berry.kraft.config.MapConfig

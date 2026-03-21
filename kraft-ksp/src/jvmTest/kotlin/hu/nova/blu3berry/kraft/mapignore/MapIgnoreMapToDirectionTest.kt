@@ -14,12 +14,12 @@ class MapIgnoreMapToDirectionTest {
             """
             data class ReportDto(val title: String, val summary: String? = null)
 
-            @hu.nova.blu3berry.kraft.onclass.to.MapTo(ReportDto::class)
+            @hu.nova.blu3berry.kraft.mapping.MapTo(ReportDto::class)
             data class Report(
                 val title: String,
                 // @MapIgnore is on the source class (Report); the same-named target property
                 // (ReportDto.summary) is skipped. Requires the target property to have a default.
-                @hu.nova.blu3berry.kraft.onclass.MapIgnore
+                @hu.nova.blu3berry.kraft.mapping.MapIgnore
                 val summary: String
             )
             """

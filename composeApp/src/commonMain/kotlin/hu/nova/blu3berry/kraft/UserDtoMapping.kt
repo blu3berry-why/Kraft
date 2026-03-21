@@ -4,7 +4,7 @@ import hu.nova.blu3berry.kraft.config.MapEnum
 import hu.nova.blu3berry.kraft.config.FieldMapping
 import hu.nova.blu3berry.kraft.config.MapConfig
 import hu.nova.blu3berry.kraft.config.NestedMapping
-import hu.nova.blu3berry.kraft.onclass.to.MapTo
+import hu.nova.blu3berry.kraft.mapping.MapTo
 
 @MapTo(UserDto::class)
 data class User(

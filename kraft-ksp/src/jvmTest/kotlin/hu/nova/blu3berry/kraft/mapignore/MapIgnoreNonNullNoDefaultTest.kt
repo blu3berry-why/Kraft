@@ -17,10 +17,10 @@ class MapIgnoreNonNullNoDefaultTest {
             """
             data class ItemSource(val name: String, val quantity: Int)
 
-            @hu.nova.blu3berry.kraft.onclass.from.MapFrom(ItemSource::class)
+            @hu.nova.blu3berry.kraft.mapping.MapFrom(ItemSource::class)
             data class ItemDto(
                 val name: String,
-                @hu.nova.blu3berry.kraft.onclass.MapIgnore
+                @hu.nova.blu3berry.kraft.mapping.MapIgnore
                 val quantity: Int   // non-null, no default — ignored property leaves constructor incomplete
             )
             """

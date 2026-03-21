@@ -8,11 +8,11 @@ import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.MapNestedAnnotation
 import hu.nova.blu3berry.kraft.model.MappingDirection
 import hu.nova.blu3berry.kraft.model.PropertyScanResult
-import hu.nova.blu3berry.kraft.onclass.MapNested
-import hu.nova.blu3berry.kraft.onclass.MapIgnore
-import hu.nova.blu3berry.kraft.onclass.from.MapField
-import hu.nova.blu3berry.kraft.onclass.from.MapFrom
-import hu.nova.blu3berry.kraft.onclass.to.MapTo
+import hu.nova.blu3berry.kraft.mapping.MapField
+import hu.nova.blu3berry.kraft.mapping.MapFrom
+import hu.nova.blu3berry.kraft.mapping.MapIgnore
+import hu.nova.blu3berry.kraft.mapping.MapNested
+import hu.nova.blu3berry.kraft.mapping.MapTo
 import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 import hu.nova.blu3berry.kraft.processor.util.annotationTargetError
 import hu.nova.blu3berry.kraft.processor.util.findAnnotation

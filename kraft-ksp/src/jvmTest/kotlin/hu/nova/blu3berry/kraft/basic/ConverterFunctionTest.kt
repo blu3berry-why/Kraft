@@ -20,7 +20,7 @@ class ConverterFunctionTest {
                 to = Dst::class
             )
             object MyMapper {
-                @hu.nova.blu3berry.kraft.MapUsing(
+                @hu.nova.blu3berry.kraft.config.MapUsing(
                     from = "int",
                     to   = "text"
                 )

@@ -19,7 +19,7 @@ class TransitiveNestedMappingTest {
             data class EmployeeDto(val id: Int)
             data class DepartmentDto(val name: String, val manager: EmployeeDto)
 
-            @hu.nova.blu3berry.kraft.onclass.from.MapFrom(CompanySource::class)
+            @hu.nova.blu3berry.kraft.mapping.MapFrom(CompanySource::class)
             data class CompanyDto(val title: String, val department: DepartmentDto)
             """
         )

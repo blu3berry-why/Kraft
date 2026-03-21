@@ -1,4 +1,4 @@
-package hu.nova.blu3berry.kraft
+package hu.nova.blu3berry.kraft.config
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.SOURCE)

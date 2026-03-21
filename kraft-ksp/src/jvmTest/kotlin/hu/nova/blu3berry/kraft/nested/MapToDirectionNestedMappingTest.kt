@@ -16,7 +16,7 @@ class MapToDirectionNestedMappingTest {
             data class AddressDto(val street: String, val city: String)
             data class PersonDto(val name: String, val address: AddressDto)
 
-            @hu.nova.blu3berry.kraft.onclass.to.MapTo(PersonDto::class)
+            @hu.nova.blu3berry.kraft.mapping.MapTo(PersonDto::class)
             data class PersonSource(val name: String, val address: AddressSource)
             """
         )

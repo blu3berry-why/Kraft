@@ -14,10 +14,10 @@ class MapIgnoreDefaultPropertyTest {
             """
             data class ProductSource(val name: String, val price: Double)
 
-            @hu.nova.blu3berry.kraft.onclass.from.MapFrom(ProductSource::class)
+            @hu.nova.blu3berry.kraft.mapping.MapFrom(ProductSource::class)
             data class ProductDto(
                 val name: String,
-                @hu.nova.blu3berry.kraft.onclass.MapIgnore
+                @hu.nova.blu3berry.kraft.mapping.MapIgnore
                 val price: Double = 0.0
             )
             """

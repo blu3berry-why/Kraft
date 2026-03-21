@@ -21,7 +21,7 @@ class UnresolvableChildPropertyTest {
             // 'city' renamed to 'zipCode' — no source match
             data class AddressDto(val street: String, val zipCode: String)
 
-            @hu.nova.blu3berry.kraft.onclass.from.MapFrom(PersonSource::class)
+            @hu.nova.blu3berry.kraft.mapping.MapFrom(PersonSource::class)
             data class PersonDto(val name: String, val address: AddressDto)
             """
         )
