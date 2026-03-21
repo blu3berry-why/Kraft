@@ -4,6 +4,7 @@ import hu.nova.blu3berry.kraft.model.MappingContext
 import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
+import hu.nova.blu3berry.kraft.processor.util.ignoredRequiredProperty
 
 /**
  * Returns [PropertyMappingStrategy.Ignored] if the target property should be skipped.
@@ -20,9 +21,16 @@ class IgnoreRule : MappingRule {
         target: PropertyInfo,
         ctx: MappingContext
     ): PropertyMappingStrategy? {
-        return if (target.name in ctx.classIgnoredProperties)
-            PropertyMappingStrategy.Ignored(target)
-        else
-            null
+        if (target.name !in ctx.classIgnoredProperties) return null
+
+        if (!target.hasDefault && !target.type.isNullable) {
+            ctx.logger.ignoredRequiredProperty(
+                targetType = ctx.targetTypeName,
+                propertyName = target.name,
+                symbol = target.declaration
+            )
+        }
+
+        return PropertyMappingStrategy.Ignored(target)
     }
 }

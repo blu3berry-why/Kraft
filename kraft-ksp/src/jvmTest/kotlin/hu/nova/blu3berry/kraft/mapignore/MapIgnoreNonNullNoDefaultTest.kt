@@ -28,11 +28,7 @@ class MapIgnoreNonNullNoDefaultTest {
 
         val result = TestKspRunner.compile(source)
 
-        // The KSP step itself succeeds (no KSP error), but the generated code omits 'quantity'
-        // from the constructor call, making the resulting Kotlin file invalid.
-        // TODO: the processor should emit a KSP error here instead of generating invalid code.
-        // When that is implemented, change this to assertThat(result.messages).contains("...")
-        // and remove the exitCode assertion (or keep it for double-safety).
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("non-nullable and has no default value")
     }
 }

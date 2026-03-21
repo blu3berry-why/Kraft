@@ -207,21 +207,11 @@ class uses a different name for the corresponding parameter. In that case, use
 | `@IgnoreField(name, FORWARD)` — `name` not in target constructor | **error** | KSP error with available property names listed |
 | `@IgnoreField(name, BOTH)` — `name` not in this direction's target | silent | Skipped; may be valid for the reverse direction |
 | `@IgnoreField` with unrecognised direction string | **error** | KSP error: `"@IgnoreField unknown direction '...' on property '...'"` |
-| `@MapIgnore` on non-null, no-default property | none (gap) | KSP succeeds; generated code omits the parameter → downstream Kotlin compile error |
-
-The last row is a known gap: the processor should detect at scan time that an ignored
-property has no default and emit a descriptive KSP error. See the TODO in
-`MapIgnoreNonNullNoDefaultTest` and `IgnoreFieldNonNullNoDefaultTest`.
+| `@MapIgnore` / `@IgnoreField` on non-null, no-default property | **error** | KSP error: `"non-nullable and has no default value"` |
 
 ---
 
 ## 7. Known Limitations
-
-- **No KSP-level validation for non-null/no-default ignored properties.** The processor
-  currently emits no error when `@MapIgnore` or `@IgnoreField` targets a required
-  constructor parameter. The generated file omits the parameter, causing a Kotlin
-  compilation error. Future work: detect `!hasDefault && !isNullable` at build time and
-  emit a descriptive KSP error instead.
 
 - **`@MapIgnore` on `@MapTo` requires same-name target property.** Annotating a source
   property whose target uses a different name has no effect. Use `@IgnoreField` in
