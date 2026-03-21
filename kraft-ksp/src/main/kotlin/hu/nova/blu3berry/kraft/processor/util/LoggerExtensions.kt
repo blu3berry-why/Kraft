@@ -131,7 +131,7 @@ fun KSPLogger.unmappedNonNullableProperty(
     but no mapping was provided.
 
     Fix:
-    - Add @MapField(other = "sourceName")
+    - Add @MapField(counterPartName = "sourceName")
     - Or add @MapUsing with a converter
     - Or make '$propertyName' nullable
     """.trimIndent(),
@@ -421,8 +421,8 @@ $targetLines
       How to fix — add a FieldMapping for each unmapped entry:
 
         @MapEnum(
-            from          = $fromSimpleName::class,
-            to            = $toSimpleName::class,
+            source        = $fromSimpleName::class,
+            target        = $toSimpleName::class,
             fieldMappings = [
 $snippetLines
             ]
@@ -515,7 +515,7 @@ fun KSPLogger.ambiguousNestedSourceProperty(
     symbol: KSNode
 ) = err(
     """
-    Ambiguous source property for @NestedMapping(from = $nestedSourceType, ...):
+    Ambiguous source property for @NestedMapping(source = $nestedSourceType, ...):
     ${matchingProps.size} properties of type '$nestedSourceType' exist in '$sourceTypeName'.
 
     Matching properties:
@@ -543,7 +543,7 @@ fun KSPLogger.nestedMappingSourceNotFound(
     symbol: KSNode
 ) = err(
     """
-    @NestedMapping(from = $nestedSourceType, to = $nestedTargetType) declared in config
+    @NestedMapping(source = $nestedSourceType, target = $nestedTargetType) declared in config
     but no property of type '$nestedSourceType' exists in source class '$sourceTypeName'.
 
     Why:

@@ -247,7 +247,7 @@ class ConfigObjectScanner(
     ): ConverterDescriptor? {
         val mapUsingAnn = fn.annotations.first { it.isAnnotation(MAP_USING_FQ) }
 
-        // Extract from and to property names
+        // Extract source and target property names
         val fromProp = mapUsingAnn.getStringArgOrNull(
             name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
@@ -262,10 +262,10 @@ class ConfigObjectScanner(
             annotationFqName = MAP_USING_FQ
         )
 
-        // Validate non-empty from and to values
+        // Validate non-empty source and target values
         if (fromProp.isNullOrBlank() || toProp.isNullOrBlank()) {
             logger.error(
-                "@MapUsing must specify non-empty 'from' and 'to' values",
+                "@MapUsing must specify non-empty 'source' and 'target' values",
                 fn
             )
             return null

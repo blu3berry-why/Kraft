@@ -22,7 +22,7 @@ before the rule chain runs:
 | **Class-level** | `@MapIgnore` | On a property in the `@MapFrom`/`@MapTo`-annotated class |
 | **Config-level** | `@MapIgnoreField` inside `@MapConfig.ignoredMappings` | On the mapping config object |
 
-Both paths feed into `MappingContext.classIgnoredProperties: Set<String>`, which
+Both paths feed into `MappingContext.ignoredProperties: Set<String>`, which
 `IgnoreRule` consumes. There is no separate code path per source.
 
 ---
@@ -61,8 +61,8 @@ annotation class MapIgnoreField(
 
 Used inside `@MapConfig.ignoredMappings`. `name` is always the **target-side** constructor
 parameter name for the direction being generated:
-- `TARGET` — the `to`-class parameter name.
-- `SOURCE` — the `from`-class parameter name (reserved; not applied yet).
+- `TARGET` — the `target`-class parameter name.
+- `SOURCE` — the `source`-class parameter name (reserved; not applied yet).
 - `BOTH` — applied wherever the name exists in each direction's target constructor.
 
 ---
@@ -85,8 +85,8 @@ enum class IgnoreSide { TARGET, SOURCE, BOTH }
 
 ```kotlin
 annotation class MapConfig(
-    val from: KClass<*>,
-    val to: KClass<*>,
+    val source: KClass<*>,
+    val target: KClass<*>,
     val fieldMappings: Array<FieldMapping> = [],
     val nestedMappings: Array<NestedMapping> = [],
     val ignoredMappings: Array<MapIgnoreField> = [],
@@ -118,13 +118,13 @@ ClassDescriptorBuilder.build()
   │    BOTH:    silently skips if name absent from this target
   │    → Set<String>
   │
-  └─ classIgnoredProperties = extractClassIgnoredProperties() +
-                               buildConfigIgnoredProperties(...)
+  └─ ignoredProperties = extractClassIgnoredProperties() +
+                          buildConfigIgnoredProperties(...)
        stored in MappingContext
 
 PropertyResolver rule chain (per target property)
   └─ IgnoreRule.tryResolve(target, ctx)
-       return Ignored(target) if target.name in ctx.classIgnoredProperties
+       return Ignored(target) if target.name in ctx.ignoredProperties
        else null → continue to next rule
 ```
 
@@ -136,7 +136,7 @@ PropertyResolver rule chain (per target property)
 /**
  * Returns [PropertyMappingStrategy.Ignored] if the target property should be skipped.
  *
- * Two sources are merged into [MappingContext.classIgnoredProperties] before the rule
+ * Two sources are merged into [MappingContext.ignoredProperties] before the rule
  * is invoked:
  *  - `@MapIgnore` on the `@MapFrom`/`@MapTo` annotated class.
  *  - `@MapIgnoreField` entries in `@MapConfig.ignoredMappings`, filtered to the current
@@ -144,8 +144,7 @@ PropertyResolver rule chain (per target property)
  */
 class IgnoreRule : MappingRule {
     override fun tryResolve(target: PropertyInfo, ctx: MappingContext): PropertyMappingStrategy? {
-        val isIgnored = target.name in ctx.classIgnoredProperties
-            || ctx.configOverrides[target.name] == KraftKspConstants.IGNORE_VALUE
+        val isIgnored = target.name in ctx.ignoredProperties
         return if (isIgnored) PropertyMappingStrategy.Ignored(target) else null
     }
 }
@@ -315,8 +314,8 @@ data class User(val name: String, val internalNotes: String, val auditLog: Strin
 data class UserDto(val name: String, val internalNotes: String = "", val auditLog: String = "")
 
 @MapConfig(
-    from = User::class,
-    to = UserDto::class,
+    source = User::class,
+    target = UserDto::class,
     ignoredMappings = [
         MapIgnoreField("internalNotes", direction = IgnoreSide.TARGET),
         MapIgnoreField("auditLog",      direction = IgnoreSide.TARGET),
@@ -340,8 +339,8 @@ fun User.toUserDto() = UserDto(
 
 ```kotlin
 @MapConfig(
-    from = Order::class,
-    to = OrderDto::class,
+    source = Order::class,
+    target = OrderDto::class,
     ignoredMappings = [
         MapIgnoreField("metadata")   // default direction = BOTH
     ]
@@ -363,9 +362,9 @@ property is claimed as ignored before any rename override can fire.
 
 ```kotlin
 @MapConfig(
-    from = Product::class,
-    to = ProductDto::class,
-    fieldMappings     = [FieldMapping(from = "internalId", to = "id")],
+    source = Product::class,
+    target = ProductDto::class,
+    fieldMappings     = [FieldMapping(source = "internalId", target = "id")],
     ignoredMappings   = [MapIgnoreField("id")]
 )
 object ProductMapping

@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test
 class MapEnumNonEnumTypeTest {
 
     @Test
-    fun `@MapEnum emits a KSP error when from references a non-enum type`() {
+    fun `@MapEnum emits a KSP error when source references a non-enum type`() {
         val source = SourceFile.kotlin(
             "Models.kt",
             """
@@ -33,7 +33,7 @@ class MapEnumNonEnumTypeTest {
     }
 
     @Test
-    fun `@MapEnum emits a KSP error when to references a non-enum type`() {
+    fun `@MapEnum emits a KSP error when target references a non-enum type`() {
         val source = SourceFile.kotlin(
             "Models.kt",
             """
