@@ -65,7 +65,7 @@ class EnumMapScanner(
 
         // ---- get from = X::class ----
         val fromKSType = annotation.getKClassArgOrNull(
-            name = KraftKspConstants.ARG_FROM,
+            name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
             symbol = decl,
             annotationFqName = ENUM_MAP_FQ
@@ -73,7 +73,7 @@ class EnumMapScanner(
 
         // ---- get to = Y::class ----
         val toKSType = annotation.getKClassArgOrNull(
-            name = KraftKspConstants.ARG_TO,
+            name = KraftKspConstants.ARG_TARGET,
             logger = logger,
             symbol = decl,
             annotationFqName = ENUM_MAP_FQ
@@ -119,8 +119,8 @@ class EnumMapScanner(
         if (unmappedEntries.isNotEmpty()) {
             logger.unmappedEnumEntries(
                 declaringClass = decl.simpleName.asString(),
-                fromQualifiedName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
-                toQualifiedName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString(),
+                sourceQualifiedName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
+                targetQualifiedName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString(),
                 fromSimpleName = fromDecl.simpleName.asString(),
                 toSimpleName = toDecl.simpleName.asString(),
                 unmappedEntries = unmappedEntries,
@@ -167,13 +167,13 @@ class EnumMapScanner(
         for (pairAnn in arg) {
             val ann = pairAnn as? KSAnnotation ?: continue
 
-            val from = ann.arguments.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_FROM }?.value as? String
+            val from = ann.arguments.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_SOURCE }?.value as? String
             if (from == null) {
                 logger.error("@MapEnum: malformed @FieldMapping annotation — missing or non-String 'from' argument.", decl)
                 continue
             }
 
-            val to = ann.arguments.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_TO }?.value as? String
+            val to = ann.arguments.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_TARGET }?.value as? String
             if (to == null) {
                 logger.error("@MapEnum: malformed @FieldMapping annotation — missing or non-String 'to' argument.", decl)
                 continue

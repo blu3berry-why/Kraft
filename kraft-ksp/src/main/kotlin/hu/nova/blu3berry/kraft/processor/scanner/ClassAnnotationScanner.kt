@@ -100,7 +100,7 @@ class ClassAnnotationScanner(
         val ann = classDeclaration.findAnnotation(MAP_FROM_FQ) ?: return
 
         val sourceType = ann.getKClassArgOrNull(
-            name = KraftKspConstants.ARG_VALUE,
+            name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
             symbol = classDeclaration,
             annotationFqName = MAP_FROM_FQ
@@ -124,7 +124,7 @@ class ClassAnnotationScanner(
         val ann = classDeclaration.findAnnotation(MAP_TO_FQ) ?: return
 
         val targetType = ann.getKClassArgOrNull(
-            name = KraftKspConstants.ARG_VALUE,
+            name = KraftKspConstants.ARG_TARGET,
             logger = logger,
             symbol = classDeclaration,
             annotationFqName = MAP_TO_FQ

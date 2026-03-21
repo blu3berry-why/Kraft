@@ -5,6 +5,6 @@ import kotlin.reflect.KClass
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)
 annotation class MapTo(
-    val value: KClass<*>,
+    val target: KClass<*>,
     val config: KClass<*> = Unit::class
 )

@@ -15,8 +15,8 @@ class MapIgnoreFieldMultipleEntriesTest {
             data class Product(val id: Int, val name: String, val cost: Double, val tax: Double, val fee: Double)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = Product::class,
-                to   = ProductDto::class,
+                source = Product::class,
+                target   = ProductDto::class,
                 ignoredMappings = [
                     hu.nova.blu3berry.kraft.config.MapIgnoreField("cost"),
                     hu.nova.blu3berry.kraft.config.MapIgnoreField("tax"),

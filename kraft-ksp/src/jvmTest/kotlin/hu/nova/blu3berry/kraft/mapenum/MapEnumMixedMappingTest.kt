@@ -18,11 +18,11 @@ class MapEnumMixedMappingTest {
             // PAID matches by name → auto-mapped
             // PENDING and FAILED differ → covered by fieldMappings
             @hu.nova.blu3berry.kraft.config.MapEnum(
-                from = PaymentState::class,
-                to   = PaymentStatus::class,
+                source = PaymentState::class,
+                target   = PaymentStatus::class,
                 fieldMappings = [
-                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "PENDING", to = "AWAITING"),
-                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "FAILED",  to = "ERROR")
+                    hu.nova.blu3berry.kraft.config.FieldMapping(source = "PENDING", target = "AWAITING"),
+                    hu.nova.blu3berry.kraft.config.FieldMapping(source = "FAILED",  target = "ERROR")
                 ]
             )
             object PaymentMapping

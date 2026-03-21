@@ -16,8 +16,8 @@ class RenamedPropertyTest {
             data class Person(val name: String)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = PersonDto::class,
-                to = Person::class,
+                source = PersonDto::class,
+                target = Person::class,
                 fieldMappings = [
                     hu.nova.blu3berry.kraft.config.FieldMapping("fullName", "name")
                 ]

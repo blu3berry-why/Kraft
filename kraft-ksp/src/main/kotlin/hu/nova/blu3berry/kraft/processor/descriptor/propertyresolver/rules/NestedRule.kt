@@ -182,9 +182,9 @@ class NestedRule : MappingRule {
     private fun synthesiseDescriptor(sourceType: TypeInfo, targetType: TypeInfo): NestedMappingDescriptor =
         NestedMappingDescriptor(
             nestedMapperId = MapperId(
-                fromQualifiedName = sourceType.declaration.qualifiedName?.asString()
+                sourceQualifiedName = sourceType.declaration.qualifiedName?.asString()
                     ?: sourceType.declaration.simpleName.asString(),
-                toQualifiedName = targetType.declaration.qualifiedName?.asString()
+                targetQualifiedName = targetType.declaration.qualifiedName?.asString()
                     ?: targetType.declaration.simpleName.asString()
             ),
             sourceType = sourceType,

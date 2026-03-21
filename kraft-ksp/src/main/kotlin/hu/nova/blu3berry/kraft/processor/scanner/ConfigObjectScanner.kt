@@ -75,8 +75,8 @@ class ConfigObjectScanner(
         val ignoredMappings = extractIgnoredMappings(annotation, classDeclaration)
 
         return ConfigObjectScanResult(
-            fromType = fromType,
-            toType = toType,
+            sourceType = fromType,
+            targetType = toType,
             configObject = classDeclaration,
             fieldOverrides = fieldOverrides,
             ignoredMappings = ignoredMappings,
@@ -108,14 +108,14 @@ class ConfigObjectScanner(
         symbol: KSClassDeclaration
     ): Pair<KSClassDeclaration, KSClassDeclaration>? {
         val fromKSType = annotation.getKClassArgOrNull(
-            name = KraftKspConstants.ARG_FROM,
+            name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
             symbol = symbol,
             annotationFqName = MAP_CONFIG_FQ
         ) ?: return null
 
         val toKSType = annotation.getKClassArgOrNull(
-            name = KraftKspConstants.ARG_TO,
+            name = KraftKspConstants.ARG_TARGET,
             logger = logger,
             symbol = symbol,
             annotationFqName = MAP_CONFIG_FQ
@@ -145,20 +145,20 @@ class ConfigObjectScanner(
             if (!pair.isAnnotation(STRING_PAIR_FQ)) return@mapNotNull null
 
             val from = pair.getStringArgOrNull(
-                name = KraftKspConstants.ARG_FROM,
+                name = KraftKspConstants.ARG_SOURCE,
                 logger = logger,
                 symbol = symbol,
                 annotationFqName = STRING_PAIR_FQ
             ) ?: return@mapNotNull null
 
             val to = pair.getStringArgOrNull(
-                name = KraftKspConstants.ARG_TO,
+                name = KraftKspConstants.ARG_TARGET,
                 logger = logger,
                 symbol = symbol,
                 annotationFqName = STRING_PAIR_FQ
             ) ?: return@mapNotNull null
 
-            FieldOverride(from = from, to = to)
+            FieldOverride(source = from, target = to)
         }
     }
 
@@ -177,9 +177,9 @@ class ConfigObjectScanner(
         ) ?: emptyList()
 
         return nestedAnnotations.mapNotNull { nestedAnn ->
-            val nestedFrom = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_FROM, logger, symbol, NESTED_FQ)
+            val nestedFrom = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_SOURCE, logger, symbol, NESTED_FQ)
                 ?: return@mapNotNull null
-            val nestedTo = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_TO, logger, symbol, NESTED_FQ)
+            val nestedTo = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_TARGET, logger, symbol, NESTED_FQ)
                 ?: return@mapNotNull null
 
             val fromDecl = nestedFrom.declaration as KSClassDeclaration
@@ -187,8 +187,8 @@ class ConfigObjectScanner(
 
             NestedMappingDescriptor(
                 nestedMapperId = MapperId(
-                    fromQualifiedName = fromDecl.qualifiedName!!.asString(),
-                    toQualifiedName = toDecl.qualifiedName!!.asString(),
+                    sourceQualifiedName = fromDecl.qualifiedName!!.asString(),
+                    targetQualifiedName = toDecl.qualifiedName!!.asString(),
                 ),
                 sourceType = fromDecl.toTypeInfo(fromDecl.asStarProjectedType()),
                 targetType = toDecl.toTypeInfo(toDecl.asStarProjectedType())
@@ -249,14 +249,14 @@ class ConfigObjectScanner(
 
         // Extract from and to property names
         val fromProp = mapUsingAnn.getStringArgOrNull(
-            name = KraftKspConstants.ARG_FROM,
+            name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
             symbol = fn,
             annotationFqName = MAP_USING_FQ
         )
 
         val toProp = mapUsingAnn.getStringArgOrNull(
-            name = KraftKspConstants.ARG_TO,
+            name = KraftKspConstants.ARG_TARGET,
             logger = logger,
             symbol = fn,
             annotationFqName = MAP_USING_FQ
@@ -349,10 +349,10 @@ class ConfigObjectScanner(
         return ConverterDescriptor(
             enclosingObject = symbol,
             function = fn,
-            mapUsingFrom = fromProp,
-            mapUsingTo = toProp,
-            fromType = fromTypeInfo,
-            toType = toTypeInfo
+            sourcePropertyName = fromProp,
+            targetPropertyName = toProp,
+            sourceType = fromTypeInfo,
+            targetType = toTypeInfo
         )
     }
 

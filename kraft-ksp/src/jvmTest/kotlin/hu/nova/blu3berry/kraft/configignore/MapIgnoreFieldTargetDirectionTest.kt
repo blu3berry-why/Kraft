@@ -15,8 +15,8 @@ class MapIgnoreFieldTargetDirectionTest {
             data class User(val id: Int, val name: String, val secret: String)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = User::class,
-                to   = UserDto::class,
+                source = User::class,
+                target   = UserDto::class,
                 ignoredMappings = [
                     hu.nova.blu3berry.kraft.config.MapIgnoreField(
                         "secret",

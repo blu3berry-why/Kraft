@@ -15,8 +15,8 @@ class MapIgnoreFieldDefaultDirectionTest {
             data class UserSource(val id: Int, val name: String)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = UserSource::class,
-                to   = UserDto::class,
+                source = UserSource::class,
+                target   = UserDto::class,
                 ignoredMappings = [
                     hu.nova.blu3berry.kraft.config.MapIgnoreField("internalNotes")
                 ]

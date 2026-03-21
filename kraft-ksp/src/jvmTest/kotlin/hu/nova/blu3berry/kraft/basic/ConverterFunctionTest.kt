@@ -16,13 +16,13 @@ class ConverterFunctionTest {
             data class Dst(val text: String)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = Src::class,
-                to = Dst::class
+                source = Src::class,
+                target = Dst::class
             )
             object MyMapper {
                 @hu.nova.blu3berry.kraft.config.MapUsing(
-                    from = "int",
-                    to   = "text"
+                    source = "int",
+                    target   = "text"
                 )
                 fun convert(v: Int): String = "Number: " + v
             }

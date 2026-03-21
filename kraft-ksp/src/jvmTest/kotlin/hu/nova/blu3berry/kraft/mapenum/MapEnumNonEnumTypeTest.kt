@@ -19,8 +19,8 @@ class MapEnumNonEnumTypeTest {
             enum class TargetEnum { A, B }
 
             @hu.nova.blu3berry.kraft.config.MapEnum(
-                from = NotAnEnum::class,
-                to   = TargetEnum::class
+                source = NotAnEnum::class,
+                target   = TargetEnum::class
             )
             object BadMapping
             """
@@ -41,8 +41,8 @@ class MapEnumNonEnumTypeTest {
             data class NotAnEnum(val value: Int)
 
             @hu.nova.blu3berry.kraft.config.MapEnum(
-                from = SourceEnum::class,
-                to   = NotAnEnum::class
+                source = SourceEnum::class,
+                target   = NotAnEnum::class
             )
             object BadMapping
             """

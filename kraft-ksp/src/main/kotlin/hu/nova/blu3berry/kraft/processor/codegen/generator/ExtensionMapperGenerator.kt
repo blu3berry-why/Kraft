@@ -18,8 +18,8 @@ class ExtensionMapperGenerator(
 ) : MapperGenerator {
 
     override fun generate(descriptor: MapperDescriptor, codeGenerator: CodeGenerator) {
-        val fromClass = descriptor.fromType.className
-        val toClass = descriptor.toType.className
+        val fromClass = descriptor.sourceType.className
+        val toClass = descriptor.targetType.className
 
         val basePackage = fromClass.packageName.ifBlank { "generated" }
         val packageName = "$basePackage.generated"
@@ -72,7 +72,7 @@ class ExtensionMapperGenerator(
      *     )
      */
     private fun buildConstructorCall(descriptor: MapperDescriptor): CodeBlock {
-        val toClass = descriptor.toType.className
+        val toClass = descriptor.targetType.className
 
         val block = CodeBlock.builder()
         block.add("%T(\n", toClass)

@@ -79,8 +79,8 @@ class ClassDescriptorBuilder(
 
         return MapperDescriptor(
             id = MapperId(sourceTypeName, targetTypeName),
-            fromType = fromTypeInfo,
-            toType = toTypeInfo,
+            sourceType = fromTypeInfo,
+            targetType = toTypeInfo,
             source = MappingSource.ClassAnnotation(mapping.annotatedClass, mapping.direction),
             propertyMappings = mappings,
             enumMappings = enumMappings.filter {
@@ -254,4 +254,4 @@ fun List<ConfigObjectScanResult>.toConfigOverridesMap() =
     this.flatMap { it.fieldOverrides }.toTargetToSourceMap()
 
 /** Maps each [FieldOverride] as targetPropertyName → sourcePropertyName. */
-fun List<FieldOverride>.toTargetToSourceMap() = this.associate { it.to to it.from }
+fun List<FieldOverride>.toTargetToSourceMap() = this.associate { it.target to it.source }

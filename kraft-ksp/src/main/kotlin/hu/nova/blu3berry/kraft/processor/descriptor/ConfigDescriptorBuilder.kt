@@ -28,8 +28,8 @@ class ConfigDescriptorBuilder(
 ) {
 
     fun build(): MapperDescriptor? {
-        val fromDecl = config.fromType
-        val toDecl = config.toType
+        val fromDecl = config.sourceType
+        val toDecl = config.targetType
 
         val fromTypeInfo = fromDecl.toTypeInfo(fromDecl.asStarProjectedType())
         val toTypeInfo = toDecl.toTypeInfo(toDecl.asStarProjectedType())
@@ -56,8 +56,8 @@ class ConfigDescriptorBuilder(
                 fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
                 toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString()
             ),
-            fromType = fromTypeInfo,
-            toType = toTypeInfo,
+            sourceType = fromTypeInfo,
+            targetType = toTypeInfo,
             source = MappingSource.ConfigObject(config.configObject),
             propertyMappings = mappings,
             enumMappings = enums,
@@ -124,7 +124,7 @@ class ConfigDescriptorBuilder(
             logger = logger,
             sourceProps = sourceProps,
             classOverrides = emptyMap(),                       // config mode → no @MapField
-            configOverrides = config.fieldOverrides.associate { it.to to it.from },
+            configOverrides = config.fieldOverrides.associate { it.target to it.source },
             converters = config.converters,
             nestedMappings = nestedMappings,
             classIgnoredProperties = ignoredProperties,

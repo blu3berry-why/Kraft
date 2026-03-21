@@ -19,10 +19,10 @@ class MapEnumInvalidSourceEntryTest {
             enum class ColorDto { RED, GREEN, BLUE }
 
             @hu.nova.blu3berry.kraft.config.MapEnum(
-                from = Color::class,
-                to   = ColorDto::class,
+                source = Color::class,
+                target   = ColorDto::class,
                 fieldMappings = [
-                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "YELLOW", to = "RED")
+                    hu.nova.blu3berry.kraft.config.FieldMapping(source = "YELLOW", target = "RED")
                 ]
             )
             object ColorMapping

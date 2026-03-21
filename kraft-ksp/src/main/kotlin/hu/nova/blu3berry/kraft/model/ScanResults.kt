@@ -33,8 +33,8 @@ data class IgnoredMappingConfig(
 )
 
 data class ConfigObjectScanResult(
-    val fromType: KSClassDeclaration,
-    val toType: KSClassDeclaration,
+    val sourceType: KSClassDeclaration,
+    val targetType: KSClassDeclaration,
     val configObject: KSClassDeclaration,
     val fieldOverrides: List<FieldOverride>,
     val ignoredMappings: List<IgnoredMappingConfig> = emptyList(),
@@ -43,6 +43,6 @@ data class ConfigObjectScanResult(
 )
 
 data class FieldOverride(
-    val from: String,
-    val to: String
+    val source: String,
+    val target: String
 )

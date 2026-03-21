@@ -18,8 +18,8 @@ class MapIgnoreFieldNonNullNoDefaultTest {
             data class Order(val id: Int, val total: Double)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = Order::class,
-                to   = OrderDto::class,
+                source = Order::class,
+                target   = OrderDto::class,
                 ignoredMappings = [
                     hu.nova.blu3berry.kraft.config.MapIgnoreField("total")
                 ]

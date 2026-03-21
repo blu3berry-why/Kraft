@@ -13,11 +13,11 @@ class ConverterRule : MappingRule {
     ): PropertyMappingStrategy? {
 
         val converter = ctx.converters.firstOrNull { conv ->
-            conv.mapUsingTo == target.name
+            conv.targetPropertyName == target.name
         } ?: return null
 
 
-        val sourceName = converter.mapUsingFrom
+        val sourceName = converter.sourcePropertyName
         val sourceProp = ctx.sourceProps[sourceName] ?: run {
             ctx.logger.error(
                 "Unknown source property '$sourceName' in @MapUsing. " +

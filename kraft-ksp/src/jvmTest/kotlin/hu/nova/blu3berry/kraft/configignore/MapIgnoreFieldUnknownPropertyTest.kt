@@ -18,8 +18,8 @@ class MapIgnoreFieldUnknownPropertyTest {
             data class Item(val id: Int, val name: String)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = Item::class,
-                to   = ItemDto::class,
+                source = Item::class,
+                target   = ItemDto::class,
                 ignoredMappings = [
                     hu.nova.blu3berry.kraft.config.MapIgnoreField(
                         "nonExistent",
@@ -51,8 +51,8 @@ class MapIgnoreFieldUnknownPropertyTest {
             data class Item(val id: Int, val name: String)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = Item::class,
-                to   = ItemDto::class,
+                source = Item::class,
+                target   = ItemDto::class,
                 ignoredMappings = [
                     hu.nova.blu3berry.kraft.config.MapIgnoreField("futureReverseOnly")
                 ]

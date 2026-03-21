@@ -19,8 +19,8 @@ class MapEnumUnmappedEntryTest {
             enum class FlagDto { A, B }   // C has no match in target and no fieldMappings entry
 
             @hu.nova.blu3berry.kraft.config.MapEnum(
-                from = Flag::class,
-                to   = FlagDto::class
+                source = Flag::class,
+                target   = FlagDto::class
             )
             object FlagMapping
             """

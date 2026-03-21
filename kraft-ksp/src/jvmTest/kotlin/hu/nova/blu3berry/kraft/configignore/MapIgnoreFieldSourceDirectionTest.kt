@@ -17,8 +17,8 @@ class MapIgnoreFieldSourceDirectionTest {
             data class Report(val id: Int, val title: String, val notes: String)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = Report::class,
-                to   = ReportDto::class,
+                source = Report::class,
+                target   = ReportDto::class,
                 ignoredMappings = [
                     hu.nova.blu3berry.kraft.config.MapIgnoreField(
                         "notes",

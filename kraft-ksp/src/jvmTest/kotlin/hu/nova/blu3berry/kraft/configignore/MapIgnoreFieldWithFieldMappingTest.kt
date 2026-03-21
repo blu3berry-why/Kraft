@@ -15,10 +15,10 @@ class MapIgnoreFieldWithFieldMappingTest {
             data class User(val id: Int, val email: String, val notes: String)
 
             @hu.nova.blu3berry.kraft.config.MapConfig(
-                from = User::class,
-                to   = UserDto::class,
+                source = User::class,
+                target   = UserDto::class,
                 fieldMappings = [
-                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "email", to = "contactEmail")
+                    hu.nova.blu3berry.kraft.config.FieldMapping(source = "email", target = "contactEmail")
                 ],
                 ignoredMappings = [
                     hu.nova.blu3berry.kraft.config.MapIgnoreField("notes")

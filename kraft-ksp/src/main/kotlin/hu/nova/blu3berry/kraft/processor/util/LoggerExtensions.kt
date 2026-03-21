@@ -171,12 +171,12 @@ ${
     Config-level overrides:
 ${
         if (configOverrides.isEmpty()) "      (none)"
-        else configOverrides.joinToString("\n") { "      • ${it.to} ← ${it.from}" }
+        else configOverrides.joinToString("\n") { "      • ${it.target} ← ${it.source}" }
     }
 
     How to fix:
       ✓ Add @MapField("sourceName") to the target property '${targetProperty.name}'
-      ✓ Or add a config override: FieldMapping(from = "sourceName", to = "${targetProperty.name}")
+      ✓ Or add a config override: FieldMapping(source = "sourceName", target = "${targetProperty.name}")
       ✓ Or make the property nullable
       ✓ Or provide a default value in the target constructor
     """.trimIndent(),
@@ -370,8 +370,8 @@ fun KSPLogger.unsupportedSourcePropertyType(
  */
 fun KSPLogger.unmappedEnumEntries(
     declaringClass: String,
-    fromQualifiedName: String,
-    toQualifiedName: String,
+    sourceQualifiedName: String,
+    targetQualifiedName: String,
     fromSimpleName: String,
     toSimpleName: String,
     unmappedEntries: List<String>,
@@ -395,14 +395,14 @@ fun KSPLogger.unmappedEnumEntries(
         .joinToString("\n") { "    • $it" }
 
     val snippetLines = unmappedEntries
-        .joinToString("\n") { "            FieldMapping(from = \"$it\", to = \"???\")," }
+        .joinToString("\n") { "            FieldMapping(source = \"$it\", target = \"???\")," }
 
     err(
         """
     @MapEnum on '$declaringClass' has unmapped source entries.
 
-      Source: $fromQualifiedName
-      Target: $toQualifiedName
+      Source: $sourceQualifiedName
+      Target: $targetQualifiedName
 
       Unmapped entries (must be resolved):
 $unmappedLines

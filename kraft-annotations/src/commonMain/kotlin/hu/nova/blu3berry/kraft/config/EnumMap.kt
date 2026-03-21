@@ -5,7 +5,7 @@ import kotlin.reflect.KClass
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)
 annotation class MapEnum(
-    val from: KClass<*>,
-    val to: KClass<*>,
+    val source: KClass<*>,
+    val target: KClass<*>,
     val fieldMappings: Array<FieldMapping> = []
 )

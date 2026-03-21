@@ -26,10 +26,10 @@ data class Store(
 )
 
 @MapConfig(
-    from = Store::class,
-    to = StoreDto::class,
+    source = Store::class,
+    target = StoreDto::class,
     nestedMappings = [
-        NestedMapping(from = User::class, to = UserDto::class),
+        NestedMapping(source = User::class, target = UserDto::class),
     ]
 )
 object StoreMapping
@@ -40,10 +40,10 @@ enum class Status { ACTIVE, BLOCKED }
 enum class StatusDto { ACTIVE, BANNED, UNKNOWN }
 
 @MapEnum(
-    from = Status::class,
-    to = StatusDto::class,
+    source = Status::class,
+    target = StatusDto::class,
     fieldMappings = [
-        FieldMapping(from = "BLOCKED", to = "BANNED"),
+        FieldMapping(source = "BLOCKED", target = "BANNED"),
     ]
 )
 object StatusMapping

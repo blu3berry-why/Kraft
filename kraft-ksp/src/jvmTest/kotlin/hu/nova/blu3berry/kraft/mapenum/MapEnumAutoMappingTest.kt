@@ -16,8 +16,8 @@ class MapEnumAutoMappingTest {
             enum class StatusDto { ACTIVE, INACTIVE, BANNED }
 
             @hu.nova.blu3berry.kraft.config.MapEnum(
-                from = Status::class,
-                to   = StatusDto::class
+                source = Status::class,
+                target   = StatusDto::class
             )
             object StatusMapping
             """

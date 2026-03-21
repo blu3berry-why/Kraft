@@ -16,12 +16,12 @@ class MapEnumCustomMappingTest {
             enum class OrderStatus { IN_PROGRESS, DELIVERED, REJECTED }
 
             @hu.nova.blu3berry.kraft.config.MapEnum(
-                from = OrderState::class,
-                to   = OrderStatus::class,
+                source = OrderState::class,
+                target   = OrderStatus::class,
                 fieldMappings = [
-                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "PENDING",   to = "IN_PROGRESS"),
-                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "SHIPPED",   to = "DELIVERED"),
-                    hu.nova.blu3berry.kraft.config.FieldMapping(from = "CANCELLED", to = "REJECTED")
+                    hu.nova.blu3berry.kraft.config.FieldMapping(source = "PENDING",   target = "IN_PROGRESS"),
+                    hu.nova.blu3berry.kraft.config.FieldMapping(source = "SHIPPED",   target = "DELIVERED"),
+                    hu.nova.blu3berry.kraft.config.FieldMapping(source = "CANCELLED", target = "REJECTED")
                 ]
             )
             object OrderStateMapping

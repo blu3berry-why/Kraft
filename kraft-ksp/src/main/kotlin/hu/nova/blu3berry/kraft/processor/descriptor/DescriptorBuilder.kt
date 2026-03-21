@@ -41,7 +41,7 @@ class DescriptorBuilder(
     ) {
         for (mapping in classMappings) {
             val configsForThis = configMappings.filter {
-                it.fromType == mapping.sourceType && it.toType == mapping.targetType
+                it.sourceType == mapping.sourceType && it.targetType == mapping.targetType
             }
             val enumsForThis = enumMappings.filter {
                 it.sourceType.declaration == mapping.sourceType &&
@@ -65,10 +65,10 @@ class DescriptorBuilder(
     ) {
         val classPairs = classMappings.map { it.sourceType to it.targetType }.toSet()
         for (config in configMappings) {
-            if ((config.fromType to config.toType) in classPairs) continue
+            if ((config.sourceType to config.targetType) in classPairs) continue
             val enumsForThis = enumMappings.filter {
-                it.sourceType.declaration == config.fromType &&
-                    it.targetType.declaration == config.toType
+                it.sourceType.declaration == config.sourceType &&
+                    it.targetType.declaration == config.targetType
             }
             ConfigDescriptorBuilder(logger = logger, config = config, enumMappings = enumsForThis)
                 .build()
@@ -106,8 +106,8 @@ class DescriptorBuilder(
         inProgress: MutableSet<MapperId>
     ) {
         val id = MapperId(
-            fromQualifiedName = source.qualifiedName?.asString() ?: source.simpleName.asString(),
-            toQualifiedName = target.qualifiedName?.asString() ?: target.simpleName.asString()
+            sourceQualifiedName = source.qualifiedName?.asString() ?: source.simpleName.asString(),
+            targetQualifiedName = target.qualifiedName?.asString() ?: target.simpleName.asString()
         )
 
         if (id in builtDescriptors) return                    // BLACK — already done
@@ -188,7 +188,7 @@ class DescriptorBuilder(
                     logger.error(
                         "Nested mapper for $depId could not be built; " +
                             "mapper for ${descriptor.id} will generate code that does not compile.",
-                        descriptor.fromType.declaration
+                        descriptor.sourceType.declaration
                     )
                 }
         }

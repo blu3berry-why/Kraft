@@ -5,6 +5,6 @@ import kotlin.reflect.KClass
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)
 annotation class MapFrom(
-    val value: KClass<*>,      // source type
-    val config: KClass<*> = Unit::class // optional config object
+    val source: KClass<*>,
+    val config: KClass<*> = Unit::class
 )
