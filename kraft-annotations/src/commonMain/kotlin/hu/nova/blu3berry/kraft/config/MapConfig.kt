@@ -34,7 +34,7 @@ import kotlin.reflect.KClass
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)
-public annotation class MapConfig(
+annotation class MapConfig(
     val source: KClass<*>,
     val target: KClass<*>,
     val fieldMappings: Array<FieldMapping> = [],
