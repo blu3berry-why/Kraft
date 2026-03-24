@@ -191,7 +191,11 @@ class ExtensionMapperGenerator(
 
                 val fnName = config.functionNameForNested(strategy.nestedMappingDescriptor)
 
-                block.add("%N = this.%N.%N()", t, s, fnName)
+                if (strategy.nestedMappingDescriptor.isCollection) {
+                    block.add("%N = this.%N?.map { it.%N() } ?: emptyList()", t, s, fnName)
+                } else {
+                    block.add("%N = this.%N.%N()", t, s, fnName)
+                }
             }
 
 

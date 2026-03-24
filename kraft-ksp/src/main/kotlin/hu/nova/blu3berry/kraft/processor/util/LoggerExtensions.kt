@@ -472,10 +472,12 @@ fun KSPLogger.nestedTypeNotMappable(
     Why:
     Nested mapping requires both the source and target types to be concrete
     classes with a primary constructor. Interfaces, generic type parameters,
-    and collections are not supported.
+    and non-List collections are not supported directly.
+    For List<T> properties, T must itself be a mappable class.
 
     How to fix:
       ✓ Use a @MapUsing converter for this property.
+      ✓ Or ensure the List element type is a concrete mappable class.
       ✓ Or declare an explicit @MapConfig with a @NestedMapping for this pair.
     """.trimIndent(),
     symbol
