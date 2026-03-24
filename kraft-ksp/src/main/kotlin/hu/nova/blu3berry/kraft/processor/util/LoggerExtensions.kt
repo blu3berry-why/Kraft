@@ -458,6 +458,36 @@ fun KSPLogger.ignoredRequiredProperty(
 )
 
 /**
+ * Source property is nullable but the target property is non-null,
+ * making the nested mapper call unsafe.
+ */
+fun KSPLogger.nullableNestedSource(
+    propertyName: String,
+    sourceTypeName: String,
+    targetTypeName: String,
+    symbol: KSNode
+) = err(
+    """
+    Nullable source for nested property '$propertyName'.
+
+    In source ($sourceTypeName):
+      • $propertyName is nullable
+
+    In target ($targetTypeName):
+      • $propertyName is non-null
+
+    A nullable source cannot be mapped to a non-null target because
+    the generated call `this.$propertyName.toTarget()` would fail at
+    runtime when the source value is null.
+
+    How to fix:
+      ✓ Mark the target property '$propertyName' as nullable.
+      ✓ Or provide a @MapUsing converter that handles the null case.
+    """.trimIndent(),
+    symbol
+)
+
+/**
  * @MapNested used on a property whose type is not a concrete mappable class
  * (e.g. interface, generic type parameter, collection).
  */
