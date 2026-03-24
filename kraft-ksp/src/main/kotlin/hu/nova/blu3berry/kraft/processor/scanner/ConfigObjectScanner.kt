@@ -206,7 +206,7 @@ class ConfigObjectScanner(
         toType: KSClassDeclaration
     ): List<ConverterDescriptor> {
         val converters = mutableListOf<ConverterDescriptor>()
-        val propertyPairs = mutableMapOf<Pair<String?, String>, KSFunctionDeclaration>()
+        val propertyPairs = mutableMapOf<String, KSFunctionDeclaration>()
 
         // Get source and target properties for validation
         val sourcePropertiesList = fromType.getDeclaredProperties().toList()
@@ -247,7 +247,7 @@ class ConfigObjectScanner(
         targetProperties: Set<String>,
         sourcePropertyMap: Map<String, KSPropertyDeclaration>,
         targetPropertyMap: Map<String, KSPropertyDeclaration>,
-        propertyPairs: MutableMap<Pair<String?, String>, KSFunctionDeclaration>
+        propertyPairs: MutableMap<String, KSFunctionDeclaration>
     ): ConverterDescriptor? {
         val mapUsingAnn = fn.annotations.first { it.isAnnotation(MAP_USING_FQ) }
 
@@ -272,20 +272,21 @@ class ConfigObjectScanner(
 
         val isWholeSource = fromProp.isNullOrBlank()
 
-        // Check for duplicate target entries
-        val propPair = Pair(if (isWholeSource) null else fromProp, toProp)
-        val existingFn = propertyPairs[propPair]
+        // Check for duplicate target entries — keyed on toProp alone so that
+        // mixed-mode duplicates (whole-source vs property-source) are also rejected.
+        val existingFn = propertyPairs[toProp]
         if (existingFn != null) {
             val sourceDesc = if (isWholeSource) "<whole source>" else fromProp
             logger.error(
-                "Multiple @MapUsing converters defined for property mapping $sourceDesc → $toProp. " +
-                "First defined in ${existingFn.simpleName.asString()}, " +
-                "then again in ${fn.simpleName.asString()}.",
+                "Multiple @MapUsing converters target property '$toProp': " +
+                "already defined in '${existingFn.simpleName.asString()}' " +
+                "(source: $sourceDesc), then again in '${fn.simpleName.asString()}'. " +
+                "Only one converter per target property is allowed.",
                 fn
             )
             return null
         }
-        propertyPairs[propPair] = fn
+        propertyPairs[toProp] = fn
 
         if (!validatePropertyExists(toProp, targetProperties, symbol, fn, "target")) return null
 
@@ -391,7 +392,19 @@ class ConfigObjectScanner(
      */
     private fun validateFunctionSignature(fn: KSFunctionDeclaration): Boolean {
         val params = fn.parameters
-        if (params.size != 1 && fn.extensionReceiver == null) {
+        if (fn.extensionReceiver != null) {
+            // Extension converters must have no value parameters: getParameterType() uses the
+            // receiver and codegen emits a zero-argument call, so any declared params are unreachable.
+            if (params.isNotEmpty()) {
+                logger.error(
+                    "@MapUsing extension function '${fn.simpleName.asString()}' must not declare " +
+                    "any value parameters — only the receiver is used. " +
+                    "Found: ${params.map { it.name?.asString() }}",
+                    fn
+                )
+                return false
+            }
+        } else if (params.size != 1) {
             logger.error(
                 "@MapUsing function must have exactly one parameter or be an extension function",
                 fn

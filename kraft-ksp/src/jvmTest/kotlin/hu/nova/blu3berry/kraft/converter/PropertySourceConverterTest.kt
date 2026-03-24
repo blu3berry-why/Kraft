@@ -28,9 +28,9 @@ class PropertySourceConverterTest {
             """
         )
 
-        val content = TestKspRunner.compileAndReturnGenerated(source).first().readText()
+        val generated = TestKspRunner.compileAndReturnGenerated(source)
 
-        assertThat(content).contains("label = SrcMapper.convert(this.count)")
+        assertThat(generated.any { it.readText().contains("label = SrcMapper.convert(this.count)") }).isTrue()
     }
 
     @Test
@@ -52,9 +52,9 @@ class PropertySourceConverterTest {
             """
         )
 
-        val content = TestKspRunner.compileAndReturnGenerated(source).first().readText()
+        val generated = TestKspRunner.compileAndReturnGenerated(source)
 
-        assertThat(content).contains("label = with(SrcMapper) { this@toDst.count.toLabel() }")
+        assertThat(generated.any { it.readText().contains("label = with(SrcMapper) { this@toDst.count.toLabel() }") }).isTrue()
     }
 
     @Test
@@ -79,9 +79,9 @@ class PropertySourceConverterTest {
             """
         )
 
-        val content = TestKspRunner.compileAndReturnGenerated(source).first().readText()
+        val generated = TestKspRunner.compileAndReturnGenerated(source)
 
-        assertThat(content).contains("x = SrcMapper.convertA(this.a)")
-        assertThat(content).contains("y = SrcMapper.convertB(this.b)")
+        assertThat(generated.any { it.readText().contains("x = SrcMapper.convertA(this.a)") }).isTrue()
+        assertThat(generated.any { it.readText().contains("y = SrcMapper.convertB(this.b)") }).isTrue()
     }
 }

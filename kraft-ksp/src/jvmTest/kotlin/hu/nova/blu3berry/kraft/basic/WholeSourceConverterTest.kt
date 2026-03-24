@@ -30,7 +30,7 @@ class WholeSourceConverterTest {
         )
 
         val generated = TestKspRunner.compileAndReturnGenerated(source)
-        val content = generated.first().readText()
+        val content = generated.joinToString("\n") { it.readText() }
 
         assertThat(content).contains("combined = SrcMapper.combine(this)")
     }
@@ -55,7 +55,7 @@ class WholeSourceConverterTest {
         )
 
         val generated = TestKspRunner.compileAndReturnGenerated(source)
-        val content = generated.first().readText()
+        val content = generated.joinToString("\n") { it.readText() }
 
         assertThat(content).contains("combined = with(SrcMapper) { this@toDst.combine() }")
     }

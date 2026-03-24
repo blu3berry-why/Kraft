@@ -36,6 +36,31 @@ class WholeSourceConverterErrorTest {
     }
 
     @Test
+    fun `whitespace-only source is treated as whole-source and wrong param type emits error`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            data class Src(val value: Int)
+            data class Dst(val text: String)
+
+            @hu.nova.blu3berry.kraft.config.MapConfig(
+                source = Src::class,
+                target = Dst::class
+            )
+            object SrcMapper {
+                @hu.nova.blu3berry.kraft.config.MapUsing(source = "   ", target = "text")
+                fun combine(wrong: String): String = wrong
+            }
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("source class")
+    }
+
+    @Test
     fun `return type mismatch emits error`() {
         val source = SourceFile.kotlin(
             "Models.kt",

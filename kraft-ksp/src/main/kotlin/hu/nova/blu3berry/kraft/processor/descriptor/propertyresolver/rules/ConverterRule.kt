@@ -13,9 +13,16 @@ class ConverterRule : MappingRule {
         ctx: MappingContext
     ): PropertyMappingStrategy? {
 
-        val converter = ctx.converters.firstOrNull { conv ->
-            conv.targetPropertyName == target.name
-        } ?: return null
+        val matching = ctx.converters.filter { conv -> conv.targetPropertyName == target.name }
+        if (matching.size > 1) {
+            ctx.logger.error(
+                "Multiple @MapUsing converters target property '${target.name}' — only one is allowed. " +
+                "Found: ${matching.map { it.function.simpleName.asString() }}",
+                target.declaration
+            )
+            return null
+        }
+        val converter = matching.firstOrNull() ?: return null
 
         val converterSource: ConverterSource = if (converter.sourcePropertyName == null) {
             ConverterSource.WholeObject(converter.sourceType)
