@@ -310,7 +310,7 @@ class ConfigObjectScanner(
         if (isWholeSource) {
             // Whole-source: parameter/receiver must be the source class itself
             val sourceClassType = sourceClass.asStarProjectedType()
-            if (paramType.toString() != sourceClassType.toString()) {
+            if (paramType.declaration.qualifiedName?.asString() != sourceClass.qualifiedName?.asString()) {
                 logger.error(
                     "@MapUsing whole-source converter '${fn.simpleName.asString()}': " +
                     "parameter type '$paramType' must match source class '${sourceClass.qualifiedName?.asString()}'",
@@ -318,7 +318,7 @@ class ConfigObjectScanner(
                 )
                 return null
             }
-            if (returnType.toString() != targetType.toString()) {
+            if (returnType.declaration.qualifiedName?.asString() != targetType.declaration.qualifiedName?.asString()) {
                 logger.error(
                     "Type mismatch in @MapUsing converter function '${fn.simpleName.asString()}': " +
                     "Return type '$returnType' doesn't match target property '$toProp' type '$targetType'",
@@ -471,7 +471,7 @@ class ConfigObjectScanner(
         toProp: String,
         fn: KSFunctionDeclaration
     ): Boolean {
-        if (paramType.toString() != sourceType.toString()) {
+        if (paramType.declaration.qualifiedName?.asString() != sourceType.declaration.qualifiedName?.asString()) {
             logger.error(
                 "Type mismatch in @MapUsing converter function '${fn.simpleName.asString()}': " +
                 "Parameter type '${paramType}' doesn't match source property '${fromProp}' type '${sourceType}'",
@@ -480,7 +480,7 @@ class ConfigObjectScanner(
             return false
         }
 
-        if (returnType.toString() != targetType.toString()) {
+        if (returnType.declaration.qualifiedName?.asString() != targetType.declaration.qualifiedName?.asString()) {
             logger.error(
                 "Type mismatch in @MapUsing converter function '${fn.simpleName.asString()}': " +
                 "Return type '${returnType}' doesn't match target property '${toProp}' type '${targetType}'",
