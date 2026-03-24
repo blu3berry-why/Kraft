@@ -15,7 +15,8 @@ class CollectionNestedMappingErrorTest {
         val source = SourceFile.kotlin(
             "Models.kt",
             """
-            data class OrderSource(val ref: String, val items: List<String>)
+            data class SourceItem(val id: Int)
+            data class OrderSource(val ref: String, val items: List<SourceItem>)
 
             interface ItemInterface { val id: Int }
 

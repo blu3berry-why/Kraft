@@ -58,6 +58,28 @@ class CollectionNestedMappingTest {
     }
 
     @Test
+    fun `auto-detection does not generate child mapper for List property with identical element types`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            data class Item(val id: Int)
+            data class OrderSource(val ref: String, val items: List<Item>)
+
+            @hu.nova.blu3berry.kraft.mapping.MapFrom(OrderSource::class)
+            data class OrderDto(val ref: String, val items: List<Item>)
+            """
+        )
+
+        val generated = TestKspRunner.compileAndReturnGenerated(source)
+        val content = generated.joinToString("\n") { it.readText() }
+
+        assertThat(content).contains("fun OrderSource.toOrderDto()")
+        assertThat(content).doesNotContain("fun Item.toItem()")
+        assertThat(content).doesNotContain("this.items.map { it.toItem() }")
+        assertThat(content).contains("items = this.items")
+    }
+
+    @Test
     fun `auto-detection handles multiple List properties independently`() {
         val source = SourceFile.kotlin(
             "Models.kt",

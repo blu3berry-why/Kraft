@@ -4,11 +4,17 @@ import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
-import com.google.devtools.ksp.symbol.*
-import hu.nova.blu3berry.kraft.config.MapUsing
+import com.google.devtools.ksp.symbol.ClassKind
+import com.google.devtools.ksp.symbol.KSAnnotated
+import com.google.devtools.ksp.symbol.KSAnnotation
+import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import com.google.devtools.ksp.symbol.KSPropertyDeclaration
+import com.google.devtools.ksp.symbol.KSType
 import hu.nova.blu3berry.kraft.config.IgnoreSide
-import hu.nova.blu3berry.kraft.config.MapIgnoreField
 import hu.nova.blu3berry.kraft.config.MapConfig
+import hu.nova.blu3berry.kraft.config.MapIgnoreField
+import hu.nova.blu3berry.kraft.config.MapUsing
 import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.ConverterDescriptor
 import hu.nova.blu3berry.kraft.model.FieldOverride
@@ -17,7 +23,12 @@ import hu.nova.blu3berry.kraft.model.MapperId
 import hu.nova.blu3berry.kraft.model.NestedMappingDescriptor
 import hu.nova.blu3berry.kraft.model.toTypeInfo
 import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
-import hu.nova.blu3berry.kraft.processor.util.*
+import hu.nova.blu3berry.kraft.processor.util.annotationTargetError
+import hu.nova.blu3berry.kraft.processor.util.findAnnotation
+import hu.nova.blu3berry.kraft.processor.util.getArrayArgOrNull
+import hu.nova.blu3berry.kraft.processor.util.getEnumArgOrNull
+import hu.nova.blu3berry.kraft.processor.util.getKClassArgOrNull
+import hu.nova.blu3berry.kraft.processor.util.getStringArgOrNull
 
 /**
  * Scans for configuration objects annotated with @MapConfig and extracts mapping information.

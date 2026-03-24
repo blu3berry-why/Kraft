@@ -98,8 +98,14 @@ class NestedRule : MappingRule {
         // Resolve any source override first so it can narrow the nested candidates and
         // verify the source type matches before ambiguity is decided.
         val explicitSourceName = ctx.configOverrides[target.name]
+        // When the target property is List<T>, match descriptors by element type (T), not List.
+        val targetIsCollection = isListType(target.type)
+        val targetElementType = if (targetIsCollection) elementTypeInfo(target.type) else null
         val targetCandidates = ctx.nestedMappings.filter { nm ->
-            nm.targetType.className == target.type.className
+            if (targetIsCollection && targetElementType != null)
+                nm.targetType.className == targetElementType.className
+            else
+                nm.targetType.className == target.type.className
         }
 
         if (targetCandidates.isNotEmpty()) {
@@ -116,8 +122,14 @@ class NestedRule : MappingRule {
                     return null
                 }
 
+                // For a List<T> override property, compare element types with the descriptor.
+                val overrideIsCollection = isListType(overrideProp.type)
+                val overrideElementType = if (overrideIsCollection) elementTypeInfo(overrideProp.type) else null
                 val nestedCandidates = targetCandidates.filter { nm ->
-                    nm.sourceType.className == overrideProp.type.className
+                    if (overrideIsCollection && overrideElementType != null)
+                        nm.sourceType.className == overrideElementType.className
+                    else
+                        nm.sourceType.className == overrideProp.type.className
                 }
                 return when {
                     nestedCandidates.isEmpty() -> {
@@ -140,7 +152,10 @@ class NestedRule : MappingRule {
                     else -> PropertyMappingStrategy.NestedMapper(
                         targetProperty = target,
                         sourceProperty = overrideProp,
-                        nestedMappingDescriptor = nestedCandidates.single()
+                        nestedMappingDescriptor = if (targetIsCollection)
+                            nestedCandidates.single().copy(isCollection = true)
+                        else
+                            nestedCandidates.single()
                     )
                 }
             }
@@ -156,8 +171,15 @@ class NestedRule : MappingRule {
             }
             val nested = targetCandidates.single()
 
-            val sourcePropCandidates = ctx.sourceProps.values.filter { prop ->
-                prop.type.className == nested.sourceType.className
+            // For a List<T> target, look for source properties whose element type matches.
+            val sourcePropCandidates = if (targetIsCollection) {
+                ctx.sourceProps.values.filter { prop ->
+                    isListType(prop.type) && elementTypeInfo(prop.type)?.className == nested.sourceType.className
+                }
+            } else {
+                ctx.sourceProps.values.filter { prop ->
+                    prop.type.className == nested.sourceType.className
+                }
             }
             return when (sourcePropCandidates.size) {
                 0 -> {
@@ -172,7 +194,10 @@ class NestedRule : MappingRule {
                 1 -> PropertyMappingStrategy.NestedMapper(
                     targetProperty = target,
                     sourceProperty = sourcePropCandidates.single(),
-                    nestedMappingDescriptor = nested
+                    nestedMappingDescriptor = if (targetIsCollection)
+                        nested.copy(isCollection = true)
+                    else
+                        nested
                 )
                 else -> {
                     ctx.logger.ambiguousNestedSourceProperty(
