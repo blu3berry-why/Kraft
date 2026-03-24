@@ -73,6 +73,7 @@ class ExtensionMapperGenerator(
      */
     private fun buildConstructorCall(descriptor: MapperDescriptor): CodeBlock {
         val toClass = descriptor.targetType.className
+        val receiverLabel = config.functionNameFor(descriptor)
 
         val block = CodeBlock.builder()
         block.add("%T(\n", toClass)
@@ -83,7 +84,7 @@ class ExtensionMapperGenerator(
 
         props.forEachIndexed { i, strategy ->
             val isLast = i == props.lastIndex
-            addMappingLine(block, strategy)
+            addMappingLine(block, strategy, receiverLabel)
             if (!isLast) block.add(",\n") else block.add("\n")
         }
 
@@ -94,7 +95,7 @@ class ExtensionMapperGenerator(
     }
 
     @Suppress("kotlin:S1871")
-    private fun addMappingLine(block: CodeBlock.Builder, strategy: PropertyMappingStrategy) {
+    private fun addMappingLine(block: CodeBlock.Builder, strategy: PropertyMappingStrategy, receiverLabel: String) {
         when (strategy) {
             is PropertyMappingStrategy.Direct -> {
                 val t = strategy.targetProperty.name
@@ -115,38 +116,70 @@ class ExtensionMapperGenerator(
 
             is PropertyMappingStrategy.ConverterFunction -> {
                 val t = strategy.targetProperty.name
-                val s = strategy.sourceProperty.name
                 val converter = strategy.converter
 
-                if (converter.enclosingObject != null) {
-                    // For converter in an object (e.g., MapConfig object)
-                    val enclosingClassName = ClassName(
-                        converter.enclosingObject.packageName.asString(),
-                        converter.enclosingObject.simpleName.asString()
-                    )
-                    block.add(
-                        "%N = %T.%N(this.%N)",
-                        t,
-                        enclosingClassName,
-                        converter.functionName,
-                        s
-                    )
-                } else if (converter.isExtension) {
-                    // For extension function
-                    block.add(
-                        "%N = this.%N.%N()",
-                        t,
-                        s,
-                        converter.functionName
-                    )
-                } else {
-                    // For top-level function
-                    block.add(
-                        "%N = %N(this.%N)",
-                        t,
-                        converter.functionName,
-                        s
-                    )
+                when (val source = strategy.source) {
+                    is ConverterSource.Property -> {
+                        val s = source.info.name
+                        when {
+                            converter.enclosingObject != null && converter.isExtension -> {
+                                val enclosingClassName = ClassName(
+                                    converter.enclosingObject.packageName.asString(),
+                                    converter.enclosingObject.simpleName.asString()
+                                )
+                                block.add(
+                                    "%N = with(%T) { this@%N.%N.%N() }",
+                                    t, enclosingClassName, receiverLabel, s, converter.functionName
+                                )
+                            }
+                            converter.enclosingObject != null -> {
+                                val enclosingClassName = ClassName(
+                                    converter.enclosingObject.packageName.asString(),
+                                    converter.enclosingObject.simpleName.asString()
+                                )
+                                block.add(
+                                    "%N = %T.%N(this.%N)",
+                                    t, enclosingClassName, converter.functionName, s
+                                )
+                            }
+                            converter.isExtension -> {
+                                block.add("%N = this.%N.%N()", t, s, converter.functionName)
+                            }
+                            else -> {
+                                block.add("%N = %N(this.%N)", t, converter.functionName, s)
+                            }
+                        }
+                    }
+                    is ConverterSource.WholeObject -> {
+                        when {
+                            converter.enclosingObject != null && converter.isExtension -> {
+                                val enclosingClassName = ClassName(
+                                    converter.enclosingObject.packageName.asString(),
+                                    converter.enclosingObject.simpleName.asString()
+                                )
+                                block.add(
+                                    "%N = with(%T) { this@%N.%N() }",
+                                    t, enclosingClassName, receiverLabel, converter.functionName
+                                )
+                            }
+                            converter.enclosingObject != null -> {
+                                val enclosingClassName = ClassName(
+                                    converter.enclosingObject.packageName.asString(),
+                                    converter.enclosingObject.simpleName.asString()
+                                )
+                                block.add(
+                                    "%N = %T.%N(this)",
+                                    t, enclosingClassName, converter.functionName
+                                )
+                            }
+                            converter.isExtension -> {
+                                block.add("%N = this.%N()", t, converter.functionName)
+                            }
+                            else -> {
+                                block.add("%N = %N(this)", t, converter.functionName)
+                            }
+                        }
+                    }
                 }
             }
 
