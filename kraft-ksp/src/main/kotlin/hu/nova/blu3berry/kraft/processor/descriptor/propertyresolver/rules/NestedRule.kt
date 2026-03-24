@@ -1,6 +1,7 @@
 package hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.rules
 
 import com.google.devtools.ksp.symbol.ClassKind
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.Modifier
 import hu.nova.blu3berry.kraft.model.MapNestedAnnotation
 import hu.nova.blu3berry.kraft.model.MappingContext
@@ -54,6 +55,26 @@ class NestedRule : MappingRule {
                     target.declaration
                 )
                 return null
+            }
+
+            // Check for List<T> → List<T> collection case first
+            if (isListType(sourceProp.type) && isListType(target.type)) {
+                val srcElement = elementTypeInfo(sourceProp.type)
+                val tgtElement = elementTypeInfo(target.type)
+                if (srcElement == null || tgtElement == null || !isMappableClass(srcElement) || !isMappableClass(tgtElement)) {
+                    ctx.logger.nestedTypeNotMappable(
+                        propertyName = target.name,
+                        typeName = if (srcElement == null || !isMappableClass(srcElement))
+                            sourceProp.type.ksType.toString() else target.type.ksType.toString(),
+                        symbol = target.declaration
+                    )
+                    return null
+                }
+                return PropertyMappingStrategy.NestedMapper(
+                    targetProperty = target,
+                    sourceProperty = sourceProp,
+                    nestedMappingDescriptor = synthesiseDescriptor(srcElement, tgtElement, isCollection = true)
+                )
             }
 
             val nonMappableType = listOf(sourceProp.type, target.type).firstOrNull { !isMappableClass(it) }
@@ -167,6 +188,21 @@ class NestedRule : MappingRule {
 
         // 3. Auto-detection fallback: same name, different types, both mappable classes
         val sourceProp = ctx.sourceProps[target.name] ?: return null
+
+        // Auto-detect List<Source> → List<Target> — checked before the className equality guard
+        // because List<A> and List<B> share the same raw className (kotlin.collections.List).
+        if (isListType(sourceProp.type) && isListType(target.type)) {
+            val srcElement = elementTypeInfo(sourceProp.type) ?: return null
+            val tgtElement = elementTypeInfo(target.type) ?: return null
+            if (srcElement.className == tgtElement.className) return null
+            if (!isMappableClass(srcElement) || !isMappableClass(tgtElement)) return null
+            return PropertyMappingStrategy.NestedMapper(
+                targetProperty = target,
+                sourceProperty = sourceProp,
+                nestedMappingDescriptor = synthesiseDescriptor(srcElement, tgtElement, isCollection = true)
+            )
+        }
+
         if (sourceProp.type.className == target.type.className) return null
         if (!isMappableClass(sourceProp.type) || !isMappableClass(target.type)) return null
 
@@ -179,7 +215,12 @@ class NestedRule : MappingRule {
 
     // Produces a NestedMappingDescriptor (declaration of intent only).
     // The actual child MapperDescriptor is built later by DescriptorBuilder.resolveImplicit().
-    private fun synthesiseDescriptor(sourceType: TypeInfo, targetType: TypeInfo): NestedMappingDescriptor =
+    // For collection mappings, sourceType/targetType are the element types, not the List type.
+    private fun synthesiseDescriptor(
+        sourceType: TypeInfo,
+        targetType: TypeInfo,
+        isCollection: Boolean = false
+    ): NestedMappingDescriptor =
         NestedMappingDescriptor(
             nestedMapperId = MapperId(
                 sourceQualifiedName = sourceType.declaration.qualifiedName?.asString()
@@ -188,7 +229,8 @@ class NestedRule : MappingRule {
                     ?: targetType.declaration.simpleName.asString()
             ),
             sourceType = sourceType,
-            targetType = targetType
+            targetType = targetType,
+            isCollection = isCollection
         )
 
     // Guards auto-detection: only trigger for concrete, non-stdlib classes that
@@ -203,5 +245,15 @@ class NestedRule : MappingRule {
             && Modifier.SEALED !in decl.modifiers
             && !fqn.startsWith("kotlin.")
             && !fqn.startsWith("java.")
+    }
+
+    private fun isListType(type: TypeInfo): Boolean =
+        type.declaration.qualifiedName?.asString() == "kotlin.collections.List"
+
+    private fun elementTypeInfo(type: TypeInfo): TypeInfo? {
+        val arg = type.ksType.arguments.firstOrNull() ?: return null
+        val argType = arg.type?.resolve() ?: return null
+        if (argType.declaration !is KSClassDeclaration) return null
+        return TypeInfo.fromKSType(argType)
     }
 }
