@@ -23,12 +23,12 @@ sealed interface PropertyMappingStrategy {
 
     /**
      * Use a converter function:
-     * - extension: source.prop.converter()
-     * - object: ConfigObject.converter(source.prop)
+     * - Property source — extension: source.prop.converter() / object: ConfigObject.converter(source.prop)
+     * - Whole-source — extension: this.converter() / object: ConfigObject.converter(this)
      */
     data class ConverterFunction(
         override val targetProperty: PropertyInfo,
-        val sourceProperty: PropertyInfo,
+        val source: ConverterSource,
         val converter: ConverterDescriptor
     ) : PropertyMappingStrategy
 

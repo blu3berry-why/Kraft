@@ -6,7 +6,7 @@ import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 data class ConverterDescriptor(
     val enclosingObject: KSClassDeclaration?,   // null for top-level functions (if you allow)
     val function: KSFunctionDeclaration,
-    val sourcePropertyName: String,
+    val sourcePropertyName: String?,     // null = whole-source mode, non-null = property-source mode
     val targetPropertyName: String,
     val sourceType: TypeInfo,
     val targetType: TypeInfo
