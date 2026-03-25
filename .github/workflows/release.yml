@@ -30,21 +30,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Create release branch
+        run: git checkout -b release/v${{ inputs.version }}
+
       - name: Bump version
         run: sed -i "s/kraft.version=.*/kraft.version=${{ inputs.version }}/" gradle/gradle.properties
 
-      - name: Commit and push to main
+      - name: Commit and push release branch
         run: |
           git add gradle/gradle.properties
           git commit -m "Release v${{ inputs.version }}"
-          git push origin main
+          git push origin release/v${{ inputs.version }}
 
-      - name: Create and push tag
-        run: |
-          git tag v${{ inputs.version }}
-          git push origin v${{ inputs.version }}
-
-      - name: Create GitHub Release
+      - name: Open release PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create v${{ inputs.version }} --generate-notes --title "v${{ inputs.version }}"
+        run: |
+          gh pr create \
+            --base release \
+            --head release/v${{ inputs.version }} \
+            --title "Release v${{ inputs.version }}" \
+            --body "Automated release PR for version ${{ inputs.version }}"
