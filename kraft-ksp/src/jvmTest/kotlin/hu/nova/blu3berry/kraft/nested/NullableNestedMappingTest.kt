@@ -3,8 +3,10 @@ package hu.nova.blu3berry.kraft.nested
 import com.google.common.truth.Truth.assertThat
 import com.tschuchort.compiletesting.SourceFile
 import hu.nova.blu3berry.kraft.TestKspRunner
+import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 
+@OptIn(ExperimentalCompilerApi::class)
 class NullableNestedMappingTest {
 
     @Test

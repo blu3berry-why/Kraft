@@ -27,7 +27,7 @@ class IgnoreRuleTest {
         )
 
         val content = TestKspRunner.compileAndReturnGenerated(source)
-            .first().readText()
+            .joinToString("\n") { it.readText() }
 
         assertThat(content).contains("name = this.name")
         assertThat(content).doesNotContain("internalCode")
@@ -46,7 +46,7 @@ class IgnoreRuleTest {
         )
 
         val content = TestKspRunner.compileAndReturnGenerated(source)
-            .first().readText()
+            .joinToString("\n") { it.readText() }
 
         assertThat(content).contains("title = this.title")
         assertThat(content).contains("price = this.price")

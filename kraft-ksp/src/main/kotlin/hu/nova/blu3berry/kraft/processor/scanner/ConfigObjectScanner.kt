@@ -329,7 +329,7 @@ class ConfigObjectScanner(
                 )
                 return null
             }
-            if (returnType.declaration.qualifiedName?.asString() != targetType.declaration.qualifiedName?.asString()) {
+            if (!typesMatch(returnType, targetType)) {
                 logger.error(
                     "Type mismatch in @MapUsing converter function '${fn.simpleName.asString()}': " +
                     "Return type '$returnType' doesn't match target property '$toProp' type '$targetType'",
