@@ -6,7 +6,10 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSFile
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ksp.writeTo
-import hu.nova.blu3berry.kraft.model.*
+import hu.nova.blu3berry.kraft.model.descriptor.ConverterSource
+import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.MappingSource
+import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
 import hu.nova.blu3berry.kraft.processor.codegen.MapperGenerator
 import hu.nova.blu3berry.kraft.processor.codegen.functionNameForNested
@@ -188,13 +191,27 @@ class ExtensionMapperGenerator(
 
                 val t = strategy.targetProperty.name
                 val s = strategy.sourceProperty.name
-
                 val fnName = config.functionNameForNested(strategy.nestedMappingDescriptor)
+                val sourceIsNullable = strategy.sourceProperty.type.isNullable
+                val targetIsNullable = strategy.targetProperty.type.isNullable
 
                 if (strategy.nestedMappingDescriptor.isCollection) {
-                    block.add("%N = this.%N?.map { it.%N() } ?: emptyList()", t, s, fnName)
+                    if (sourceIsNullable) {
+                        if (targetIsNullable) {
+                            block.add("%N = this.%N?.map { it.%N() }", t, s, fnName)
+                        } else {
+                            block.add("%N = this.%N?.map { it.%N() } ?: emptyList()", t, s, fnName)
+                        }
+                    } else {
+                        block.add("%N = this.%N.map { it.%N() }", t, s, fnName)
+                    }
                 } else {
-                    block.add("%N = this.%N.%N()", t, s, fnName)
+                    if (sourceIsNullable) {
+                        // Target must be nullable (non-null case is rejected by NestedRule)
+                        block.add("%N = this.%N?.%N()", t, s, fnName)
+                    } else {
+                        block.add("%N = this.%N.%N()", t, s, fnName)
+                    }
                 }
             }
 

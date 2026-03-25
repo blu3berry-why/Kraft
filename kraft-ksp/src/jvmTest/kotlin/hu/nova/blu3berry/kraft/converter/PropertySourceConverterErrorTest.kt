@@ -138,6 +138,56 @@ class PropertySourceConverterErrorTest {
     }
 
     @Test
+    fun `converter with wrong type argument emits error`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            data class Src(val tags: List<String>)
+            data class Dst(val tagStr: String)
+
+            @hu.nova.blu3berry.kraft.config.MapConfig(
+                source = Src::class,
+                target = Dst::class
+            )
+            object SrcMapper {
+                @hu.nova.blu3berry.kraft.config.MapUsing(source = "tags", target = "tagStr")
+                fun convert(tags: List<Int>): String = tags.joinToString()
+            }
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("mismatch")
+    }
+
+    @Test
+    fun `converter with nullable parameter when source is non-nullable emits error`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            data class Src(val name: String)
+            data class Dst(val label: String)
+
+            @hu.nova.blu3berry.kraft.config.MapConfig(
+                source = Src::class,
+                target = Dst::class
+            )
+            object SrcMapper {
+                @hu.nova.blu3berry.kraft.config.MapUsing(source = "name", target = "label")
+                fun convert(v: String?): String = v ?: ""
+            }
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("mismatch")
+    }
+
+    @Test
     fun `duplicate converters for same source to target pair emits error`() {
         val source = SourceFile.kotlin(
             "Models.kt",

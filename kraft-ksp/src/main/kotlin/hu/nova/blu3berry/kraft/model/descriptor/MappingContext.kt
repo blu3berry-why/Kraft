@@ -1,6 +1,8 @@
-package hu.nova.blu3berry.kraft.model
+package hu.nova.blu3berry.kraft.model.descriptor
 
 import com.google.devtools.ksp.processing.KSPLogger
+import hu.nova.blu3berry.kraft.model.PropertyInfo
+import hu.nova.blu3berry.kraft.model.scan.MapNestedAnnotation
 
 /**
  * Aggregated context passed to each [hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule]

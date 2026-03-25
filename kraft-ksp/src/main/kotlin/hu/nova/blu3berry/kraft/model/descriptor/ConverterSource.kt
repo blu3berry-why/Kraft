@@ -1,4 +1,7 @@
-package hu.nova.blu3berry.kraft.model
+package hu.nova.blu3berry.kraft.model.descriptor
+
+import hu.nova.blu3berry.kraft.model.PropertyInfo
+import hu.nova.blu3berry.kraft.model.TypeInfo
 
 /**
  * Describes what value is passed into a [@MapUsing][hu.nova.blu3berry.kraft.config.MapUsing]

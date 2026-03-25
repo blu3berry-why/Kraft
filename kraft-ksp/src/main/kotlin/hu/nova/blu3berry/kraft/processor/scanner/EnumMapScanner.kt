@@ -4,8 +4,8 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
 import hu.nova.blu3berry.kraft.config.MapEnum
-import hu.nova.blu3berry.kraft.model.EnumEntryMapping
-import hu.nova.blu3berry.kraft.model.EnumMappingDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.EnumEntryMapping
+import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.model.TypeInfo
 import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 import hu.nova.blu3berry.kraft.processor.util.annotationTargetError

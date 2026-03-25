@@ -8,8 +8,8 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ksp.writeTo
-import hu.nova.blu3berry.kraft.model.EnumEntryMapping
-import hu.nova.blu3berry.kraft.model.EnumMappingDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.EnumEntryMapping
+import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
 
 /**

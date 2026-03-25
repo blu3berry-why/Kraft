@@ -3,7 +3,7 @@ package hu.nova.blu3berry.kraft.processor.util
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSNode
 import hu.nova.blu3berry.kraft.model.PropertyInfo
-import hu.nova.blu3berry.kraft.model.FieldOverride
+import hu.nova.blu3berry.kraft.model.scan.FieldOverride
 
 /**
  * Base error format with code-like block.
@@ -453,6 +453,36 @@ fun KSPLogger.ignoredRequiredProperty(
     How to fix:
       ✓ Add a default value to '$propertyName' in the target constructor.
       ✓ Or remove the ignore declaration.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * Source property is nullable but the target property is non-null,
+ * making the nested mapper call unsafe.
+ */
+fun KSPLogger.nullableNestedSource(
+    propertyName: String,
+    sourceTypeName: String,
+    targetTypeName: String,
+    symbol: KSNode
+) = err(
+    """
+    Nullable source for nested property '$propertyName'.
+
+    In source ($sourceTypeName):
+      • $propertyName is nullable
+
+    In target ($targetTypeName):
+      • $propertyName is non-null
+
+    A nullable source cannot be mapped to a non-null target because
+    the generated call `this.$propertyName.toTarget()` would fail at
+    runtime when the source value is null.
+
+    How to fix:
+      ✓ Mark the target property '$propertyName' as nullable.
+      ✓ Or provide a @MapUsing converter that handles the null case.
     """.trimIndent(),
     symbol
 )

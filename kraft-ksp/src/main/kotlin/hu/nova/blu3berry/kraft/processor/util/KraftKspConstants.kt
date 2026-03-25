@@ -3,7 +3,6 @@ package hu.nova.blu3berry.kraft.processor.util
 internal object KraftKspConstants {
     // Annotation argument names
     const val ARG_CLASS            = "class"
-    const val ARG_VALUE            = "value"
     const val ARG_NAME             = "name"
     const val ARG_OTHER_NAME       = "counterPartName"
     const val ARG_SOURCE_NAME      = "sourceName"

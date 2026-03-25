@@ -15,12 +15,12 @@ import hu.nova.blu3berry.kraft.config.IgnoreSide
 import hu.nova.blu3berry.kraft.config.MapConfig
 import hu.nova.blu3berry.kraft.config.MapIgnoreField
 import hu.nova.blu3berry.kraft.config.MapUsing
-import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
-import hu.nova.blu3berry.kraft.model.ConverterDescriptor
-import hu.nova.blu3berry.kraft.model.FieldOverride
-import hu.nova.blu3berry.kraft.model.IgnoredMappingConfig
+import hu.nova.blu3berry.kraft.model.scan.ConfigObjectScanResult
+import hu.nova.blu3berry.kraft.model.descriptor.ConverterDescriptor
+import hu.nova.blu3berry.kraft.model.scan.FieldOverride
+import hu.nova.blu3berry.kraft.model.scan.IgnoredMappingConfig
 import hu.nova.blu3berry.kraft.model.MapperId
-import hu.nova.blu3berry.kraft.model.NestedMappingDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 import hu.nova.blu3berry.kraft.model.TypeInfo
 import hu.nova.blu3berry.kraft.model.toTypeInfo
 import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
@@ -329,7 +329,7 @@ class ConfigObjectScanner(
                 )
                 return null
             }
-            if (returnType.declaration.qualifiedName?.asString() != targetType.declaration.qualifiedName?.asString()) {
+            if (!typesMatch(returnType, targetType)) {
                 logger.error(
                     "Type mismatch in @MapUsing converter function '${fn.simpleName.asString()}': " +
                     "Return type '$returnType' doesn't match target property '$toProp' type '$targetType'",
@@ -482,7 +482,7 @@ class ConfigObjectScanner(
         toProp: String,
         fn: KSFunctionDeclaration
     ): Boolean {
-        if (paramType.declaration.qualifiedName?.asString() != sourceType.declaration.qualifiedName?.asString()) {
+        if (!typesMatch(paramType, sourceType)) {
             logger.error(
                 "Type mismatch in @MapUsing converter function '${fn.simpleName.asString()}': " +
                 "Parameter type '${paramType}' doesn't match source property '${fromProp}' type '${sourceType}'",
@@ -491,7 +491,7 @@ class ConfigObjectScanner(
             return false
         }
 
-        if (returnType.declaration.qualifiedName?.asString() != targetType.declaration.qualifiedName?.asString()) {
+        if (!typesMatch(returnType, targetType)) {
             logger.error(
                 "Type mismatch in @MapUsing converter function '${fn.simpleName.asString()}': " +
                 "Return type '${returnType}' doesn't match target property '${toProp}' type '${targetType}'",
@@ -501,6 +501,25 @@ class ConfigObjectScanner(
         }
 
         return true
+    }
+
+    /**
+     * Checks whether two [KSType]s are structurally identical: same qualified name,
+     * same nullability, and matching type arguments (recursively for generic types like [List]).
+     */
+    private fun typesMatch(a: KSType, b: KSType): Boolean {
+        if (a.declaration.qualifiedName?.asString() != b.declaration.qualifiedName?.asString()) return false
+        if (a.nullability != b.nullability) return false
+        if (a.arguments.size != b.arguments.size) return false
+        return a.arguments.zip(b.arguments).all { (aArg, bArg) ->
+            val aType = aArg.type?.resolve()
+            val bType = bArg.type?.resolve()
+            when {
+                aType == null && bType == null -> true  // both star projections
+                aType == null || bType == null -> false  // one star, one not
+                else -> typesMatch(aType, bType)
+            }
+        }
     }
 
     /**

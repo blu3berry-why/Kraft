@@ -3,18 +3,19 @@ package hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.rules
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.Modifier
-import hu.nova.blu3berry.kraft.model.MapNestedAnnotation
-import hu.nova.blu3berry.kraft.model.MappingContext
+import hu.nova.blu3berry.kraft.model.scan.MapNestedAnnotation
+import hu.nova.blu3berry.kraft.model.descriptor.MappingContext
 import hu.nova.blu3berry.kraft.model.MapperId
-import hu.nova.blu3berry.kraft.model.NestedMappingDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 import hu.nova.blu3berry.kraft.model.PropertyInfo
-import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
+import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.model.TypeInfo
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
 import hu.nova.blu3berry.kraft.processor.util.ambiguousNestedDescriptors
 import hu.nova.blu3berry.kraft.processor.util.ambiguousNestedSourceProperty
 import hu.nova.blu3berry.kraft.processor.util.nestedMappingSourceNotFound
 import hu.nova.blu3berry.kraft.processor.util.nestedTypeNotMappable
+import hu.nova.blu3berry.kraft.processor.util.nullableNestedSource
 
 class NestedRule : MappingRule {
 
@@ -87,6 +88,8 @@ class NestedRule : MappingRule {
                 return null
             }
 
+            if (!checkNullabilityForSingleObject(sourceProp, target, ctx)) return null
+
             return PropertyMappingStrategy.NestedMapper(
                 targetProperty = target,
                 sourceProperty = sourceProp,
@@ -149,14 +152,17 @@ class NestedRule : MappingRule {
                         )
                         null
                     }
-                    else -> PropertyMappingStrategy.NestedMapper(
-                        targetProperty = target,
-                        sourceProperty = overrideProp,
-                        nestedMappingDescriptor = if (targetIsCollection)
-                            nestedCandidates.single().copy(isCollection = true)
-                        else
-                            nestedCandidates.single()
-                    )
+                    else -> {
+                        if (!targetIsCollection && !checkNullabilityForSingleObject(overrideProp, target, ctx)) return null
+                        PropertyMappingStrategy.NestedMapper(
+                            targetProperty = target,
+                            sourceProperty = overrideProp,
+                            nestedMappingDescriptor = if (targetIsCollection)
+                                nestedCandidates.single().copy(isCollection = true)
+                            else
+                                nestedCandidates.single()
+                        )
+                    }
                 }
             }
 
@@ -191,14 +197,18 @@ class NestedRule : MappingRule {
                     )
                     null
                 }
-                1 -> PropertyMappingStrategy.NestedMapper(
-                    targetProperty = target,
-                    sourceProperty = sourcePropCandidates.single(),
-                    nestedMappingDescriptor = if (targetIsCollection)
-                        nested.copy(isCollection = true)
-                    else
-                        nested
-                )
+                1 -> {
+                    val sourceProp = sourcePropCandidates.single()
+                    if (!targetIsCollection && !checkNullabilityForSingleObject(sourceProp, target, ctx)) return null
+                    PropertyMappingStrategy.NestedMapper(
+                        targetProperty = target,
+                        sourceProperty = sourceProp,
+                        nestedMappingDescriptor = if (targetIsCollection)
+                            nested.copy(isCollection = true)
+                        else
+                            nested
+                    )
+                }
                 else -> {
                     ctx.logger.ambiguousNestedSourceProperty(
                         sourceTypeName = ctx.sourceTypeName,
@@ -231,6 +241,8 @@ class NestedRule : MappingRule {
         if (sourceProp.type.className == target.type.className) return null
         if (!isMappableClass(sourceProp.type) || !isMappableClass(target.type)) return null
 
+        if (!checkNullabilityForSingleObject(sourceProp, target, ctx)) return null
+
         return PropertyMappingStrategy.NestedMapper(
             targetProperty = target,
             sourceProperty = sourceProp,
@@ -257,6 +269,23 @@ class NestedRule : MappingRule {
             targetType = targetType,
             isCollection = isCollection
         )
+
+    // Emits an error when the source property is nullable but the target is non-null.
+    // Returns true if the combination is valid (safe to create a NestedMapper strategy).
+    private fun checkNullabilityForSingleObject(
+        sourceProp: PropertyInfo,
+        target: PropertyInfo,
+        ctx: MappingContext
+    ): Boolean {
+        if (!sourceProp.type.isNullable || target.type.isNullable) return true
+        ctx.logger.nullableNestedSource(
+            propertyName = target.name,
+            sourceTypeName = ctx.sourceTypeName,
+            targetTypeName = ctx.targetTypeName,
+            symbol = target.declaration
+        )
+        return false
+    }
 
     // Guards auto-detection: only trigger for concrete, non-stdlib classes that
     // Kraft can structurally map (has a primary constructor, not an interface/enum/object,

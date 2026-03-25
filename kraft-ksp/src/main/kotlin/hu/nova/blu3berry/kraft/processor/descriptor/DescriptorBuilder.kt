@@ -2,13 +2,13 @@ package hu.nova.blu3berry.kraft.processor.descriptor
 
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
-import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
-import hu.nova.blu3berry.kraft.model.EnumMappingDescriptor
-import hu.nova.blu3berry.kraft.model.MapperDescriptor
+import hu.nova.blu3berry.kraft.model.scan.ClassMappingScanResult
+import hu.nova.blu3berry.kraft.model.scan.ConfigObjectScanResult
+import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
 import hu.nova.blu3berry.kraft.model.MapperId
-import hu.nova.blu3berry.kraft.model.MappingDirection
-import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
+import hu.nova.blu3berry.kraft.model.descriptor.MappingDirection
+import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 
 class DescriptorBuilder(
     private val logger: KSPLogger
