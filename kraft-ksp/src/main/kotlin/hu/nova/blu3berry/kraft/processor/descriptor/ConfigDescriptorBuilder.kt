@@ -75,14 +75,14 @@ class ConfigDescriptorBuilder(
     ): List<PropertyInfo>? {
 
         return targetCtor.parameters.mapNotNull { param ->
-            val name = param.name?.asString() ?: return@mapNotNull null
+            val paramName = param.name ?: return@mapNotNull null
 
             val declProp = toDecl.getDeclaredProperties()
-                .firstOrNull { it.simpleName.asString() == name }
+                .firstOrNull { it.simpleName == paramName }
                 ?: run {
                     logger.missingConstructorProperty(
                         typeName = toDecl.simpleName.asString(),
-                        parameterName = name,
+                        parameterName = paramName.asString(),
                         available = toDecl.getDeclaredProperties().map { it.simpleName.asString() }.toList(),
                         symbol = param
                     )
@@ -93,7 +93,7 @@ class ConfigDescriptorBuilder(
             val classDecl = ksType.declaration as? KSClassDeclaration ?: run {
                 logger.unsupportedTypeInConstructor(
                     typeName = toDecl.simpleName.asString(),
-                    parameterName = name,
+                    parameterName = paramName.asString(),
                     actualType = ksType.toString(),
                     symbol = param
                 )
@@ -102,7 +102,7 @@ class ConfigDescriptorBuilder(
             }
 
             PropertyInfo(
-                name = name,
+                name = paramName.asString(),
                 type = classDecl.toTypeInfo(ksType),
                 declaration = declProp,
                 hasDefault = param.hasDefault

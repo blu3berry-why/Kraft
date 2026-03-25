@@ -26,14 +26,14 @@ internal class TargetPropertyExtractor(private val logger: KSPLogger) {
     ): List<PropertyInfo>? {
 
         val props = targetCtor.parameters.mapNotNull { param ->
-            val name = param.name?.asString() ?: return@mapNotNull null
+            val paramName = param.name ?: return@mapNotNull null
 
             val declProp = targetDecl.getDeclaredProperties()
-                .firstOrNull { it.simpleName.asString() == name }
+                .firstOrNull { it.simpleName == paramName }
                 ?: run {
                     logger.missingConstructorProperty(
                         typeName = targetTypeName,
-                        parameterName = name,
+                        parameterName = paramName.asString(),
                         available = targetDecl.getDeclaredProperties()
                             .map { it.simpleName.asString() }.toList(),
                         symbol = param
@@ -45,7 +45,7 @@ internal class TargetPropertyExtractor(private val logger: KSPLogger) {
             val decl = ksType.declaration as? KSClassDeclaration ?: run {
                 logger.unsupportedTypeInConstructor(
                     typeName = targetTypeName,
-                    parameterName = name,
+                    parameterName = paramName.asString(),
                     actualType = ksType.toString(),
                     symbol = param
                 )
@@ -53,7 +53,7 @@ internal class TargetPropertyExtractor(private val logger: KSPLogger) {
             }
 
             PropertyInfo(
-                name = name,
+                name = paramName.asString(),
                 type = decl.toTypeInfo(ksType),
                 declaration = declProp,
                 hasDefault = param.hasDefault
