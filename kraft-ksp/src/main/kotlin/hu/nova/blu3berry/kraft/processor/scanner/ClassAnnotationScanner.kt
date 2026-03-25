@@ -4,10 +4,10 @@ import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
-import hu.nova.blu3berry.kraft.model.ClassMappingScanResult
-import hu.nova.blu3berry.kraft.model.MapNestedAnnotation
-import hu.nova.blu3berry.kraft.model.MappingDirection
-import hu.nova.blu3berry.kraft.model.PropertyScanResult
+import hu.nova.blu3berry.kraft.model.scan.ClassMappingScanResult
+import hu.nova.blu3berry.kraft.model.scan.MapNestedAnnotation
+import hu.nova.blu3berry.kraft.model.descriptor.MappingDirection
+import hu.nova.blu3berry.kraft.model.scan.PropertyScanResult
 import hu.nova.blu3berry.kraft.mapping.MapField
 import hu.nova.blu3berry.kraft.mapping.MapFrom
 import hu.nova.blu3berry.kraft.mapping.MapIgnore

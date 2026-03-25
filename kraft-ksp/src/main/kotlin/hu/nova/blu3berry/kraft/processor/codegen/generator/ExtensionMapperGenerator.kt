@@ -6,7 +6,10 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSFile
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ksp.writeTo
-import hu.nova.blu3berry.kraft.model.*
+import hu.nova.blu3berry.kraft.model.descriptor.ConverterSource
+import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.MappingSource
+import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
 import hu.nova.blu3berry.kraft.processor.codegen.MapperGenerator
 import hu.nova.blu3berry.kraft.processor.codegen.functionNameForNested

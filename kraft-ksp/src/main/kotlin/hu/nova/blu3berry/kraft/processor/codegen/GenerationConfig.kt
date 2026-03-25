@@ -1,9 +1,9 @@
 package hu.nova.blu3berry.kraft.processor.codegen
 
 import com.squareup.kotlinpoet.ClassName
-import hu.nova.blu3berry.kraft.model.MapperDescriptor
-import hu.nova.blu3berry.kraft.model.MappingSource
-import hu.nova.blu3berry.kraft.model.NestedMappingDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.MappingSource
+import hu.nova.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 
 data class GenerationConfig(
     val functionNameTemplate: String = "to\${target}"

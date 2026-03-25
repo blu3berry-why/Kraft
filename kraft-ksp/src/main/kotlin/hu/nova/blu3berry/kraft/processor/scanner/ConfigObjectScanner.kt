@@ -15,12 +15,12 @@ import hu.nova.blu3berry.kraft.config.IgnoreSide
 import hu.nova.blu3berry.kraft.config.MapConfig
 import hu.nova.blu3berry.kraft.config.MapIgnoreField
 import hu.nova.blu3berry.kraft.config.MapUsing
-import hu.nova.blu3berry.kraft.model.ConfigObjectScanResult
-import hu.nova.blu3berry.kraft.model.ConverterDescriptor
-import hu.nova.blu3berry.kraft.model.FieldOverride
-import hu.nova.blu3berry.kraft.model.IgnoredMappingConfig
+import hu.nova.blu3berry.kraft.model.scan.ConfigObjectScanResult
+import hu.nova.blu3berry.kraft.model.descriptor.ConverterDescriptor
+import hu.nova.blu3berry.kraft.model.scan.FieldOverride
+import hu.nova.blu3berry.kraft.model.scan.IgnoredMappingConfig
 import hu.nova.blu3berry.kraft.model.MapperId
-import hu.nova.blu3berry.kraft.model.NestedMappingDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 import hu.nova.blu3berry.kraft.model.TypeInfo
 import hu.nova.blu3berry.kraft.model.toTypeInfo
 import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants

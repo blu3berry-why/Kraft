@@ -1,11 +1,11 @@
 package hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.rules
 
 import com.google.devtools.ksp.symbol.Nullability
-import hu.nova.blu3berry.kraft.model.MappingContext
+import hu.nova.blu3berry.kraft.model.descriptor.MappingContext
 import hu.nova.blu3berry.kraft.model.PropertyInfo
-import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
+import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
-import hu.nova.blu3berry.kraft.model.FieldOverride
+import hu.nova.blu3berry.kraft.model.scan.FieldOverride
 import hu.nova.blu3berry.kraft.processor.util.detailedMissingMapping
 
 class RequiredFieldErrorRule : MappingRule {

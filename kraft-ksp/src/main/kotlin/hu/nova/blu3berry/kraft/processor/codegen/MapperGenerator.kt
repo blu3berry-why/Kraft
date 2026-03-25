@@ -1,8 +1,8 @@
 package hu.nova.blu3berry.kraft.processor.codegen
 
 import com.google.devtools.ksp.processing.CodeGenerator
-import hu.nova.blu3berry.kraft.model.MapperDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
 
-interface MapperGenerator {
+fun interface MapperGenerator {
     fun generate(descriptor: MapperDescriptor, codeGenerator: CodeGenerator)
 }

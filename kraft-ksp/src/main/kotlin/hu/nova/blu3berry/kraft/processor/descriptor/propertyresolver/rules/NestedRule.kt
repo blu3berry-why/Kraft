@@ -3,12 +3,12 @@ package hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.rules
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.Modifier
-import hu.nova.blu3berry.kraft.model.MapNestedAnnotation
-import hu.nova.blu3berry.kraft.model.MappingContext
+import hu.nova.blu3berry.kraft.model.scan.MapNestedAnnotation
+import hu.nova.blu3berry.kraft.model.descriptor.MappingContext
 import hu.nova.blu3berry.kraft.model.MapperId
-import hu.nova.blu3berry.kraft.model.NestedMappingDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 import hu.nova.blu3berry.kraft.model.PropertyInfo
-import hu.nova.blu3berry.kraft.model.PropertyMappingStrategy
+import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.model.TypeInfo
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
 import hu.nova.blu3berry.kraft.processor.util.ambiguousNestedDescriptors
