@@ -58,6 +58,54 @@ class PropertySourceConverterTest {
     }
 
     @Test
+    fun `converter with generic List parameter maps correctly`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            data class Src(val tags: List<String>)
+            data class Dst(val tagStr: String)
+
+            @hu.nova.blu3berry.kraft.config.MapConfig(
+                source = Src::class,
+                target = Dst::class
+            )
+            object SrcMapper {
+                @hu.nova.blu3berry.kraft.config.MapUsing(source = "tags", target = "tagStr")
+                fun convert(tags: List<String>): String = tags.joinToString()
+            }
+            """
+        )
+
+        val generated = TestKspRunner.compileAndReturnGenerated(source)
+
+        assertThat(generated.any { it.readText().contains("tagStr = SrcMapper.convert(this.tags)") }).isTrue()
+    }
+
+    @Test
+    fun `converter with nullable parameter matches nullable source`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            data class Src(val name: String?)
+            data class Dst(val label: String)
+
+            @hu.nova.blu3berry.kraft.config.MapConfig(
+                source = Src::class,
+                target = Dst::class
+            )
+            object SrcMapper {
+                @hu.nova.blu3berry.kraft.config.MapUsing(source = "name", target = "label")
+                fun convert(v: String?): String = v ?: ""
+            }
+            """
+        )
+
+        val generated = TestKspRunner.compileAndReturnGenerated(source)
+
+        assertThat(generated.any { it.readText().contains("label = SrcMapper.convert(this.name)") }).isTrue()
+    }
+
+    @Test
     fun `multiple property-source converters in same object all apply`() {
         val source = SourceFile.kotlin(
             "Models.kt",
