@@ -1,0 +1,35 @@
+name: Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Run tests
+        run: ./gradlew :kraft-ksp:jvmTest --continue
+
+      - name: Publish test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: kraft-ksp/build/reports/tests/jvmTest/
+
+      - name: Publish JUnit report
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: kraft-ksp/build/test-results/jvmTest/**/*.xml
