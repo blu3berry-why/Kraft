@@ -136,8 +136,6 @@ class EnumMapScanner(
             sourceType = TypeInfo.fromKSType(sourceKSType),
             targetType = TypeInfo.fromKSType(targetKSType),
             entries = allMappings,
-            allowDefault = false,
-            defaultTarget = null
         )
     }
 

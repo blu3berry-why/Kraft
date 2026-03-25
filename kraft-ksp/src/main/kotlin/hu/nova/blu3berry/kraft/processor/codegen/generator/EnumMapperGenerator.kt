@@ -6,9 +6,9 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
-import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.FileSpec
+import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ksp.writeTo
-import hu.nova.blu3berry.kraft.model.descriptor.EnumEntryMapping
 import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
 
@@ -105,15 +105,6 @@ class EnumMapperGenerator(
                 logger.error("@MapEnum error: target entry '${mapping.target}' does not exist", desc.targetType.declaration)
                 ok = false
             }
-        }
-
-        // Default target must exist
-        if (desc.allowDefault && desc.defaultTarget != null && desc.defaultTarget !in toEntries) {
-            logger.error(
-                "@MapEnum error: defaultTarget '${desc.defaultTarget}' is not a valid entry of ${desc.targetType.className}",
-                desc.targetType.declaration
-            )
-            ok = false
         }
 
         return ok
