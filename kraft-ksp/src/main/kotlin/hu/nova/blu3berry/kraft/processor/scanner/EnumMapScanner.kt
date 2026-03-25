@@ -3,7 +3,6 @@ package hu.nova.blu3berry.kraft.processor.scanner
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
-import hu.nova.blu3berry.kraft.config.MapEnum
 import hu.nova.blu3berry.kraft.model.descriptor.EnumEntryMapping
 import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.model.TypeInfo
@@ -22,10 +21,6 @@ class EnumMapScanner(
     protected val logger: KSPLogger
 ) {
 
-    companion object {
-        val ENUM_MAP_FQ = MapEnum::class.qualifiedName!!
-    }
-
     /**
      * Scan all @MapEnum annotations in the project.
      *
@@ -35,12 +30,12 @@ class EnumMapScanner(
         val results = mutableListOf<EnumMappingDescriptor>()
 
         resolver
-            .getSymbolsWithAnnotation(ENUM_MAP_FQ)
+            .getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_ENUM)
             .forEach { symbol ->
 
                 if (symbol !is KSClassDeclaration) {
                     logger.annotationTargetError(
-                        annotationName = ENUM_MAP_FQ,
+                        annotationName = KraftKspConstants.FQ_MAP_ENUM,
                         expectedTarget = KraftKspConstants.ARG_CLASS,
                         actualNode = symbol
                     )
@@ -61,14 +56,14 @@ class EnumMapScanner(
      */
     protected fun buildDescriptor(decl: KSClassDeclaration): EnumMappingDescriptor? {
 
-        val annotation = decl.findAnnotation(ENUM_MAP_FQ) ?: return null
+        val annotation = decl.findAnnotation(KraftKspConstants.FQ_MAP_ENUM) ?: return null
 
         // ---- get source = X::class ----
         val sourceKSType = annotation.getKClassArgOrNull(
             name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
             symbol = decl,
-            annotationFqName = ENUM_MAP_FQ
+            annotationFqName = KraftKspConstants.FQ_MAP_ENUM
         ) ?: return null
 
         // ---- get target = Y::class ----
@@ -76,7 +71,7 @@ class EnumMapScanner(
             name = KraftKspConstants.ARG_TARGET,
             logger = logger,
             symbol = decl,
-            annotationFqName = ENUM_MAP_FQ
+            annotationFqName = KraftKspConstants.FQ_MAP_ENUM
         ) ?: return null
 
         val fromDecl = sourceKSType.declaration as? KSClassDeclaration

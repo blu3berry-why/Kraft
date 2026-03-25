@@ -8,11 +8,6 @@ import hu.nova.blu3berry.kraft.model.scan.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.scan.MapNestedAnnotation
 import hu.nova.blu3berry.kraft.model.descriptor.MappingDirection
 import hu.nova.blu3berry.kraft.model.scan.PropertyScanResult
-import hu.nova.blu3berry.kraft.mapping.MapField
-import hu.nova.blu3berry.kraft.mapping.MapFrom
-import hu.nova.blu3berry.kraft.mapping.MapIgnore
-import hu.nova.blu3berry.kraft.mapping.MapNested
-import hu.nova.blu3berry.kraft.mapping.MapTo
 import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 import hu.nova.blu3berry.kraft.processor.util.annotationTargetError
 import hu.nova.blu3berry.kraft.processor.util.findAnnotation
@@ -22,27 +17,20 @@ class ClassAnnotationScanner(
     private val resolver: Resolver,
     private val logger: KSPLogger
 ) {
-    private companion object {
-        val MAP_FROM_FQ = MapFrom::class.qualifiedName!!
-        val MAP_TO_FQ = MapTo::class.qualifiedName!!
-        val MAP_FIELD_FQ = MapField::class.qualifiedName!!
-        val MAP_NESTED_FQ = MapNested::class.qualifiedName!!
-        val MAP_IGNORE_FQ = MapIgnore::class.qualifiedName!!
-    }
 
     fun scan(): List<ClassMappingScanResult> {
         val results = mutableListOf<ClassMappingScanResult>()
 
         // First, collect all symbols with either annotation and check if they are classes
-        val allMapFromSymbols = resolver.getSymbolsWithAnnotation(MAP_FROM_FQ)
-        val allMapToSymbols = resolver.getSymbolsWithAnnotation(MAP_TO_FQ)
+        val allMapFromSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_FROM)
+        val allMapToSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_TO)
 
         // Check for non-class elements with @MapFrom and show error
         allMapFromSymbols.forEach { symbol ->
             if (symbol !is KSClassDeclaration) {
                 logger.annotationTargetError(
                     actualNode = symbol,
-                    annotationName = MAP_FROM_FQ,
+                    annotationName = KraftKspConstants.FQ_MAP_FROM,
                     expectedTarget = KraftKspConstants.ARG_CLASS
                 )
             }
@@ -53,7 +41,7 @@ class ClassAnnotationScanner(
             if (symbol !is KSClassDeclaration) {
                 logger.annotationTargetError(
                     actualNode = symbol,
-                    annotationName = MAP_TO_FQ,
+                    annotationName = KraftKspConstants.FQ_MAP_TO,
                     expectedTarget = KraftKspConstants.ARG_CLASS
                 )
             }
@@ -97,13 +85,13 @@ class ClassAnnotationScanner(
         classDeclaration: KSClassDeclaration,
         results: MutableList<ClassMappingScanResult>
     ) {
-        val ann = classDeclaration.findAnnotation(MAP_FROM_FQ) ?: return
+        val ann = classDeclaration.findAnnotation(KraftKspConstants.FQ_MAP_FROM) ?: return
 
         val sourceType = ann.getKClassArgOrNull(
             name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
             symbol = classDeclaration,
-            annotationFqName = MAP_FROM_FQ
+            annotationFqName = KraftKspConstants.FQ_MAP_FROM
         ) ?: return
 
         val propertyScanResults = scanPropertyAnnotations(classDeclaration)
@@ -121,13 +109,13 @@ class ClassAnnotationScanner(
         classDeclaration: KSClassDeclaration,
         results: MutableList<ClassMappingScanResult>
     ) {
-        val ann = classDeclaration.findAnnotation(MAP_TO_FQ) ?: return
+        val ann = classDeclaration.findAnnotation(KraftKspConstants.FQ_MAP_TO) ?: return
 
         val targetType = ann.getKClassArgOrNull(
             name = KraftKspConstants.ARG_TARGET,
             logger = logger,
             symbol = classDeclaration,
-            annotationFqName = MAP_TO_FQ
+            annotationFqName = KraftKspConstants.FQ_MAP_TO
         ) ?: return
 
         val propertyScanResults = scanPropertyAnnotations(classDeclaration)
@@ -154,15 +142,15 @@ class ClassAnnotationScanner(
         val props = mutableListOf<PropertyScanResult>()
 
         for (prop in klass.getDeclaredProperties()) {
-            val mapFieldAnn = prop.findAnnotation(MAP_FIELD_FQ)
+            val mapFieldAnn = prop.findAnnotation(KraftKspConstants.FQ_MAP_FIELD)
             val counterPartName: String? = mapFieldAnn
                 ?.arguments
                 ?.firstOrNull { it.name?.asString() == KraftKspConstants.ARG_OTHER_NAME }
                 ?.value as? String
 
-            val isIgnored = prop.findAnnotation(MAP_IGNORE_FQ) != null
+            val isIgnored = prop.findAnnotation(KraftKspConstants.FQ_MAP_IGNORE) != null
 
-            val mapNestedAnn = prop.findAnnotation(MAP_NESTED_FQ)
+            val mapNestedAnn = prop.findAnnotation(KraftKspConstants.FQ_MAP_NESTED)
             val mapNested: MapNestedAnnotation = when {
                 mapNestedAnn == null -> MapNestedAnnotation.NotAnnotated
                 else -> {
