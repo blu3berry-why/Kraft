@@ -47,8 +47,3 @@ enum class StatusDto { ACTIVE, BANNED, UNKNOWN }
     ]
 )
 object StatusMapping
-
-var minorChangeToTriggerWorkflow = "1"
-fun test(): Boolean {
-    return minorChangeToTriggerWorkflow == "2"
-}
