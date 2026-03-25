@@ -1,22 +1,21 @@
 package hu.nova.blu3berry.kraft.processor.descriptor
 
 import com.google.devtools.ksp.processing.KSPLogger
-import com.google.devtools.ksp.symbol.KSClassDeclaration
+import hu.nova.blu3berry.kraft.model.MapperId
+import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
-import hu.nova.blu3berry.kraft.model.MapperId
 import hu.nova.blu3berry.kraft.model.descriptor.MappingContext
 import hu.nova.blu3berry.kraft.model.descriptor.MappingDirection
-import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.descriptor.MappingSource
 import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
-import hu.nova.blu3berry.kraft.model.toTypeInfo
-import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolver
-import hu.nova.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
 import hu.nova.blu3berry.kraft.model.scan.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.scan.FieldOverride
 import hu.nova.blu3berry.kraft.model.scan.MapNestedAnnotation
+import hu.nova.blu3berry.kraft.model.toTypeInfo
+import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolver
+import hu.nova.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
 import hu.nova.blu3berry.kraft.processor.util.missingPrimaryConstructor
 
 class ClassDescriptorBuilder(
