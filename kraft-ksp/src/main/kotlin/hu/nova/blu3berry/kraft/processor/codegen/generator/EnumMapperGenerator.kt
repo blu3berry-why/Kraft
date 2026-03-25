@@ -62,8 +62,9 @@ class EnumMapperGenerator(
             .addFunction(funSpec)
             .build()
 
-        val originating: KSFile? = fromDecl.containingFile ?: toDecl.containingFile
-        val deps = Dependencies(false, originating ?: return)
+        val sourceFiles = listOfNotNull(fromDecl.containingFile, toDecl.containingFile)
+        if (sourceFiles.isEmpty()) return
+        val deps = Dependencies(false, *sourceFiles.toTypedArray())
 
         fileSpec.writeTo(codeGenerator, deps)
 

@@ -39,19 +39,25 @@ class ExtensionMapperGenerator(
             .addFunction(funBuilder.build())
             .build()
 
-        val originatingFile: KSFile? = when (val src = descriptor.source) {
+        val annotationFile: KSFile? = when (val src = descriptor.source) {
             is MappingSource.ClassAnnotation -> src.annotatedClass.containingFile
             is MappingSource.ConfigObject -> src.configObject.containingFile
         }
 
-        if (originatingFile == null) {
+        if (annotationFile == null) {
             logger.warn("Skipping mapper generation for $fromClass → $toClass: no originating file found.")
             return
         }
 
+        val sourceFiles = listOfNotNull(
+            annotationFile,
+            descriptor.sourceType.declaration.containingFile,
+            descriptor.targetType.declaration.containingFile
+        ).distinct()
+
         file.writeTo(
             codeGenerator = codeGenerator,
-            dependencies = Dependencies(aggregating = false, originatingFile)
+            dependencies = Dependencies(aggregating = false, *sourceFiles.toTypedArray())
         )
         logger.info("Generated extension mapper function: $packageName.$functionName")
     }

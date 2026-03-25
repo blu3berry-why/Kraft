@@ -3,6 +3,7 @@ package hu.nova.blu3berry.kraft
 import hu.nova.blu3berry.kraft.processor.descriptor.DescriptorBuilder
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.*
+import com.google.devtools.ksp.validate
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
 import hu.nova.blu3berry.kraft.processor.codegen.MapperGenerator
@@ -21,6 +22,18 @@ class AutoMapperProcessor(
     private val logger = env.logger
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
+
+        // Collect symbols whose types aren't fully resolved yet and defer them to the next round.
+        // This is the standard KSP multi-round pattern; without it, symbols produced by other
+        // annotation processors in the same compilation would be silently dropped.
+        val deferred = listOf(
+            KraftKspConstants.FQ_MAP_FROM,
+            KraftKspConstants.FQ_MAP_TO,
+            KraftKspConstants.FQ_MAP_CONFIG,
+            KraftKspConstants.FQ_MAP_ENUM
+        ).flatMap { fq ->
+            resolver.getSymbolsWithAnnotation(fq).filter { !it.validate() }
+        }
 
         val classMappingScanResult =
             ClassAnnotationScanner(resolver = resolver, logger = logger).scan()
@@ -61,7 +74,7 @@ class AutoMapperProcessor(
             generator.generate(descriptor, codeGenerator)
         }
 
-        return emptyList()
+        return deferred
     }
 
 
