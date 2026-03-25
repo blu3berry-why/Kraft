@@ -22,6 +22,7 @@ jobs:
           java-version: '17'
 
       - name: Publish to GitHub Packages
-        run: ./gradlew :kraft-ksp:publish :kraft-annotations:publish
+        run: ./gradlew :kraft-ksp:publish :kraft-annotations:publish --no-configuration-cache
+          -Pkraft.version=${GITHUB_REF_NAME#v}
           -Pgpr.user=${{ github.actor }}
           -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
