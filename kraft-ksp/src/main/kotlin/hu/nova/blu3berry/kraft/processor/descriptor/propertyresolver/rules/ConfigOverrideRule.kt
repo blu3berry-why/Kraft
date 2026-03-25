@@ -13,7 +13,7 @@ class ConfigOverrideRule : MappingRule {
         ctx: MappingContext
     ): PropertyMappingStrategy? {
 
-        val sourceName = ctx.configOverrides[target.name] ?: return null
+        val sourceName = ctx.configRenames[target.name] ?: return null
         val sourceProp = ctx.sourceProps[sourceName] ?: run {
             ctx.logger.error(
                 "Config override refers to unknown property '$sourceName'. " +

@@ -123,8 +123,8 @@ class ConfigDescriptorBuilder(
         return MappingContext(
             logger = logger,
             sourceProps = sourceProps,
-            classOverrides = emptyMap(),                       // config mode → no @MapField
-            configOverrides = config.fieldOverrides.associate { it.target to it.source },
+            classRenames = emptyMap(),                         // config mode → no @MapField
+            configRenames = config.fieldOverrides.associate { it.target to it.source },
             converters = config.converters,
             nestedMappings = nestedMappings,
             ignoredProperties = ignoredProperties,
