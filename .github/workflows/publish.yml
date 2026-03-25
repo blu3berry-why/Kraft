@@ -66,5 +66,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(grep "kraft.version=" gradle/gradle.properties | cut -d= -f2)
-          gh release create "v$VERSION" --generate-notes --title "v$VERSION"
+          VERSION=$(grep "^kraft.version=" gradle.properties | cut -d= -f2)
+          gh release create "v$VERSION" --generate-notes --title "v$VERSION" --target "$GITHUB_SHA"
