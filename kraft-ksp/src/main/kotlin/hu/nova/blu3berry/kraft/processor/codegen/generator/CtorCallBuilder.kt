@@ -140,14 +140,23 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
                 val targetIsNullable = strategy.targetProperty.type.isNullable
 
                 if (strategy.nestedMappingDescriptor.isCollection) {
+                    val srcElemIsNullable = strategy.nestedMappingDescriptor.sourceType.isNullable
+                    val tgtElemIsNullable = strategy.nestedMappingDescriptor.targetType.isNullable
+                    val mapFn = if (srcElemIsNullable && !tgtElemIsNullable) "mapNotNull" else "map"
+
                     if (sourceIsNullable) {
-                        if (targetIsNullable) {
-                            block.add("%N = this.%N?.map { it.%N() }", t, s, fnName)
+                        val fallback = if (!targetIsNullable) " ?: emptyList()" else ""
+                        if (srcElemIsNullable) {
+                            block.add("%N = this.%N?.%L { it?.%N() }$fallback", t, s, mapFn, fnName)
                         } else {
-                            block.add("%N = this.%N?.map { it.%N() } ?: emptyList()", t, s, fnName)
+                            block.add("%N = this.%N?.%L { it.%N() }$fallback", t, s, mapFn, fnName)
                         }
                     } else {
-                        block.add("%N = this.%N.map { it.%N() }", t, s, fnName)
+                        if (srcElemIsNullable) {
+                            block.add("%N = this.%N.%L { it?.%N() }", t, s, mapFn, fnName)
+                        } else {
+                            block.add("%N = this.%N.%L { it.%N() }", t, s, mapFn, fnName)
+                        }
                     }
                 } else {
                     if (sourceIsNullable) {

@@ -3,6 +3,7 @@ package hu.nova.blu3berry.kraft.processor.scanner
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
+import com.google.devtools.ksp.validate
 import hu.nova.blu3berry.kraft.model.descriptor.EnumEntryMapping
 import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.model.TypeInfo
@@ -31,6 +32,7 @@ class EnumMapScanner(
 
         resolver
             .getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_ENUM)
+            .filter { it.validate() }
             .forEach { symbol ->
 
                 if (symbol !is KSClassDeclaration) {

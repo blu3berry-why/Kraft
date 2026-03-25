@@ -25,6 +25,8 @@ internal class TargetPropertyExtractor(private val logger: KSPLogger) {
         targetTypeName: String
     ): List<PropertyInfo>? {
 
+        var hasUnsupportedNonDefault = false
+
         val props = targetCtor.parameters.mapNotNull { param ->
             val paramName = param.name ?: return@mapNotNull null
 
@@ -49,6 +51,7 @@ internal class TargetPropertyExtractor(private val logger: KSPLogger) {
                     actualType = ksType.toString(),
                     symbol = param
                 )
+                if (!param.hasDefault) hasUnsupportedNonDefault = true
                 return@mapNotNull null
             }
 
@@ -60,7 +63,7 @@ internal class TargetPropertyExtractor(private val logger: KSPLogger) {
             )
         }
 
-        if (props.size != targetCtor.parameters.size) {
+        if (hasUnsupportedNonDefault) {
             logger.constructorPropertyMismatch(targetTypeName, targetDecl)
             return null
         }

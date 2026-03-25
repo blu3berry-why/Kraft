@@ -33,8 +33,8 @@ internal class IgnoredPropertyAggregator(private val logger: KSPLogger) {
     // Only TARGET and BOTH entries are applied here (forward-only generation).
     // SOURCE entries are stored in ConfigObjectScanResult for future use when
     // reverse-mapping generation is added.
-    // BOTH with a name absent from the current target's constructor is silently
-    // skipped — the property may legitimately exist only on the reverse target.
+    // BOTH with a name absent from the current target's constructor emits a warning
+    // and is skipped — the property may legitimately exist only on the reverse target.
     private fun buildConfigIgnored(
         configObjects: List<ConfigObjectScanResult>,
         targetProps: List<PropertyInfo>,
@@ -60,8 +60,16 @@ internal class IgnoredPropertyAggregator(private val logger: KSPLogger) {
                         }
                     }
                     IgnoreSide.BOTH -> {
-                        if (ignored.name in targetPropNames) result.add(ignored.name)
-                        // Not in this target → may be valid for the reverse direction; skip silently.
+                        if (ignored.name in targetPropNames) {
+                            result.add(ignored.name)
+                        } else {
+                            logger.warn(
+                                "@MapIgnoreField(\"${ignored.name}\", BOTH): property not found in " +
+                                    "target '$targetTypeName' constructor; skipped for forward direction. " +
+                                    "Available: ${targetPropNames.sorted()}",
+                                configObj.configObject
+                            )
+                        }
                     }
                 }
             }

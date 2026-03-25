@@ -29,16 +29,6 @@ class ExtensionMapperGenerator(
         val functionName = config.functionNameFor(descriptor)
         val fileName = "${fromClass.simpleName}To${toClass.simpleName}Mapper"
 
-        val funBuilder = FunSpec.builder(functionName)
-            .receiver(fromClass)
-            .returns(toClass)
-            .addCode("return %L\n", ctorCallBuilder.build(descriptor))
-
-        val file = FileSpec.builder(packageName, "$fileName.kt")
-            .addFileComment(CodeGenUtils.generatedBanner())
-            .addFunction(funBuilder.build())
-            .build()
-
         val annotationFile: KSFile? = when (val src = descriptor.source) {
             is MappingSource.ClassAnnotation -> src.annotatedClass.containingFile
             is MappingSource.ConfigObject -> src.configObject.containingFile
@@ -48,6 +38,16 @@ class ExtensionMapperGenerator(
             logger.warn("Skipping mapper generation for $fromClass → $toClass: no originating file found.")
             return
         }
+
+        val funBuilder = FunSpec.builder(functionName)
+            .receiver(fromClass)
+            .returns(toClass)
+            .addCode("return %L\n", ctorCallBuilder.build(descriptor))
+
+        val file = FileSpec.builder(packageName, "$fileName.kt")
+            .addFileComment(CodeGenUtils.generatedBanner())
+            .addFunction(funBuilder.build())
+            .build()
 
         val sourceFiles = listOfNotNull(
             annotationFile,

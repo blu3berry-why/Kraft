@@ -4,6 +4,7 @@ import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.*
+import com.google.devtools.ksp.validate
 import hu.nova.blu3berry.kraft.model.scan.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.scan.MapNestedAnnotation
 import hu.nova.blu3berry.kraft.model.descriptor.MappingDirection
@@ -22,8 +23,8 @@ class ClassAnnotationScanner(
         val results = mutableListOf<ClassMappingScanResult>()
 
         // First, collect all symbols with either annotation and check if they are classes
-        val allMapFromSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_FROM)
-        val allMapToSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_TO)
+        val allMapFromSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_FROM).filter { it.validate() }
+        val allMapToSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_TO).filter { it.validate() }
 
         // Check for non-class elements with @MapFrom and show error
         allMapFromSymbols.forEach { symbol ->

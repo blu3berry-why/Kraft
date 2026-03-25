@@ -1,10 +1,8 @@
 package hu.nova.blu3berry.kraft.processor.descriptor
 
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolver
-import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import hu.nova.blu3berry.kraft.config.IgnoreSide
 import hu.nova.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
@@ -17,9 +15,7 @@ import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.model.toTypeInfo
 import hu.nova.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
-import hu.nova.blu3berry.kraft.processor.util.missingConstructorProperty
 import hu.nova.blu3berry.kraft.processor.util.missingPrimaryConstructor
-import hu.nova.blu3berry.kraft.processor.util.unsupportedTypeInConstructor
 
 class ConfigDescriptorBuilder(
     private val logger: KSPLogger,
@@ -40,7 +36,7 @@ class ConfigDescriptorBuilder(
             return null
         }
 
-        val targetProps = extractTargetProperties(toDecl, targetCtor) ?: return null
+        val targetProps = TargetPropertyExtractor(logger).extract(toDecl, targetCtor, toDecl.simpleName.asString()) ?: return null
 
         val ignoredProperties = buildIgnoredProperties(targetProps, toDecl.simpleName.asString())
         val ctx = buildMappingContext(fromDecl, toDecl, sourceProps, config.nestedMappings, ignoredProperties)
@@ -64,50 +60,6 @@ class ConfigDescriptorBuilder(
             converters = config.converters,
             nestedMappings = config.nestedMappings,
         )
-    }
-
-    // ---------------------------------------------------------
-    // Extract constructor → PropertyInfo list
-    // ---------------------------------------------------------
-    private fun extractTargetProperties(
-        toDecl: KSClassDeclaration,
-        targetCtor: KSFunctionDeclaration
-    ): List<PropertyInfo>? {
-
-        return targetCtor.parameters.mapNotNull { param ->
-            val paramName = param.name ?: return@mapNotNull null
-
-            val declProp = toDecl.getDeclaredProperties()
-                .firstOrNull { it.simpleName == paramName }
-                ?: run {
-                    logger.missingConstructorProperty(
-                        typeName = toDecl.simpleName.asString(),
-                        parameterName = paramName.asString(),
-                        available = toDecl.getDeclaredProperties().map { it.simpleName.asString() }.toList(),
-                        symbol = param
-                    )
-                    return null
-                }
-
-            val ksType = param.type.resolve()
-            val classDecl = ksType.declaration as? KSClassDeclaration ?: run {
-                logger.unsupportedTypeInConstructor(
-                    typeName = toDecl.simpleName.asString(),
-                    parameterName = paramName.asString(),
-                    actualType = ksType.toString(),
-                    symbol = param
-                )
-                if (!param.hasDefault) return null
-                return@mapNotNull null
-            }
-
-            PropertyInfo(
-                name = paramName.asString(),
-                type = classDecl.toTypeInfo(ksType),
-                declaration = declProp,
-                hasDefault = param.hasDefault
-            )
-        }
     }
 
     // ---------------------------------------------------------
