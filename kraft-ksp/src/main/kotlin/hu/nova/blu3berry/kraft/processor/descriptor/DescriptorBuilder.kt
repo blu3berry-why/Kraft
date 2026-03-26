@@ -99,7 +99,10 @@ class DescriptorBuilder(
     ) {
         // Reverse for class-annotated mappings
         for (mapping in classMappings) {
-            if (!mapping.hasReverse) continue
+            val configsForThis = configMappings.filter {
+                it.sourceType == mapping.sourceType && it.targetType == mapping.targetType
+            }
+            if (!mapping.hasReverse && configsForThis.none { it.hasReverse }) continue
             val forwardId = MapperId(
                 sourceQualifiedName = mapping.sourceType.qualifiedName?.asString() ?: mapping.sourceType.simpleName.asString(),
                 targetQualifiedName = mapping.targetType.qualifiedName?.asString() ?: mapping.targetType.simpleName.asString()
@@ -108,9 +111,6 @@ class DescriptorBuilder(
             val reverseId = MapperId(forwardId.targetQualifiedName, forwardId.sourceQualifiedName)
             if (reverseId in builtDescriptors) continue // explicit reverse already exists
 
-            val configsForThis = configMappings.filter {
-                it.sourceType == mapping.sourceType && it.targetType == mapping.targetType
-            }
             ReverseDescriptorBuilder(logger, forwardDescriptor, configsForThis, mapping.annotatedClass)
                 .build()
                 ?.let { builtDescriptors[it.id] = it }

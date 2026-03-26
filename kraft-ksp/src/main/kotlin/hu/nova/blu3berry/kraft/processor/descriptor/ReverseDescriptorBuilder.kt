@@ -9,7 +9,6 @@ import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.MappingContext
 import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.model.scan.ConfigObjectScanResult
-import hu.nova.blu3berry.kraft.model.toTypeInfo
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolver
 import hu.nova.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
 import hu.nova.blu3berry.kraft.processor.util.missingPrimaryConstructor
@@ -36,8 +35,8 @@ class ReverseDescriptorBuilder(
         val newSourceTypeName = newSourceDecl.qualifiedName?.asString() ?: newSourceDecl.simpleName.asString()
         val newTargetTypeName = newTargetDecl.qualifiedName?.asString() ?: newTargetDecl.simpleName.asString()
 
-        val newSourceTypeInfo = newSourceDecl.toTypeInfo(newSourceDecl.asStarProjectedType())
-        val newTargetTypeInfo = newTargetDecl.toTypeInfo(newTargetDecl.asStarProjectedType())
+        val newSourceTypeInfo = forwardDescriptor.targetType
+        val newTargetTypeInfo = forwardDescriptor.sourceType
 
         // Extract new target's constructor properties (old source's properties)
         val newTargetCtor = newTargetDecl.primaryConstructor ?: run {
@@ -162,7 +161,7 @@ class ReverseDescriptorBuilder(
             val reversePropSource = fwdConverter.targetPropertyName  // old target prop is now source
             val reversePropTarget = fwdConverter.sourcePropertyName  // old source prop is now target
 
-            val reverseConverter = allConverters.find { candidate ->
+            val reverseConverter = reverseConverters.find { candidate ->
                 if (reversePropTarget != null) {
                     // Property-source: reverse needs source=oldTarget, target=oldSource
                     candidate.sourcePropertyName == reversePropSource &&
