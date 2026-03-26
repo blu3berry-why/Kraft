@@ -147,7 +147,7 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
                     val mapFn = if (srcElemIsNullable && !tgtElemIsNullable) "mapNotNull" else "map"
                     val toSuffix = when (collKind) {
                         CollectionKind.LIST -> ""
-                        CollectionKind.SET -> ".toSet()"
+                        CollectionKind.SET -> if (sourceIsNullable) "?.toSet()" else ".toSet()"
                     }
                     val emptyFallback = when (collKind) {
                         CollectionKind.LIST -> "emptyList()"

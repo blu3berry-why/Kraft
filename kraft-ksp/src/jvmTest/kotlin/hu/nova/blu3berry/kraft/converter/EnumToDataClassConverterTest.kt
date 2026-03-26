@@ -33,6 +33,7 @@ class EnumToDataClassConverterTest {
         )
 
         val generated = TestKspRunner.compileAndReturnGenerated(source)
+        assertThat(generated).isNotEmpty()
         val content = generated.joinToString("\n") { it.readText() }
 
         assertThat(content).contains("fun EventSource.toEventDto()")

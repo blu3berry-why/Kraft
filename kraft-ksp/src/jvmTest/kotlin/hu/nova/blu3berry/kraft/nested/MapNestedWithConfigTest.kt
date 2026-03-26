@@ -40,6 +40,7 @@ class MapNestedWithConfigTest {
 
         assertThat(content).contains("fun PersonSource.toPersonDto()")
         assertThat(content).contains("fun AddressSource.toAddressDto()")
+        assertThat(content).contains("address = this.address.toAddressDto()")
         assertThat(content).contains("street = this.streetName")
     }
 }

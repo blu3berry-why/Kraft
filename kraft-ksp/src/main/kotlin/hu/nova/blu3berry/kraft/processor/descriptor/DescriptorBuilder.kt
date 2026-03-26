@@ -73,7 +73,18 @@ class DescriptorBuilder(
             }
             ConfigDescriptorBuilder(logger = logger, config = config, enumMappings = enumsForThis)
                 .build()
-                ?.let { builtDescriptors[it.id] = it }
+                ?.let {
+                    val existing = builtDescriptors[it.id]
+                    if (existing != null) {
+                        logger.error(
+                            "Duplicate mapping for ${it.id}: multiple @MapConfig objects declare " +
+                                "the same source → target pair. Only one mapping per type pair is allowed.",
+                            config.configObject
+                        )
+                    } else {
+                        builtDescriptors[it.id] = it
+                    }
+                }
         }
     }
 

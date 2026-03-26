@@ -149,9 +149,11 @@ class ReverseDescriptorBuilder(
 
         if (forwardConverterStrategies.isEmpty()) return allConverters
 
-        val reverseConverters = mutableListOf<ConverterDescriptor>()
-        // Add all converters that aren't forward-direction ones (they might be reverse ones)
-        reverseConverters.addAll(allConverters)
+        // Identify forward converter descriptors so we can exclude them from reverse resolution
+        val forwardConverterDescriptors = forwardConverterStrategies.map { it.converter }.toSet()
+
+        // Start with only non-forward converters (reverse-direction or unrelated)
+        val reverseConverters = allConverters.filter { it !in forwardConverterDescriptors }.toMutableList()
 
         for (fwdStrategy in forwardConverterStrategies) {
             val fwdConverter = fwdStrategy.converter
@@ -161,8 +163,15 @@ class ReverseDescriptorBuilder(
             val reversePropTarget = fwdConverter.sourcePropertyName  // old source prop is now target
 
             val reverseConverter = allConverters.find { candidate ->
-                candidate.sourcePropertyName == reversePropSource &&
-                    candidate.targetPropertyName == (reversePropTarget ?: return@find false)
+                if (reversePropTarget != null) {
+                    // Property-source: reverse needs source=oldTarget, target=oldSource
+                    candidate.sourcePropertyName == reversePropSource &&
+                        candidate.targetPropertyName == reversePropTarget
+                } else {
+                    // Whole-source: reverse is also whole-source targeting the old source property
+                    candidate.sourcePropertyName == null &&
+                        candidate.targetPropertyName == reversePropSource
+                }
             }
 
             if (reverseConverter == null) {

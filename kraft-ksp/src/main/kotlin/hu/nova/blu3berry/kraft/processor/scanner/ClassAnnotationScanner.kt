@@ -72,7 +72,18 @@ class ClassAnnotationScanner(
             )
         }
 
-        // Collect classes with @MapReverse
+        // Validate @MapReverse targets — must be CLASS or OBJECT (objects handled by ConfigObjectScanner)
+        allMapReverseSymbols.forEach { symbol ->
+            if (symbol !is KSClassDeclaration || (symbol.classKind != ClassKind.CLASS && symbol.classKind != ClassKind.OBJECT)) {
+                logger.annotationTargetError(
+                    actualNode = symbol,
+                    annotationName = KraftKspConstants.FQ_MAP_REVERSE,
+                    expectedTarget = KraftKspConstants.ARG_CLASS
+                )
+            }
+        }
+
+        // Collect classes with @MapReverse (objects are handled by ConfigObjectScanner)
         val classesWithMapReverse = allMapReverseSymbols
             .filterIsInstance<KSClassDeclaration>()
             .filter { it.classKind == ClassKind.CLASS }
