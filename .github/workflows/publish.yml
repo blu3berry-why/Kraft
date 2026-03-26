@@ -65,13 +65,13 @@ jobs:
       - name: Read version from gradle.properties
         id: version
         run: |
-          if [ ! -f gradle/gradle.properties ]; then
-            echo "::error::gradle/gradle.properties not found" >&2
+          if [ ! -f gradle.properties ]; then
+            echo "::error::gradle.properties not found" >&2
             exit 1
           fi
-          VERSION=$(grep "^kraft.version=" gradle/gradle.properties | cut -d= -f2)
+          VERSION=$(grep "^kraft.version=" gradle.properties | cut -d= -f2)
           if [ -z "${VERSION// /}" ]; then
-            echo "::error::kraft.version is empty or missing in gradle/gradle.properties" >&2
+            echo "::error::kraft.version is empty or missing in gradle.properties" >&2
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
