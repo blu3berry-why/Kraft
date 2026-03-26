@@ -5,11 +5,11 @@ import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSFile
-import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.FileSpec
+import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ksp.writeTo
-import hu.nova.blu3berry.kraft.model.descriptor.EnumEntryMapping
 import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
+import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
 import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
 
 /**
@@ -25,7 +25,8 @@ import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
  */
 class EnumMapperGenerator(
     private val codeGenerator: CodeGenerator,
-    private val logger: KSPLogger
+    private val logger: KSPLogger,
+    private val config: GenerationConfig = GenerationConfig()
 ) {
 
     fun generate(descriptors: List<EnumMappingDescriptor>) {
@@ -62,8 +63,9 @@ class EnumMapperGenerator(
             .addFunction(funSpec)
             .build()
 
-        val originating: KSFile? = fromDecl.containingFile ?: toDecl.containingFile
-        val deps = Dependencies(false, originating ?: return)
+        val sourceFiles = listOfNotNull(fromDecl.containingFile, toDecl.containingFile)
+        if (sourceFiles.isEmpty()) return
+        val deps = Dependencies(false, *sourceFiles.toTypedArray())
 
         fileSpec.writeTo(codeGenerator, deps)
 
@@ -107,15 +109,6 @@ class EnumMapperGenerator(
             }
         }
 
-        // Default target must exist
-        if (desc.allowDefault && desc.defaultTarget != null && desc.defaultTarget !in toEntries) {
-            logger.error(
-                "@MapEnum error: defaultTarget '${desc.defaultTarget}' is not a valid entry of ${desc.targetType.className}",
-                desc.targetType.declaration
-            )
-            ok = false
-        }
-
         return ok
     }
 
@@ -128,7 +121,7 @@ class EnumMapperGenerator(
         val fromClass = desc.sourceType.className
         val toClass = desc.targetType.className
 
-        val funName = "to${toClass.simpleName}"
+        val funName = config.functionNameFor(fromClass, toClass)
 
         val builder = FunSpec.builder(funName)
             .receiver(fromClass)

@@ -17,8 +17,6 @@ import hu.nova.blu3berry.kraft.model.TypeInfo
  * @param nestedMappings         Child mapper descriptors referenced by [PropertyMappingStrategy.NestedMapper] entries.
  * @param enumMappings           Enum-to-enum mapping descriptors for this mapper.
  * @param converters             `@MapUsing` converter descriptors scanned from the config object.
- * @param generateReverse        Reserved for future reverse-mapper generation. Not yet consumed.
- * @param generateListExtensions Reserved for future `List<Source>.toListOfTarget()` generation. Not yet consumed.
  */
 data class MapperDescriptor(
     val id: MapperId,
@@ -29,8 +27,6 @@ data class MapperDescriptor(
     val nestedMappings: List<NestedMappingDescriptor> = emptyList(),
     val enumMappings: List<EnumMappingDescriptor> = emptyList(),
     val converters: List<ConverterDescriptor> = emptyList(),
-    val generateReverse: Boolean = false,      // for future
-    val generateListExtensions: Boolean = true // future: List<From>.toListOfTo()
 ) {
 
     /**

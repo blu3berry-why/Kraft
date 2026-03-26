@@ -3,6 +3,7 @@ package hu.nova.blu3berry.kraft
 import hu.nova.blu3berry.kraft.processor.descriptor.DescriptorBuilder
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.*
+import com.google.devtools.ksp.validate
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
 import hu.nova.blu3berry.kraft.processor.codegen.MapperGenerator
@@ -22,17 +23,24 @@ class AutoMapperProcessor(
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
 
+        // Collect symbols whose types aren't fully resolved yet and defer them to the next round.
+        // This is the standard KSP multi-round pattern; without it, symbols produced by other
+        // annotation processors in the same compilation would be silently dropped.
+        val deferred = listOf(
+            KraftKspConstants.FQ_MAP_FROM,
+            KraftKspConstants.FQ_MAP_TO,
+            KraftKspConstants.FQ_MAP_CONFIG,
+            KraftKspConstants.FQ_MAP_ENUM
+        ).flatMap { fq ->
+            resolver.getSymbolsWithAnnotation(fq).filter { !it.validate() }
+        }
+
         val classMappingScanResult =
             ClassAnnotationScanner(resolver = resolver, logger = logger).scan()
         val objectMappingScanResult =
             ConfigObjectScanner(resolver = resolver, logger = logger).scan()
 
         val enumMappingScanResult = EnumMapScanner(resolver, logger).scan()
-        // 3) Generate pure enum mappers first (independent of class mappers)
-        if (enumMappingScanResult.isNotEmpty()) {
-            val enumGenerator = EnumMapperGenerator(codeGenerator, logger)
-            enumGenerator.generate(enumMappingScanResult)
-        }
 
         val descriptors = DescriptorBuilder(logger).build(
             classMappings = classMappingScanResult,
@@ -50,6 +58,10 @@ class AutoMapperProcessor(
             functionNameTemplate = template
         )
 
+        if (enumMappingScanResult.isNotEmpty()) {
+            EnumMapperGenerator(codeGenerator, logger, genConfig).generate(enumMappingScanResult)
+        }
+
         // 5) CHOOSE GENERATOR (extension for now)
         val generator: MapperGenerator = ExtensionMapperGenerator(
             logger = logger,
@@ -61,7 +73,7 @@ class AutoMapperProcessor(
             generator.generate(descriptor, codeGenerator)
         }
 
-        return emptyList()
+        return deferred
     }
 
 

@@ -10,9 +10,9 @@ import hu.nova.blu3berry.kraft.model.scan.MapNestedAnnotation
  *
  * @param sourceProps          All properties of the source class, keyed by name.
  * @param ignoredProperties    Properties to skip (merged from `@MapIgnore` and `@MapIgnoreField`).
- * @param classOverrides       Renames from `@MapField` on the annotated target class:
+ * @param classRenames         Renames from `@MapField` on the annotated target class:
  *                             targetName → sourceName.
- * @param configOverrides      Renames from `@MapConfig.fieldOverrides`:
+ * @param configRenames        Renames from `@MapConfig.fieldOverrides`:
  *                             targetName → sourceName.
  * @param converters           `@MapUsing` converter descriptors from config objects.
  * @param nestedMappings       Explicit `@NestedMapping` declarations from `@MapConfig`.
@@ -24,8 +24,8 @@ import hu.nova.blu3berry.kraft.model.scan.MapNestedAnnotation
 data class MappingContext(
     val logger: KSPLogger,
     val sourceProps: Map<String, PropertyInfo>,
-    val classOverrides: Map<String, String>,
-    val configOverrides: Map<String, String>,
+    val classRenames: Map<String, String>,
+    val configRenames: Map<String, String>,
     val converters: List<ConverterDescriptor>,
     val nestedMappings: List<NestedMappingDescriptor> = emptyList(),
     val ignoredProperties: Set<String> = emptySet(),
