@@ -41,8 +41,31 @@ class ConfigObjectScanner(
     fun scan(): List<ConfigObjectScanResult> {
         val results = mutableListOf<ConfigObjectScanResult>()
 
-        resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_CONFIG).filter { it.validate() }.forEach { symbol ->
-            processConfigObject(symbol)?.let { results.add(it) }
+        val configSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_CONFIG).filter { it.validate() }.toList()
+        val reverseSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_REVERSE).filter { it.validate() }
+            .filterIsInstance<KSClassDeclaration>()
+            .toSet()
+
+        configSymbols.forEach { symbol ->
+            processConfigObject(symbol, hasReverse = symbol in reverseSymbols)?.let { results.add(it) }
+        }
+
+        // Validate @MapReverse on objects without @MapConfig
+        val configObjects = results.map { it.configObject }.toSet()
+        val orphanedReverseObjects = reverseSymbols
+            .filter { it.classKind == ClassKind.OBJECT }
+            .filter { it !in configObjects }
+        orphanedReverseObjects.forEach { obj ->
+            // Only report if it doesn't also have @MapFrom/@MapTo (ClassAnnotationScanner handles those)
+            val hasClassAnnotation = obj.findAnnotation(KraftKspConstants.FQ_MAP_FROM) != null ||
+                obj.findAnnotation(KraftKspConstants.FQ_MAP_TO) != null
+            if (!hasClassAnnotation) {
+                logger.error(
+                    "@MapReverse on '${obj.simpleName.asString()}' requires " +
+                    "@MapConfig on the same object.",
+                    obj
+                )
+            }
         }
 
         return results
@@ -51,7 +74,7 @@ class ConfigObjectScanner(
     /**
      * Processes a single configuration object and returns a scan result.
      */
-    private fun processConfigObject(symbol: KSAnnotated): ConfigObjectScanResult? {
+    private fun processConfigObject(symbol: KSAnnotated, hasReverse: Boolean): ConfigObjectScanResult? {
         // Validate annotation target: must be an object
         if (!validateConfigObject(symbol)) {
             return null
@@ -70,7 +93,7 @@ class ConfigObjectScanner(
         val nestedMappings = extractNestedMappings(annotation, classDeclaration)
 
         // Extract and validate converter functions
-        val converters = extractConverterFunctions(classDeclaration, fromType, toType)
+        val converters = extractConverterFunctions(classDeclaration, fromType, toType, hasReverse)
 
         // Extract ignored mappings
         val ignoredMappings = extractIgnoredMappings(annotation, classDeclaration)
@@ -82,7 +105,8 @@ class ConfigObjectScanner(
             fieldOverrides = fieldOverrides,
             ignoredMappings = ignoredMappings,
             converters = converters,
-            nestedMappings = nestedMappings
+            nestedMappings = nestedMappings,
+            hasReverse = hasReverse
         )
     }
 
@@ -188,8 +212,8 @@ class ConfigObjectScanner(
 
             NestedMappingDescriptor(
                 nestedMapperId = MapperId(
-                    sourceQualifiedName = fromDecl.qualifiedName!!.asString(),
-                    targetQualifiedName = toDecl.qualifiedName!!.asString(),
+                    sourceQualifiedName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
+                    targetQualifiedName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString(),
                 ),
                 sourceType = fromDecl.toTypeInfo(fromDecl.asStarProjectedType()),
                 targetType = toDecl.toTypeInfo(toDecl.asStarProjectedType())
@@ -203,7 +227,8 @@ class ConfigObjectScanner(
     private fun extractConverterFunctions(
         symbol: KSClassDeclaration,
         fromType: KSClassDeclaration,
-        toType: KSClassDeclaration
+        toType: KSClassDeclaration,
+        hasReverse: Boolean = false
     ): List<ConverterDescriptor> {
         val converters = mutableListOf<ConverterDescriptor>()
         val propertyPairs = mutableMapOf<String, KSFunctionDeclaration>()
@@ -213,10 +238,20 @@ class ConfigObjectScanner(
         val targetPropertiesList = toType.getDeclaredProperties().toList()
         val sourceProperties = sourcePropertiesList.map { it.simpleName.asString() }.toSet()
         val targetProperties = targetPropertiesList.map { it.simpleName.asString() }.toSet()
+        // When @MapReverse is present, converters may reference properties from either side
+        val validSourceProperties = if (hasReverse) sourceProperties + targetProperties else sourceProperties
+        val validTargetProperties = if (hasReverse) targetProperties + sourceProperties else targetProperties
 
         // Create maps of property name to property declaration for type checking
-        val sourcePropertyMap = sourcePropertiesList.associateBy { it.simpleName.asString() }
-        val targetPropertyMap = targetPropertiesList.associateBy { it.simpleName.asString() }
+        // When @MapReverse is present, converters may reference properties from either side
+        val sourcePropertyMap = if (hasReverse)
+            (sourcePropertiesList + targetPropertiesList).associateBy { it.simpleName.asString() }
+        else
+            sourcePropertiesList.associateBy { it.simpleName.asString() }
+        val targetPropertyMap = if (hasReverse)
+            (targetPropertiesList + sourcePropertiesList).associateBy { it.simpleName.asString() }
+        else
+            targetPropertiesList.associateBy { it.simpleName.asString() }
 
         val converterFunctions = symbol.getDeclaredFunctions().filter { fn ->
             fn.annotations.any { it.isAnnotation(KraftKspConstants.FQ_MAP_USING) }
@@ -224,7 +259,7 @@ class ConfigObjectScanner(
 
         for (fn in converterFunctions) {
             val converter = validateAndCreateConverter(
-                fn, symbol, fromType, sourceProperties, targetProperties,
+                fn, symbol, fromType, validSourceProperties, validTargetProperties,
                 sourcePropertyMap, targetPropertyMap, propertyPairs
             ) ?: continue
 
@@ -416,10 +451,13 @@ class ConfigObjectScanner(
 
     /**
      * Gets the parameter type of a function.
+     * For extension functions, returns the receiver type.
+     * For regular functions, returns the first parameter type.
+     * Must be called after [validateFunctionSignature] has passed.
      */
     private fun getParameterType(fn: KSFunctionDeclaration): KSType {
         return if (fn.extensionReceiver != null) {
-            fn.extensionReceiver?.resolve() ?: return fn.parameters.first().type.resolve()
+            fn.extensionReceiver!!.resolve()
         } else {
             fn.parameters.first().type.resolve()
         }

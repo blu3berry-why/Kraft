@@ -4,6 +4,7 @@ import hu.nova.blu3berry.kraft.config.FieldMapping
 import hu.nova.blu3berry.kraft.config.MapConfig
 import hu.nova.blu3berry.kraft.config.MapEnum
 import hu.nova.blu3berry.kraft.config.MapIgnoreField
+import hu.nova.blu3berry.kraft.config.MapReverse
 import hu.nova.blu3berry.kraft.config.MapUsing
 import hu.nova.blu3berry.kraft.config.NestedMapping
 import hu.nova.blu3berry.kraft.mapping.MapField
@@ -38,6 +39,7 @@ internal object KraftKspConstants {
     val FQ_FIELD_MAPPING    = FieldMapping::class.qualifiedName!!
     val FQ_NESTED_MAPPING   = NestedMapping::class.qualifiedName!!
     val FQ_MAP_ENUM         = MapEnum::class.qualifiedName!!
+    val FQ_MAP_REVERSE      = MapReverse::class.qualifiedName!!
 
     // Processor option keys
     const val OPTION_FUNCTION_NAME_FORMAT = "kraft.functionNameFormat"

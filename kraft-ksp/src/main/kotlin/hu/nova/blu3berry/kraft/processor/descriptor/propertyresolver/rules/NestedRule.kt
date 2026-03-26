@@ -6,6 +6,7 @@ import com.google.devtools.ksp.symbol.Modifier
 import hu.nova.blu3berry.kraft.model.scan.MapNestedAnnotation
 import hu.nova.blu3berry.kraft.model.descriptor.MappingContext
 import hu.nova.blu3berry.kraft.model.MapperId
+import hu.nova.blu3berry.kraft.model.descriptor.CollectionKind
 import hu.nova.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
@@ -58,8 +59,10 @@ class NestedRule : MappingRule {
                 return null
             }
 
-            // Check for List<T> → List<T> collection case first
-            if (isListType(sourceProp.type) && isListType(target.type)) {
+            // Check for collection case (List/Set) first
+            val srcCollKind = collectionKindOf(sourceProp.type)
+            val tgtCollKind = collectionKindOf(target.type)
+            if (srcCollKind != null && srcCollKind == tgtCollKind) {
                 val srcElement = elementTypeInfo(sourceProp.type)
                 val tgtElement = elementTypeInfo(target.type)
                 if (srcElement == null || tgtElement == null || !isMappableClass(srcElement) || !isMappableClass(tgtElement)) {
@@ -74,7 +77,7 @@ class NestedRule : MappingRule {
                 return PropertyMappingStrategy.NestedMapper(
                     targetProperty = target,
                     sourceProperty = sourceProp,
-                    nestedMappingDescriptor = synthesiseDescriptor(srcElement, tgtElement, isCollection = true)
+                    nestedMappingDescriptor = synthesiseDescriptor(srcElement, tgtElement, collectionKind = srcCollKind)
                 )
             }
 
@@ -101,8 +104,9 @@ class NestedRule : MappingRule {
         // Resolve any source override first so it can narrow the nested candidates and
         // verify the source type matches before ambiguity is decided.
         val explicitSourceName = ctx.configRenames[target.name]
-        // When the target property is List<T>, match descriptors by element type (T), not List.
-        val targetIsCollection = isListType(target.type)
+        // When the target property is a collection, match descriptors by element type (T), not the collection.
+        val targetCollKind = collectionKindOf(target.type)
+        val targetIsCollection = targetCollKind != null
         val targetElementType = if (targetIsCollection) elementTypeInfo(target.type) else null
         val targetCandidates = ctx.nestedMappings.filter { nm ->
             if (targetIsCollection && targetElementType != null)
@@ -125,8 +129,9 @@ class NestedRule : MappingRule {
                     return null
                 }
 
-                // For a List<T> override property, compare element types with the descriptor.
-                val overrideIsCollection = isListType(overrideProp.type)
+                // For a collection override property, compare element types with the descriptor.
+                val overrideCollKind = collectionKindOf(overrideProp.type)
+                val overrideIsCollection = overrideCollKind != null
                 val overrideElementType = if (overrideIsCollection) elementTypeInfo(overrideProp.type) else null
                 val nestedCandidates = targetCandidates.filter { nm ->
                     if (overrideIsCollection && overrideElementType != null)
@@ -157,8 +162,8 @@ class NestedRule : MappingRule {
                         PropertyMappingStrategy.NestedMapper(
                             targetProperty = target,
                             sourceProperty = overrideProp,
-                            nestedMappingDescriptor = if (targetIsCollection)
-                                nestedCandidates.single().copy(isCollection = true)
+                            nestedMappingDescriptor = if (targetCollKind != null)
+                                nestedCandidates.single().copy(collectionKind = targetCollKind)
                             else
                                 nestedCandidates.single()
                         )
@@ -177,10 +182,10 @@ class NestedRule : MappingRule {
             }
             val nested = targetCandidates.single()
 
-            // For a List<T> target, look for source properties whose element type matches.
+            // For a collection target, look for source properties whose element type matches.
             val sourcePropCandidates = if (targetIsCollection) {
                 ctx.sourceProps.values.filter { prop ->
-                    isListType(prop.type) && elementTypeInfo(prop.type)?.className == nested.sourceType.className
+                    collectionKindOf(prop.type) == targetCollKind && elementTypeInfo(prop.type)?.className == nested.sourceType.className
                 }
             } else {
                 ctx.sourceProps.values.filter { prop ->
@@ -203,8 +208,8 @@ class NestedRule : MappingRule {
                     PropertyMappingStrategy.NestedMapper(
                         targetProperty = target,
                         sourceProperty = sourceProp,
-                        nestedMappingDescriptor = if (targetIsCollection)
-                            nested.copy(isCollection = true)
+                        nestedMappingDescriptor = if (targetCollKind != null)
+                            nested.copy(collectionKind = targetCollKind)
                         else
                             nested
                     )
@@ -224,9 +229,10 @@ class NestedRule : MappingRule {
         // 3. Auto-detection fallback: same name, different types, both mappable classes
         val sourceProp = ctx.sourceProps[target.name] ?: return null
 
-        // Auto-detect List<Source> → List<Target> — checked before the className equality guard
-        // because List<A> and List<B> share the same raw className (kotlin.collections.List).
-        if (isListType(sourceProp.type) && isListType(target.type)) {
+        // Auto-detect collection mapping (List/Set) — checked before the className equality guard
+        // because e.g. List<A> and List<B> share the same raw className (kotlin.collections.List).
+        val autoSrcCollKind = collectionKindOf(sourceProp.type)
+        if (autoSrcCollKind != null && autoSrcCollKind == collectionKindOf(target.type)) {
             val srcElement = elementTypeInfo(sourceProp.type) ?: return null
             val tgtElement = elementTypeInfo(target.type) ?: return null
             if (srcElement.className == tgtElement.className) return null
@@ -234,7 +240,7 @@ class NestedRule : MappingRule {
             return PropertyMappingStrategy.NestedMapper(
                 targetProperty = target,
                 sourceProperty = sourceProp,
-                nestedMappingDescriptor = synthesiseDescriptor(srcElement, tgtElement, isCollection = true)
+                nestedMappingDescriptor = synthesiseDescriptor(srcElement, tgtElement, collectionKind = autoSrcCollKind)
             )
         }
 
@@ -252,11 +258,11 @@ class NestedRule : MappingRule {
 
     // Produces a NestedMappingDescriptor (declaration of intent only).
     // The actual child MapperDescriptor is built later by DescriptorBuilder.resolveImplicit().
-    // For collection mappings, sourceType/targetType are the element types, not the List type.
+    // For collection mappings, sourceType/targetType are the element types, not the collection type.
     private fun synthesiseDescriptor(
         sourceType: TypeInfo,
         targetType: TypeInfo,
-        isCollection: Boolean = false
+        collectionKind: CollectionKind? = null
     ): NestedMappingDescriptor =
         NestedMappingDescriptor(
             nestedMapperId = MapperId(
@@ -267,7 +273,7 @@ class NestedRule : MappingRule {
             ),
             sourceType = sourceType,
             targetType = targetType,
-            isCollection = isCollection
+            collectionKind = collectionKind
         )
 
     // Emits an error when the source property is nullable but the target is non-null.
@@ -301,8 +307,12 @@ class NestedRule : MappingRule {
             && !fqn.startsWith("java.")
     }
 
-    private fun isListType(type: TypeInfo): Boolean =
-        type.declaration.qualifiedName?.asString() == "kotlin.collections.List"
+    private fun collectionKindOf(type: TypeInfo): CollectionKind? =
+        when (type.declaration.qualifiedName?.asString()) {
+            "kotlin.collections.List" -> CollectionKind.LIST
+            "kotlin.collections.Set" -> CollectionKind.SET
+            else -> null
+        }
 
     private fun elementTypeInfo(type: TypeInfo): TypeInfo? {
         val arg = type.ksType.arguments.firstOrNull() ?: return null

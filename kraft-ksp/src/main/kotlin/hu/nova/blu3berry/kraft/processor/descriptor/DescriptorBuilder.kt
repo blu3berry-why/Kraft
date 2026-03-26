@@ -23,7 +23,8 @@ class DescriptorBuilder(
 
         buildClassDescriptors(classMappings, configMappings, enumMappings, builtDescriptors)
         buildConfigDescriptors(configMappings, classMappings, enumMappings, builtDescriptors)
-        resolveImplicitDependencies(builtDescriptors)
+        buildReverseDescriptors(classMappings, configMappings, builtDescriptors)
+        resolveImplicitDependencies(builtDescriptors, configMappings)
         validateNestedDependencies(builtDescriptors)
 
         return builtDescriptors.values.toList()
@@ -72,15 +73,76 @@ class DescriptorBuilder(
             }
             ConfigDescriptorBuilder(logger = logger, config = config, enumMappings = enumsForThis)
                 .build()
+                ?.let {
+                    val existing = builtDescriptors[it.id]
+                    if (existing != null) {
+                        logger.error(
+                            "Duplicate mapping for ${it.id}: multiple @MapConfig objects declare " +
+                                "the same source → target pair. Only one mapping per type pair is allowed.",
+                            config.configObject
+                        )
+                    } else {
+                        builtDescriptors[it.id] = it
+                    }
+                }
+        }
+    }
+
+    // ---------------------------
+    // 3) REVERSE descriptors for @MapReverse
+    // ---------------------------
+
+    private fun buildReverseDescriptors(
+        classMappings: List<ClassMappingScanResult>,
+        configMappings: List<ConfigObjectScanResult>,
+        builtDescriptors: MutableMap<MapperId, MapperDescriptor>
+    ) {
+        // Reverse for class-annotated mappings
+        for (mapping in classMappings) {
+            val configsForThis = configMappings.filter {
+                it.sourceType == mapping.sourceType && it.targetType == mapping.targetType
+            }
+            if (!mapping.hasReverse && configsForThis.none { it.hasReverse }) continue
+            val forwardId = MapperId(
+                sourceQualifiedName = mapping.sourceType.qualifiedName?.asString() ?: mapping.sourceType.simpleName.asString(),
+                targetQualifiedName = mapping.targetType.qualifiedName?.asString() ?: mapping.targetType.simpleName.asString()
+            )
+            val forwardDescriptor = builtDescriptors[forwardId] ?: continue
+            val reverseId = MapperId(forwardId.targetQualifiedName, forwardId.sourceQualifiedName)
+            if (reverseId in builtDescriptors) continue // explicit reverse already exists
+
+            ReverseDescriptorBuilder(logger, forwardDescriptor, configsForThis, mapping.annotatedClass)
+                .build()
+                ?.let { builtDescriptors[it.id] = it }
+        }
+
+        // Reverse for config-only mappings
+        val classPairs = classMappings.map { it.sourceType to it.targetType }.toSet()
+        for (config in configMappings) {
+            if (!config.hasReverse) continue
+            if ((config.sourceType to config.targetType) in classPairs) continue // handled above
+            val forwardId = MapperId(
+                sourceQualifiedName = config.sourceType.qualifiedName?.asString() ?: config.sourceType.simpleName.asString(),
+                targetQualifiedName = config.targetType.qualifiedName?.asString() ?: config.targetType.simpleName.asString()
+            )
+            val forwardDescriptor = builtDescriptors[forwardId] ?: continue
+            val reverseId = MapperId(forwardId.targetQualifiedName, forwardId.sourceQualifiedName)
+            if (reverseId in builtDescriptors) continue
+
+            ReverseDescriptorBuilder(logger, forwardDescriptor, listOf(config), config.configObject)
+                .build()
                 ?.let { builtDescriptors[it.id] = it }
         }
     }
 
     // ---------------------------
-    // 3) DFS resolution of implicit nested dependencies
+    // 4) DFS resolution of implicit nested dependencies
     // ---------------------------
 
-    private fun resolveImplicitDependencies(builtDescriptors: MutableMap<MapperId, MapperDescriptor>) {
+    private fun resolveImplicitDependencies(
+        builtDescriptors: MutableMap<MapperId, MapperDescriptor>,
+        configMappings: List<ConfigObjectScanResult>
+    ) {
         val inProgress = mutableSetOf<MapperId>()
         for (descriptor in builtDescriptors.values.toList()) {
             descriptor.propertyMappings
@@ -92,7 +154,8 @@ class DescriptorBuilder(
                         target = strategy.nestedMappingDescriptor.targetType.declaration,
                         path = listOf(descriptor.id),
                         builtDescriptors = builtDescriptors,
-                        inProgress = inProgress
+                        inProgress = inProgress,
+                        configMappings = configMappings
                     )
                 }
         }
@@ -103,7 +166,8 @@ class DescriptorBuilder(
         target: KSClassDeclaration,
         path: List<MapperId>,
         builtDescriptors: MutableMap<MapperId, MapperDescriptor>,
-        inProgress: MutableSet<MapperId>
+        inProgress: MutableSet<MapperId>,
+        configMappings: List<ConfigObjectScanResult>
     ) {
         val id = MapperId(
             sourceQualifiedName = source.qualifiedName?.asString() ?: source.simpleName.asString(),
@@ -115,13 +179,13 @@ class DescriptorBuilder(
 
         inProgress += id // mark GRAY
 
-        val descriptor = buildMinimalDescriptor(source, target)
+        val descriptor = buildMinimalDescriptor(source, target, configMappings)
         if (descriptor == null) {                             // build failed — error already emitted
             inProgress -= id
             return
         }
 
-        recurseIntoDependencies(descriptor, id, path, builtDescriptors, inProgress)
+        recurseIntoDependencies(descriptor, id, path, builtDescriptors, inProgress, configMappings)
 
         inProgress -= id              // unmark GRAY
         builtDescriptors[id] = descriptor // mark BLACK
@@ -132,7 +196,8 @@ class DescriptorBuilder(
         currentId: MapperId,
         path: List<MapperId>,
         builtDescriptors: MutableMap<MapperId, MapperDescriptor>,
-        inProgress: MutableSet<MapperId>
+        inProgress: MutableSet<MapperId>,
+        configMappings: List<ConfigObjectScanResult>
     ) {
         descriptor.propertyMappings
             .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
@@ -142,7 +207,8 @@ class DescriptorBuilder(
                     target = strategy.nestedMappingDescriptor.targetType.declaration,
                     path = path + currentId,
                     builtDescriptors = builtDescriptors,
-                    inProgress = inProgress
+                    inProgress = inProgress,
+                    configMappings = configMappings
                 )
             }
     }
@@ -159,8 +225,12 @@ class DescriptorBuilder(
 
     private fun buildMinimalDescriptor(
         source: KSClassDeclaration,
-        target: KSClassDeclaration
+        target: KSClassDeclaration,
+        configMappings: List<ConfigObjectScanResult> = emptyList()
     ): MapperDescriptor? {
+        val configsForThis = configMappings.filter {
+            it.sourceType == source && it.targetType == target
+        }
         val syntheticMapping = ClassMappingScanResult(
             direction = MappingDirection.MAP_FROM,
             sourceType = source,
@@ -171,7 +241,7 @@ class DescriptorBuilder(
         return ClassDescriptorBuilder(
             logger = logger,
             mapping = syntheticMapping,
-            configObjects = emptyList(),
+            configObjects = configsForThis,
             enumMappings = emptyList()
         ).build()
     }
