@@ -63,7 +63,7 @@ jobs:
           VERSION="${{ steps.version.outputs.next }}"
           git add .release-please-manifest.json gradle.properties
           git commit -m "chore: release $VERSION"
-          git push origin "release/$VERSION"
+          git push --force-with-lease origin "release/$VERSION"
 
       - name: Build PR body
         run: |
