@@ -3,7 +3,6 @@ package hu.nova.blu3berry.kraft.processor.codegen.generator
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
-import com.google.devtools.ksp.symbol.KSFile
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ksp.writeTo
@@ -29,12 +28,16 @@ class ExtensionMapperGenerator(
         val functionName = config.functionNameFor(descriptor)
         val fileName = "${fromClass.simpleName}To${toClass.simpleName}Mapper"
 
-        val annotationFile: KSFile? = when (val src = descriptor.source) {
-            is MappingSource.ClassAnnotation -> src.annotatedClass.containingFile
-            is MappingSource.ConfigObject -> src.configObject.containingFile
-        }
+        val originatingFiles = listOfNotNull(
+            when (val src = descriptor.source) {
+                is MappingSource.ClassAnnotation -> src.annotatedClass.containingFile
+                is MappingSource.ConfigObject -> src.configObject.containingFile
+            },
+            descriptor.sourceType.declaration.containingFile,
+            descriptor.targetType.declaration.containingFile
+        ).distinct()
 
-        if (annotationFile == null) {
+        if (originatingFiles.isEmpty()) {
             logger.warn("Skipping mapper generation for $fromClass → $toClass: no originating file found.")
             return
         }
@@ -49,15 +52,9 @@ class ExtensionMapperGenerator(
             .addFunction(funBuilder.build())
             .build()
 
-        val sourceFiles = listOfNotNull(
-            annotationFile,
-            descriptor.sourceType.declaration.containingFile,
-            descriptor.targetType.declaration.containingFile
-        ).distinct()
-
         file.writeTo(
             codeGenerator = codeGenerator,
-            dependencies = Dependencies(aggregating = false, *sourceFiles.toTypedArray())
+            dependencies = Dependencies(aggregating = false, *originatingFiles.toTypedArray())
         )
         logger.info("Generated extension mapper function: $packageName.$functionName")
     }

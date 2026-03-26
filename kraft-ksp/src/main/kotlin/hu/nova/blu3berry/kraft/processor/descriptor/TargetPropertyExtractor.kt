@@ -14,8 +14,15 @@ import hu.nova.blu3berry.kraft.processor.util.unsupportedTypeInConstructor
  * Extracts and validates [PropertyInfo] entries from a target class's primary constructor.
  *
  * Each constructor parameter is matched to its declared property and resolved to a
- * [KSClassDeclaration]-backed [PropertyInfo]. Returns `null` (and logs an error) if any
- * parameter cannot be resolved.
+ * [KSClassDeclaration]-backed [PropertyInfo].
+ *
+ * - Parameters whose type is not a [KSClassDeclaration] (e.g. generic type parameters) are
+ *   skipped. If any such parameter has no default value, the extractor returns `null` after
+ *   logging a [constructorPropertyMismatch] error.
+ * - Returns `null` immediately (logging [missingConstructorProperty]) if a constructor
+ *   parameter has no matching declared property.
+ * - Otherwise returns the collected list, which may be shorter than the full parameter list
+ *   when parameters with defaults were skipped.
  */
 internal class TargetPropertyExtractor(private val logger: KSPLogger) {
 
@@ -25,19 +32,18 @@ internal class TargetPropertyExtractor(private val logger: KSPLogger) {
         targetTypeName: String
     ): List<PropertyInfo>? {
 
+        val declaredProps = targetDecl.getDeclaredProperties().toList()
         var hasUnsupportedNonDefault = false
 
         val props = targetCtor.parameters.mapNotNull { param ->
             val paramName = param.name ?: return@mapNotNull null
 
-            val declProp = targetDecl.getDeclaredProperties()
-                .firstOrNull { it.simpleName == paramName }
+            val declProp = declaredProps.firstOrNull { it.simpleName == paramName }
                 ?: run {
                     logger.missingConstructorProperty(
                         typeName = targetTypeName,
                         parameterName = paramName.asString(),
-                        available = targetDecl.getDeclaredProperties()
-                            .map { it.simpleName.asString() }.toList(),
+                        available = declaredProps.map { it.simpleName.asString() },
                         symbol = param
                     )
                     return null
