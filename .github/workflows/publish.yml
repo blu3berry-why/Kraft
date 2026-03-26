@@ -56,19 +56,31 @@ jobs:
             -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
 
   create-release:
-    runs-on: ubuntu-latest
     needs: [ publish-jvm, publish-ios ]
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v6
+
+      - name: Read version from gradle.properties
+        id: version
+        run: |
+          if [ ! -f gradle/gradle.properties ]; then
+            echo "::error::gradle/gradle.properties not found" >&2
+            exit 1
+          fi
+          VERSION=$(grep "^kraft.version=" gradle/gradle.properties | cut -d= -f2)
+          if [ -z "${VERSION// /}" ]; then
+            echo "::error::kraft.version is empty or missing in gradle/gradle.properties" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(grep "^kraft.version=" gradle.properties | cut -d= -f2)
-          if [ -z "$VERSION" ]; then
-            echo "Missing or empty kraft.version in gradle.properties" >&2
-            exit 1
-          fi
-          gh release create "v$VERSION" --generate-notes --title "v$VERSION" --target "$GITHUB_SHA"
+          gh release create "${{ steps.version.outputs.version }}" \
+            --generate-notes \
+            --title "${{ steps.version.outputs.version }}" \
+            --target "${{ github.sha }}"

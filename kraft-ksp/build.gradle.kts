@@ -67,7 +67,7 @@ publishing {
             }
             groupId = "hu.nova.blu3berry.kraft"
             artifactId = "kraft-ksp"
-            version = project.properties["kraft.version"] as String
+            version = (project.properties["kraft.version"] as? String) ?: "0.0.0-SNAPSHOT"
         }
     }
 
