@@ -58,6 +58,7 @@ class AutoMapperProcessor(
             functionNameTemplate = template
         )
 
+        // Generate pure enum mappers (respects functionNameFormat)
         if (enumMappingScanResult.isNotEmpty()) {
             EnumMapperGenerator(codeGenerator, logger, genConfig).generate(enumMappingScanResult)
         }
