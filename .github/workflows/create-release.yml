@@ -56,12 +56,12 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.next }}"
           jq --arg v "$VERSION" '.["."] = $v' .release-please-manifest.json > tmp.json && mv tmp.json .release-please-manifest.json
-          sed -i "s/kraft\.version=.*/kraft.version=$VERSION/" gradle/gradle.properties
+          sed -i "s/kraft\.version=.*/kraft.version=$VERSION/" gradle.properties
 
       - name: Commit and push
         run: |
           VERSION="${{ steps.version.outputs.next }}"
-          git add .release-please-manifest.json gradle/gradle.properties
+          git add .release-please-manifest.json gradle.properties
           git commit -m "chore: release $VERSION"
           git push origin "release/$VERSION"
 
