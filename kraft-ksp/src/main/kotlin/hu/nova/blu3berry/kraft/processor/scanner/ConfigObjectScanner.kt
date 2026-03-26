@@ -188,8 +188,8 @@ class ConfigObjectScanner(
 
             NestedMappingDescriptor(
                 nestedMapperId = MapperId(
-                    sourceQualifiedName = fromDecl.qualifiedName!!.asString(),
-                    targetQualifiedName = toDecl.qualifiedName!!.asString(),
+                    sourceQualifiedName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
+                    targetQualifiedName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString(),
                 ),
                 sourceType = fromDecl.toTypeInfo(fromDecl.asStarProjectedType()),
                 targetType = toDecl.toTypeInfo(toDecl.asStarProjectedType())
@@ -416,10 +416,13 @@ class ConfigObjectScanner(
 
     /**
      * Gets the parameter type of a function.
+     * For extension functions, returns the receiver type.
+     * For regular functions, returns the first parameter type.
+     * Must be called after [validateFunctionSignature] has passed.
      */
     private fun getParameterType(fn: KSFunctionDeclaration): KSType {
         return if (fn.extensionReceiver != null) {
-            fn.extensionReceiver?.resolve() ?: return fn.parameters.first().type.resolve()
+            fn.extensionReceiver!!.resolve()
         } else {
             fn.parameters.first().type.resolve()
         }

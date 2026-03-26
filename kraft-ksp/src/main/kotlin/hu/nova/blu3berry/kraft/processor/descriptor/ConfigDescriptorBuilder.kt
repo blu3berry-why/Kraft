@@ -3,7 +3,6 @@ package hu.nova.blu3berry.kraft.processor.descriptor
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolver
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import hu.nova.blu3berry.kraft.config.IgnoreSide
 import hu.nova.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
@@ -88,47 +87,14 @@ class ConfigDescriptorBuilder(
     // ---------------------------------------------------------
     // Build the set of target property names to ignore
     // ---------------------------------------------------------
-    // SOURCE entries are skipped — reserved for future reverse-mapping generation.
-    // BOTH entries are applied when the name exists in the forward target; silently
-    // skipped otherwise (the name may be valid for the reverse target once added).
     private fun buildIgnoredProperties(
         targetProps: List<PropertyInfo>,
         targetTypeName: String
     ): Set<String> {
         val targetPropNames = targetProps.map { it.name }.toSet()
-        val result = mutableSetOf<String>()
-
-        for (ignored in config.ignoredMappings) {
-            when (ignored.direction) {
-                IgnoreSide.SOURCE -> continue
-                IgnoreSide.TARGET -> {
-                    if (ignored.name !in targetPropNames) {
-                        logger.error(
-                            "@MapIgnoreField(\"${ignored.name}\", TARGET): property not found " +
-                                "in target '$targetTypeName' constructor. " +
-                                "Available: ${targetPropNames.sorted()}",
-                            config.configObject
-                        )
-                    } else {
-                        result.add(ignored.name)
-                    }
-                }
-                IgnoreSide.BOTH -> {
-                    if (ignored.name in targetPropNames) {
-                        result.add(ignored.name)
-                    } else {
-                        logger.warn(
-                            "@MapIgnoreField(\"${ignored.name}\", BOTH): property not found in " +
-                                "target '$targetTypeName' constructor; skipped for forward direction. " +
-                                "Available: ${targetPropNames.sorted()}",
-                            config.configObject
-                        )
-                    }
-                }
-            }
-        }
-
-        return result
+        return IgnoredPropertyAggregator.resolveConfigIgnored(
+            logger, config.ignoredMappings, targetPropNames, targetTypeName, config.configObject
+        )
     }
 
     // ---------------------------------------------------------
