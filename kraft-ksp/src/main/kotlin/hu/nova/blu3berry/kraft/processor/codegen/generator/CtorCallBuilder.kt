@@ -2,6 +2,7 @@ package hu.nova.blu3berry.kraft.processor.codegen.generator
 
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
+import hu.nova.blu3berry.kraft.model.descriptor.CollectionKind
 import hu.nova.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.ConverterSource
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
@@ -138,25 +139,27 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
                 val fnName = config.functionNameForNested(strategy.nestedMappingDescriptor)
                 val sourceIsNullable = strategy.sourceProperty.type.isNullable
                 val targetIsNullable = strategy.targetProperty.type.isNullable
+                val collKind = strategy.nestedMappingDescriptor.collectionKind
 
-                if (strategy.nestedMappingDescriptor.isCollection) {
+                if (collKind != null) {
                     val srcElemIsNullable = strategy.nestedMappingDescriptor.sourceType.isNullable
                     val tgtElemIsNullable = strategy.nestedMappingDescriptor.targetType.isNullable
                     val mapFn = if (srcElemIsNullable && !tgtElemIsNullable) "mapNotNull" else "map"
+                    val toSuffix = when (collKind) {
+                        CollectionKind.LIST -> ""
+                        CollectionKind.SET -> ".toSet()"
+                    }
+                    val emptyFallback = when (collKind) {
+                        CollectionKind.LIST -> "emptyList()"
+                        CollectionKind.SET -> "emptySet()"
+                    }
+                    val itRef = if (srcElemIsNullable) "it?" else "it"
 
                     if (sourceIsNullable) {
-                        val fallback = if (!targetIsNullable) " ?: emptyList()" else ""
-                        if (srcElemIsNullable) {
-                            block.add("%N = this.%N?.%L { it?.%N() }$fallback", t, s, mapFn, fnName)
-                        } else {
-                            block.add("%N = this.%N?.%L { it.%N() }$fallback", t, s, mapFn, fnName)
-                        }
+                        val fallback = if (!targetIsNullable) " ?: $emptyFallback" else ""
+                        block.add("%N = this.%N?.%L { %L.%N() }%L%L", t, s, mapFn, itRef, fnName, toSuffix, fallback)
                     } else {
-                        if (srcElemIsNullable) {
-                            block.add("%N = this.%N.%L { it?.%N() }", t, s, mapFn, fnName)
-                        } else {
-                            block.add("%N = this.%N.%L { it.%N() }", t, s, mapFn, fnName)
-                        }
+                        block.add("%N = this.%N.%L { %L.%N() }%L", t, s, mapFn, itRef, fnName, toSuffix)
                     }
                 } else {
                     if (sourceIsNullable) {

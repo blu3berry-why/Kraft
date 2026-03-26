@@ -12,11 +12,13 @@ import hu.nova.blu3berry.kraft.model.TypeInfo
  * @param nestedMapperId  [MapperId] of the child mapper (source → target class pair).
  * @param sourceType      The nested source type.
  * @param targetType      The nested target type.
- * @param isCollection    Whether the property is a collection (`List<Source>` → `List<Target>`).
+ * @param collectionKind  Non-null when the property is a collection (`List<Source>` → `List<Target>`, etc.).
  */
 data class NestedMappingDescriptor(
     val nestedMapperId: MapperId,
     val sourceType: TypeInfo,
     val targetType: TypeInfo,
-    val isCollection: Boolean = false
-)
+    val collectionKind: CollectionKind? = null
+) {
+    val isCollection: Boolean get() = collectionKind != null
+}
