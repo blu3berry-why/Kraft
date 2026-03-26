@@ -50,7 +50,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Create release branch
-        run: git checkout -b "release/${{ steps.version.outputs.next }}"
+        run: git checkout -b "releases/${{ steps.version.outputs.next }}"
 
       - name: Bump version in files
         run: |
@@ -101,6 +101,6 @@ jobs:
         run: |
           gh pr create \
             --base release \
-            --head "release/${{ steps.version.outputs.next }}" \
+            --head "releases/${{ steps.version.outputs.next }}" \
             --title "Release ${{ steps.version.outputs.next }}" \
             --body-file /tmp/pr-body.md
