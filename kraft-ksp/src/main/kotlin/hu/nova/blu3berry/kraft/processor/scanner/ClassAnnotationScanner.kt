@@ -39,7 +39,7 @@ class ClassAnnotationScanner(
 
         // Check for non-class elements with @MapFrom and show error
         allMapFromSymbols.forEach { symbol ->
-            if (symbol !is KSClassDeclaration) {
+            if (symbol !is KSClassDeclaration || symbol.classKind != ClassKind.CLASS) {
                 logger.annotationTargetError(
                     actualNode = symbol,
                     annotationName = MAP_FROM_FQ,
@@ -50,7 +50,7 @@ class ClassAnnotationScanner(
 
         // Check for non-class elements with @MapTo and show error
         allMapToSymbols.forEach { symbol ->
-            if (symbol !is KSClassDeclaration) {
+            if (symbol !is KSClassDeclaration || symbol.classKind != ClassKind.CLASS) {
                 logger.annotationTargetError(
                     actualNode = symbol,
                     annotationName = MAP_TO_FQ,
@@ -59,13 +59,15 @@ class ClassAnnotationScanner(
             }
         }
 
-        // Filter to only include class declarations
+        // Filter to only include regular class declarations (not objects, interfaces, enums, etc.)
         val classesWithMapFrom = allMapFromSymbols
             .filterIsInstance<KSClassDeclaration>()
+            .filter { it.classKind == ClassKind.CLASS }
             .toSet()
 
         val classesWithMapTo = allMapToSymbols
             .filterIsInstance<KSClassDeclaration>()
+            .filter { it.classKind == ClassKind.CLASS }
             .toSet()
 
         // Find classes with both annotations
