@@ -4,7 +4,7 @@ package hu.nova.blu3berry.kraft
 import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
-import com.tschuchort.compiletesting.kspSourcesDir
+import com.tschuchort.compiletesting.kspProcessorOptions
 import com.tschuchort.compiletesting.kspWithCompilation
 import com.tschuchort.compiletesting.sourcesGeneratedBySymbolProcessor
 import com.tschuchort.compiletesting.symbolProcessorProviders
@@ -15,7 +15,10 @@ import java.io.File
 object TestKspRunner {
 
     @OptIn(ExperimentalCompilerApi::class)
-    fun compile(vararg sources: SourceFile): JvmCompilationResult {
+    fun compile(
+        vararg sources: SourceFile,
+        kspOptions: Map<String, String> = emptyMap()
+    ): JvmCompilationResult {
         return KotlinCompilation().apply {
             useKsp2()
             kspWithCompilation = true
@@ -23,12 +26,16 @@ object TestKspRunner {
             symbolProcessorProviders = listOf(AutoMapperProcessorProvider()).toMutableList()
             this.sources = sources.toList()
             verbose = false
+            if (kspOptions.isNotEmpty()) kspProcessorOptions.putAll(kspOptions)
         }.compile()
     }
 
     @OptIn(ExperimentalCompilerApi::class)
-    fun compileAndReturnGenerated(vararg sources: SourceFile): List<File> {
-        val result = compile(*sources)
+    fun compileAndReturnGenerated(
+        vararg sources: SourceFile,
+        kspOptions: Map<String, String> = emptyMap()
+    ): List<File> {
+        val result = compile(*sources, kspOptions = kspOptions)
         require(result.exitCode == KotlinCompilation.ExitCode.OK) {
             "Compilation failed:\n${result.messages}"
         }

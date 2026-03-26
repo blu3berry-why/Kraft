@@ -28,11 +28,6 @@ class AutoMapperProcessor(
             ConfigObjectScanner(resolver = resolver, logger = logger).scan()
 
         val enumMappingScanResult = EnumMapScanner(resolver, logger).scan()
-        // 3) Generate pure enum mappers first (independent of class mappers)
-        if (enumMappingScanResult.isNotEmpty()) {
-            val enumGenerator = EnumMapperGenerator(codeGenerator, logger)
-            enumGenerator.generate(enumMappingScanResult)
-        }
 
         val descriptors = DescriptorBuilder(logger).build(
             classMappings = classMappingScanResult,
@@ -49,6 +44,11 @@ class AutoMapperProcessor(
         val genConfig = GenerationConfig(
             functionNameTemplate = template
         )
+
+        // Generate pure enum mappers (respects functionNameFormat)
+        if (enumMappingScanResult.isNotEmpty()) {
+            EnumMapperGenerator(codeGenerator, logger, genConfig).generate(enumMappingScanResult)
+        }
 
         // 5) CHOOSE GENERATOR (extension for now)
         val generator: MapperGenerator = ExtensionMapperGenerator(

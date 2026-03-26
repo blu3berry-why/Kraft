@@ -6,10 +6,11 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
-import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.FileSpec
+import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ksp.writeTo
-import hu.nova.blu3berry.kraft.model.descriptor.EnumEntryMapping
 import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
+import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
 import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
 
 /**
@@ -25,7 +26,8 @@ import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
  */
 class EnumMapperGenerator(
     private val codeGenerator: CodeGenerator,
-    private val logger: KSPLogger
+    private val logger: KSPLogger,
+    private val config: GenerationConfig = GenerationConfig()
 ) {
 
     fun generate(descriptors: List<EnumMappingDescriptor>) {
@@ -128,7 +130,7 @@ class EnumMapperGenerator(
         val fromClass = desc.sourceType.className
         val toClass = desc.targetType.className
 
-        val funName = "to${toClass.simpleName}"
+        val funName = config.functionNameFor(fromClass, toClass)
 
         val builder = FunSpec.builder(funName)
             .receiver(fromClass)
