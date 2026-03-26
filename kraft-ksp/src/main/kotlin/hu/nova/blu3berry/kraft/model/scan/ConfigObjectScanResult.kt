@@ -16,6 +16,7 @@ import hu.nova.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
  * @param ignoredMappings  Ignore rules from `@MapIgnoreField` declarations inside the object.
  * @param converters       Converter functions from `@MapUsing`-annotated functions.
  * @param nestedMappings   Explicit nested mappings from `@NestedMapping` declarations.
+ * @param hasReverse       Whether `@MapReverse` is also present on the config object.
  */
 data class ConfigObjectScanResult(
     val sourceType: KSClassDeclaration,
@@ -25,4 +26,5 @@ data class ConfigObjectScanResult(
     val ignoredMappings: List<IgnoredMappingConfig> = emptyList(),
     val converters: List<ConverterDescriptor>,
     val nestedMappings: List<NestedMappingDescriptor> = emptyList(),
+    val hasReverse: Boolean = false,
 )

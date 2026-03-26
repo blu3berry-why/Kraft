@@ -25,6 +25,7 @@ class ClassAnnotationScanner(
         // First, collect all symbols with either annotation and check if they are classes
         val allMapFromSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_FROM).filter { it.validate() }
         val allMapToSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_TO).filter { it.validate() }
+        val allMapReverseSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_REVERSE).filter { it.validate() }
 
         // Check for non-class elements with @MapFrom and show error
         allMapFromSymbols.forEach { symbol ->
@@ -71,14 +72,30 @@ class ClassAnnotationScanner(
             )
         }
 
+        // Collect classes with @MapReverse
+        val classesWithMapReverse = allMapReverseSymbols
+            .filterIsInstance<KSClassDeclaration>()
+            .filter { it.classKind == ClassKind.CLASS }
+            .toSet()
+
+        // Validate @MapReverse is not used without @MapFrom/@MapTo
+        val orphanedReverseClasses = classesWithMapReverse - classesWithMapFrom - classesWithMapTo
+        orphanedReverseClasses.forEach { classDeclaration ->
+            logger.error(
+                "@MapReverse on '${classDeclaration.simpleName.asString()}' requires " +
+                "@MapFrom or @MapTo on the same class.",
+                classDeclaration
+            )
+        }
+
         // Process valid @MapFrom classes (excluding those with both annotations)
         (classesWithMapFrom - classesWithBothAnnotations).forEach { classDeclaration ->
-            processMapFromClass(classDeclaration, results)
+            processMapFromClass(classDeclaration, classDeclaration in classesWithMapReverse, results)
         }
 
         // Process valid @MapTo classes (excluding those with both annotations)
         (classesWithMapTo - classesWithBothAnnotations).forEach { classDeclaration ->
-            processMapToClass(classDeclaration, results)
+            processMapToClass(classDeclaration, classDeclaration in classesWithMapReverse, results)
         }
 
         return results
@@ -86,6 +103,7 @@ class ClassAnnotationScanner(
 
     private fun processMapFromClass(
         classDeclaration: KSClassDeclaration,
+        hasReverse: Boolean,
         results: MutableList<ClassMappingScanResult>
     ) {
         val ann = classDeclaration.findAnnotation(KraftKspConstants.FQ_MAP_FROM) ?: return
@@ -104,12 +122,14 @@ class ClassAnnotationScanner(
             sourceType = sourceType.declaration as KSClassDeclaration,
             targetType = classDeclaration,
             annotatedClass = classDeclaration,
-            propertyScanResults = propertyScanResults
+            propertyScanResults = propertyScanResults,
+            hasReverse = hasReverse
         )
     }
 
     private fun processMapToClass(
         classDeclaration: KSClassDeclaration,
+        hasReverse: Boolean,
         results: MutableList<ClassMappingScanResult>
     ) {
         val ann = classDeclaration.findAnnotation(KraftKspConstants.FQ_MAP_TO) ?: return
@@ -128,7 +148,8 @@ class ClassAnnotationScanner(
             sourceType = classDeclaration,
             targetType = targetType.declaration as KSClassDeclaration,
             annotatedClass = classDeclaration,
-            propertyScanResults = propertyScanResults
+            propertyScanResults = propertyScanResults,
+            hasReverse = hasReverse
         )
     }
 

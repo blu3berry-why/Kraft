@@ -23,6 +23,7 @@ class DescriptorBuilder(
 
         buildClassDescriptors(classMappings, configMappings, enumMappings, builtDescriptors)
         buildConfigDescriptors(configMappings, classMappings, enumMappings, builtDescriptors)
+        buildReverseDescriptors(classMappings, configMappings, builtDescriptors)
         resolveImplicitDependencies(builtDescriptors, configMappings)
         validateNestedDependencies(builtDescriptors)
 
@@ -77,7 +78,54 @@ class DescriptorBuilder(
     }
 
     // ---------------------------
-    // 3) DFS resolution of implicit nested dependencies
+    // 3) REVERSE descriptors for @MapReverse
+    // ---------------------------
+
+    private fun buildReverseDescriptors(
+        classMappings: List<ClassMappingScanResult>,
+        configMappings: List<ConfigObjectScanResult>,
+        builtDescriptors: MutableMap<MapperId, MapperDescriptor>
+    ) {
+        // Reverse for class-annotated mappings
+        for (mapping in classMappings) {
+            if (!mapping.hasReverse) continue
+            val forwardId = MapperId(
+                sourceQualifiedName = mapping.sourceType.qualifiedName?.asString() ?: mapping.sourceType.simpleName.asString(),
+                targetQualifiedName = mapping.targetType.qualifiedName?.asString() ?: mapping.targetType.simpleName.asString()
+            )
+            val forwardDescriptor = builtDescriptors[forwardId] ?: continue
+            val reverseId = MapperId(forwardId.targetQualifiedName, forwardId.sourceQualifiedName)
+            if (reverseId in builtDescriptors) continue // explicit reverse already exists
+
+            val configsForThis = configMappings.filter {
+                it.sourceType == mapping.sourceType && it.targetType == mapping.targetType
+            }
+            ReverseDescriptorBuilder(logger, forwardDescriptor, configsForThis, mapping.annotatedClass)
+                .build()
+                ?.let { builtDescriptors[it.id] = it }
+        }
+
+        // Reverse for config-only mappings
+        val classPairs = classMappings.map { it.sourceType to it.targetType }.toSet()
+        for (config in configMappings) {
+            if (!config.hasReverse) continue
+            if ((config.sourceType to config.targetType) in classPairs) continue // handled above
+            val forwardId = MapperId(
+                sourceQualifiedName = config.sourceType.qualifiedName?.asString() ?: config.sourceType.simpleName.asString(),
+                targetQualifiedName = config.targetType.qualifiedName?.asString() ?: config.targetType.simpleName.asString()
+            )
+            val forwardDescriptor = builtDescriptors[forwardId] ?: continue
+            val reverseId = MapperId(forwardId.targetQualifiedName, forwardId.sourceQualifiedName)
+            if (reverseId in builtDescriptors) continue
+
+            ReverseDescriptorBuilder(logger, forwardDescriptor, listOf(config), config.configObject)
+                .build()
+                ?.let { builtDescriptors[it.id] = it }
+        }
+    }
+
+    // ---------------------------
+    // 4) DFS resolution of implicit nested dependencies
     // ---------------------------
 
     private fun resolveImplicitDependencies(
