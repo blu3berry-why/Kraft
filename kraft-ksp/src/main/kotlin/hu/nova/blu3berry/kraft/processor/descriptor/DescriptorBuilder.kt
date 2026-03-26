@@ -23,7 +23,7 @@ class DescriptorBuilder(
 
         buildClassDescriptors(classMappings, configMappings, enumMappings, builtDescriptors)
         buildConfigDescriptors(configMappings, classMappings, enumMappings, builtDescriptors)
-        resolveImplicitDependencies(builtDescriptors)
+        resolveImplicitDependencies(builtDescriptors, configMappings)
         validateNestedDependencies(builtDescriptors)
 
         return builtDescriptors.values.toList()
@@ -80,7 +80,10 @@ class DescriptorBuilder(
     // 3) DFS resolution of implicit nested dependencies
     // ---------------------------
 
-    private fun resolveImplicitDependencies(builtDescriptors: MutableMap<MapperId, MapperDescriptor>) {
+    private fun resolveImplicitDependencies(
+        builtDescriptors: MutableMap<MapperId, MapperDescriptor>,
+        configMappings: List<ConfigObjectScanResult>
+    ) {
         val inProgress = mutableSetOf<MapperId>()
         for (descriptor in builtDescriptors.values.toList()) {
             descriptor.propertyMappings
@@ -92,7 +95,8 @@ class DescriptorBuilder(
                         target = strategy.nestedMappingDescriptor.targetType.declaration,
                         path = listOf(descriptor.id),
                         builtDescriptors = builtDescriptors,
-                        inProgress = inProgress
+                        inProgress = inProgress,
+                        configMappings = configMappings
                     )
                 }
         }
@@ -103,7 +107,8 @@ class DescriptorBuilder(
         target: KSClassDeclaration,
         path: List<MapperId>,
         builtDescriptors: MutableMap<MapperId, MapperDescriptor>,
-        inProgress: MutableSet<MapperId>
+        inProgress: MutableSet<MapperId>,
+        configMappings: List<ConfigObjectScanResult>
     ) {
         val id = MapperId(
             sourceQualifiedName = source.qualifiedName?.asString() ?: source.simpleName.asString(),
@@ -115,13 +120,13 @@ class DescriptorBuilder(
 
         inProgress += id // mark GRAY
 
-        val descriptor = buildMinimalDescriptor(source, target)
+        val descriptor = buildMinimalDescriptor(source, target, configMappings)
         if (descriptor == null) {                             // build failed — error already emitted
             inProgress -= id
             return
         }
 
-        recurseIntoDependencies(descriptor, id, path, builtDescriptors, inProgress)
+        recurseIntoDependencies(descriptor, id, path, builtDescriptors, inProgress, configMappings)
 
         inProgress -= id              // unmark GRAY
         builtDescriptors[id] = descriptor // mark BLACK
@@ -132,7 +137,8 @@ class DescriptorBuilder(
         currentId: MapperId,
         path: List<MapperId>,
         builtDescriptors: MutableMap<MapperId, MapperDescriptor>,
-        inProgress: MutableSet<MapperId>
+        inProgress: MutableSet<MapperId>,
+        configMappings: List<ConfigObjectScanResult>
     ) {
         descriptor.propertyMappings
             .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
@@ -142,7 +148,8 @@ class DescriptorBuilder(
                     target = strategy.nestedMappingDescriptor.targetType.declaration,
                     path = path + currentId,
                     builtDescriptors = builtDescriptors,
-                    inProgress = inProgress
+                    inProgress = inProgress,
+                    configMappings = configMappings
                 )
             }
     }
@@ -159,8 +166,12 @@ class DescriptorBuilder(
 
     private fun buildMinimalDescriptor(
         source: KSClassDeclaration,
-        target: KSClassDeclaration
+        target: KSClassDeclaration,
+        configMappings: List<ConfigObjectScanResult> = emptyList()
     ): MapperDescriptor? {
+        val configsForThis = configMappings.filter {
+            it.sourceType == source && it.targetType == target
+        }
         val syntheticMapping = ClassMappingScanResult(
             direction = MappingDirection.MAP_FROM,
             sourceType = source,
@@ -171,7 +182,7 @@ class DescriptorBuilder(
         return ClassDescriptorBuilder(
             logger = logger,
             mapping = syntheticMapping,
-            configObjects = emptyList(),
+            configObjects = configsForThis,
             enumMappings = emptyList()
         ).build()
     }
