@@ -100,7 +100,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr create \
-            --base release \
+            --base release-branch \
             --head "release/${{ steps.version.outputs.next }}" \
             --title "Release ${{ steps.version.outputs.next }}" \
             --body-file /tmp/pr-body.md
