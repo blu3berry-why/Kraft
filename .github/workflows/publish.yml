@@ -2,7 +2,7 @@ name: Publish
 
 on:
   push:
-    tags: [ '*' ]
+    branches: [ release ]
 
 permissions:
   contents: write
@@ -23,7 +23,6 @@ jobs:
 
       - name: Publish JVM, JS, WasmJs and KMP metadata
         run: |
-          VERSION="${{ github.ref_name }}"
           ./gradlew \
             :kraft-ksp:publish \
             :kraft-annotations:publishKotlinMultiplatformPublicationToGitHubPackagesRepository \
@@ -32,8 +31,7 @@ jobs:
             :kraft-annotations:publishWasmJsPublicationToGitHubPackagesRepository \
             --no-configuration-cache \
             -Pgpr.user=${{ github.actor }} \
-            -Pgpr.token=${{ secrets.GITHUB_TOKEN }} \
-            -Pkraft.version="$VERSION"
+            -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
 
   publish-ios:
     runs-on: macos-latest
@@ -49,12 +47,32 @@ jobs:
 
       - name: Publish iOS targets
         run: |
-          VERSION="${{ github.ref_name }}"
           ./gradlew \
             :kraft-annotations:publishIosX64PublicationToGitHubPackagesRepository \
             :kraft-annotations:publishIosArm64PublicationToGitHubPackagesRepository \
             :kraft-annotations:publishIosSimulatorArm64PublicationToGitHubPackagesRepository \
             --no-configuration-cache \
             -Pgpr.user=${{ github.actor }} \
-            -Pgpr.token=${{ secrets.GITHUB_TOKEN }} \
-            -Pkraft.version="$VERSION"
+            -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
+
+  create-release:
+    needs: [ publish-jvm, publish-ios ]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Read version from gradle.properties
+        id: version
+        run: |
+          VERSION=$(grep "^kraft.version=" gradle/gradle.properties | cut -d= -f2)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.version }}" \
+            --generate-notes \
+            --title "${{ steps.version.outputs.version }}" \
+            --target "${{ github.sha }}"
