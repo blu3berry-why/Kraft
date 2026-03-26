@@ -3,22 +3,21 @@ package hu.nova.blu3berry.kraft.processor.codegen.generator
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
-import com.google.devtools.ksp.symbol.KSFile
-import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.FileSpec
+import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ksp.writeTo
-import hu.nova.blu3berry.kraft.model.descriptor.ConverterSource
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.MappingSource
-import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
 import hu.nova.blu3berry.kraft.processor.codegen.MapperGenerator
-import hu.nova.blu3berry.kraft.processor.codegen.functionNameForNested
 import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
 
 class ExtensionMapperGenerator(
     private val logger: KSPLogger,
     private val config: GenerationConfig,
 ) : MapperGenerator {
+
+    private val ctorCallBuilder = CtorCallBuilder(config)
 
     override fun generate(descriptor: MapperDescriptor, codeGenerator: CodeGenerator) {
         val fromClass = descriptor.sourceType.className
@@ -29,196 +28,34 @@ class ExtensionMapperGenerator(
         val functionName = config.functionNameFor(descriptor)
         val fileName = "${fromClass.simpleName}To${toClass.simpleName}Mapper"
 
+        val originatingFiles = listOfNotNull(
+            when (val src = descriptor.source) {
+                is MappingSource.ClassAnnotation -> src.annotatedClass.containingFile
+                is MappingSource.ConfigObject -> src.configObject.containingFile
+            },
+            descriptor.sourceType.declaration.containingFile,
+            descriptor.targetType.declaration.containingFile
+        ).distinct()
+
+        if (originatingFiles.isEmpty()) {
+            logger.warn("Skipping mapper generation for $fromClass → $toClass: no originating file found.")
+            return
+        }
+
         val funBuilder = FunSpec.builder(functionName)
             .receiver(fromClass)
             .returns(toClass)
-
-        // Build constructor call
-        val ctorCall = buildConstructorCall(descriptor)
-
-        funBuilder.addCode("return %L\n", ctorCall)
+            .addCode("return %L\n", ctorCallBuilder.build(descriptor))
 
         val file = FileSpec.builder(packageName, "$fileName.kt")
             .addFileComment(CodeGenUtils.generatedBanner())
             .addFunction(funBuilder.build())
             .build()
 
-        // Determine source file for incremental builds
-        val originatingFile: KSFile? = when (val src = descriptor.source) {
-            is MappingSource.ClassAnnotation -> src.annotatedClass.containingFile
-            is MappingSource.ConfigObject -> src.configObject.containingFile
-        }
-
-        if (originatingFile == null) {
-            logger.warn("Skipping mapper generation for $fromClass → $toClass: no originating file found.")
-            return
-        }
-
-        val dependencies = Dependencies(
-            aggregating = false,
-            originatingFile
-        )
-
         file.writeTo(
             codeGenerator = codeGenerator,
-            dependencies = dependencies
+            dependencies = Dependencies(aggregating = false, *originatingFiles.toTypedArray())
         )
         logger.info("Generated extension mapper function: $packageName.$functionName")
-    }
-
-    /**
-     * Builds:
-     *     Target(
-     *         a = this.a,
-     *         b = this.x,
-     *         c = 42,
-     *     )
-     */
-    private fun buildConstructorCall(descriptor: MapperDescriptor): CodeBlock {
-        val toClass = descriptor.targetType.className
-        val receiverLabel = config.functionNameFor(descriptor)
-
-        val block = CodeBlock.builder()
-        block.add("%T(\n", toClass)
-        block.indent()
-
-        val props = descriptor.propertyMappings
-            .filterNot { it is PropertyMappingStrategy.Ignored }
-
-        props.forEachIndexed { i, strategy ->
-            val isLast = i == props.lastIndex
-            addMappingLine(block, strategy, receiverLabel)
-            if (!isLast) block.add(",\n") else block.add("\n")
-        }
-
-        block.unindent()
-        block.add(")")
-
-        return block.build()
-    }
-
-    @Suppress("kotlin:S1871")
-    private fun addMappingLine(block: CodeBlock.Builder, strategy: PropertyMappingStrategy, receiverLabel: String) {
-        when (strategy) {
-            is PropertyMappingStrategy.Direct -> {
-                val t = strategy.targetProperty.name
-                val s = strategy.sourceProperty.name
-                block.add("%N = this.%N", t, s)
-            }
-
-            is PropertyMappingStrategy.Renamed -> {
-                val t = strategy.targetProperty.name
-                val s = strategy.sourceProperty.name
-                block.add("%N = this.%N", t, s)
-            }
-
-            is PropertyMappingStrategy.Constant -> {
-                val t = strategy.targetProperty.name
-                block.add("%N = %L", t, strategy.expression)
-            }
-
-            is PropertyMappingStrategy.ConverterFunction -> {
-                val t = strategy.targetProperty.name
-                val converter = strategy.converter
-
-                when (val source = strategy.source) {
-                    is ConverterSource.Property -> {
-                        val s = source.info.name
-                        when {
-                            converter.enclosingObject != null && converter.isExtension -> {
-                                val enclosingClassName = ClassName(
-                                    converter.enclosingObject.packageName.asString(),
-                                    converter.enclosingObject.simpleName.asString()
-                                )
-                                block.add(
-                                    "%N = with(%T) { this@%N.%N.%N() }",
-                                    t, enclosingClassName, receiverLabel, s, converter.functionName
-                                )
-                            }
-                            converter.enclosingObject != null -> {
-                                val enclosingClassName = ClassName(
-                                    converter.enclosingObject.packageName.asString(),
-                                    converter.enclosingObject.simpleName.asString()
-                                )
-                                block.add(
-                                    "%N = %T.%N(this.%N)",
-                                    t, enclosingClassName, converter.functionName, s
-                                )
-                            }
-                            converter.isExtension -> {
-                                block.add("%N = this.%N.%N()", t, s, converter.functionName)
-                            }
-                            else -> {
-                                block.add("%N = %N(this.%N)", t, converter.functionName, s)
-                            }
-                        }
-                    }
-                    is ConverterSource.WholeObject -> {
-                        when {
-                            converter.enclosingObject != null && converter.isExtension -> {
-                                val enclosingClassName = ClassName(
-                                    converter.enclosingObject.packageName.asString(),
-                                    converter.enclosingObject.simpleName.asString()
-                                )
-                                block.add(
-                                    "%N = with(%T) { this@%N.%N() }",
-                                    t, enclosingClassName, receiverLabel, converter.functionName
-                                )
-                            }
-                            converter.enclosingObject != null -> {
-                                val enclosingClassName = ClassName(
-                                    converter.enclosingObject.packageName.asString(),
-                                    converter.enclosingObject.simpleName.asString()
-                                )
-                                block.add(
-                                    "%N = %T.%N(this)",
-                                    t, enclosingClassName, converter.functionName
-                                )
-                            }
-                            converter.isExtension -> {
-                                block.add("%N = this.%N()", t, converter.functionName)
-                            }
-                            else -> {
-                                block.add("%N = %N(this)", t, converter.functionName)
-                            }
-                        }
-                    }
-                }
-            }
-
-
-            is PropertyMappingStrategy.NestedMapper -> {
-
-                val t = strategy.targetProperty.name
-                val s = strategy.sourceProperty.name
-                val fnName = config.functionNameForNested(strategy.nestedMappingDescriptor)
-                val sourceIsNullable = strategy.sourceProperty.type.isNullable
-                val targetIsNullable = strategy.targetProperty.type.isNullable
-
-                if (strategy.nestedMappingDescriptor.isCollection) {
-                    if (sourceIsNullable) {
-                        if (targetIsNullable) {
-                            block.add("%N = this.%N?.map { it.%N() }", t, s, fnName)
-                        } else {
-                            block.add("%N = this.%N?.map { it.%N() } ?: emptyList()", t, s, fnName)
-                        }
-                    } else {
-                        block.add("%N = this.%N.map { it.%N() }", t, s, fnName)
-                    }
-                } else {
-                    if (sourceIsNullable) {
-                        // Target must be nullable (non-null case is rejected by NestedRule)
-                        block.add("%N = this.%N?.%N()", t, s, fnName)
-                    } else {
-                        block.add("%N = this.%N.%N()", t, s, fnName)
-                    }
-                }
-            }
-
-
-            is PropertyMappingStrategy.Ignored -> {
-                // Already filtered out
-            }
-        }
     }
 }

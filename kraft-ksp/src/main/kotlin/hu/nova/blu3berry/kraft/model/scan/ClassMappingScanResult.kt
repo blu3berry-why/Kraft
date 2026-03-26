@@ -13,6 +13,7 @@ import hu.nova.blu3berry.kraft.model.descriptor.MappingDirection
  * @param targetType          The target class declaration.
  * @param annotatedClass      The class that carries the annotation.
  * @param propertyScanResults Per-property scan results (one per declared property).
+ * @param hasReverse          Whether `@MapReverse` is also present on the annotated class.
  */
 data class ClassMappingScanResult(
     val direction: MappingDirection,
@@ -20,4 +21,5 @@ data class ClassMappingScanResult(
     val targetType: KSClassDeclaration,
     val annotatedClass: KSClassDeclaration,
     val propertyScanResults: List<PropertyScanResult> = emptyList(),
+    val hasReverse: Boolean = false,
 )

@@ -1,0 +1,106 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: version
+        run: |
+          CURRENT=$(jq -r '.["."]' .release-please-manifest.json)
+          SUFFIX=$(echo "$CURRENT" | sed 's/^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*//')
+          NUMERIC=$(echo "$CURRENT" | sed 's/-[A-Za-z].*//')
+          MAJOR=$(echo "$NUMERIC" | cut -d. -f1)
+          MINOR=$(echo "$NUMERIC" | cut -d. -f2)
+          PATCH=$(echo "$NUMERIC" | cut -d. -f3)
+
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --oneline)
+          else
+            COMMITS=$(git log --oneline)
+          fi
+
+          if echo "$COMMITS" | grep -qE ' [a-z]+(\([^)]+\))?!:| BREAKING CHANGE'; then
+            NEXT="$((MAJOR+1)).0.0${SUFFIX}"
+          elif echo "$COMMITS" | grep -qE ' feat(\([^)]+\))?:'; then
+            NEXT="${MAJOR}.$((MINOR+1)).0${SUFFIX}"
+          else
+            NEXT="${MAJOR}.${MINOR}.$((PATCH+1))${SUFFIX}"
+          fi
+
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create release branch
+        run: git checkout -b "release/${{ steps.version.outputs.next }}"
+
+      - name: Bump version in files
+        run: |
+          VERSION="${{ steps.version.outputs.next }}"
+          jq --arg v "$VERSION" '.["."] = $v' .release-please-manifest.json > tmp.json && mv tmp.json .release-please-manifest.json
+          sed -i "s/kraft\.version=.*/kraft.version=$VERSION/" gradle.properties
+
+      - name: Commit and push
+        run: |
+          VERSION="${{ steps.version.outputs.next }}"
+          git add .release-please-manifest.json gradle.properties
+          git commit -m "chore: release $VERSION"
+          git push --force-with-lease origin "HEAD:release/$VERSION"
+
+      - name: Build PR body
+        run: |
+          VERSION="${{ steps.version.outputs.next }}"
+          CURRENT="${{ steps.version.outputs.current }}"
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            RANGE="${LAST_TAG}..HEAD^"
+          else
+            RANGE="HEAD^"
+          fi
+
+          FEATS=$(git log $RANGE --pretty="format:- %s" | grep -E '^- feat' || true)
+          FIXES=$(git log $RANGE --pretty="format:- %s" | grep -E '^- fix' || true)
+
+          {
+            echo "## Release ${VERSION}"
+            echo ""
+            echo "Bumped from \`${CURRENT}\` → \`${VERSION}\`"
+            if [ -n "$FEATS" ]; then
+              echo ""
+              echo "### Features"
+              echo "$FEATS"
+            fi
+            if [ -n "$FIXES" ]; then
+              echo ""
+              echo "### Bug Fixes"
+              echo "$FIXES"
+            fi
+          } > /tmp/pr-body.md
+
+      - name: Open pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --base release-branch \
+            --head "release/${{ steps.version.outputs.next }}" \
+            --title "Release ${{ steps.version.outputs.next }}" \
+            --body-file /tmp/pr-body.md

@@ -1,11 +1,8 @@
 package hu.nova.blu3berry.kraft.processor.descriptor
 
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolver
-import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSFunctionDeclaration
-import hu.nova.blu3berry.kraft.config.IgnoreSide
 import hu.nova.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
@@ -17,9 +14,7 @@ import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.model.toTypeInfo
 import hu.nova.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
-import hu.nova.blu3berry.kraft.processor.util.missingConstructorProperty
 import hu.nova.blu3berry.kraft.processor.util.missingPrimaryConstructor
-import hu.nova.blu3berry.kraft.processor.util.unsupportedTypeInConstructor
 
 class ConfigDescriptorBuilder(
     private val logger: KSPLogger,
@@ -40,7 +35,7 @@ class ConfigDescriptorBuilder(
             return null
         }
 
-        val targetProps = extractTargetProperties(toDecl, targetCtor) ?: return null
+        val targetProps = TargetPropertyExtractor(logger).extract(toDecl, targetCtor, toDecl.simpleName.asString()) ?: return null
 
         val ignoredProperties = buildIgnoredProperties(targetProps, toDecl.simpleName.asString())
         val ctx = buildMappingContext(fromDecl, toDecl, sourceProps, config.nestedMappings, ignoredProperties)
@@ -67,50 +62,6 @@ class ConfigDescriptorBuilder(
     }
 
     // ---------------------------------------------------------
-    // Extract constructor → PropertyInfo list
-    // ---------------------------------------------------------
-    private fun extractTargetProperties(
-        toDecl: KSClassDeclaration,
-        targetCtor: KSFunctionDeclaration
-    ): List<PropertyInfo>? {
-
-        return targetCtor.parameters.mapNotNull { param ->
-            val name = param.name?.asString() ?: return@mapNotNull null
-
-            val declProp = toDecl.getDeclaredProperties()
-                .firstOrNull { it.simpleName.asString() == name }
-                ?: run {
-                    logger.missingConstructorProperty(
-                        typeName = toDecl.simpleName.asString(),
-                        parameterName = name,
-                        available = toDecl.getDeclaredProperties().map { it.simpleName.asString() }.toList(),
-                        symbol = param
-                    )
-                    return null
-                }
-
-            val ksType = param.type.resolve()
-            val classDecl = ksType.declaration as? KSClassDeclaration ?: run {
-                logger.unsupportedTypeInConstructor(
-                    typeName = toDecl.simpleName.asString(),
-                    parameterName = name,
-                    actualType = ksType.toString(),
-                    symbol = param
-                )
-                if (!param.hasDefault) return null
-                return@mapNotNull null
-            }
-
-            PropertyInfo(
-                name = name,
-                type = classDecl.toTypeInfo(ksType),
-                declaration = declProp,
-                hasDefault = param.hasDefault
-            )
-        }
-    }
-
-    // ---------------------------------------------------------
     // Build MappingContext used by chain resolver
     // ---------------------------------------------------------
     private fun buildMappingContext(
@@ -123,8 +74,8 @@ class ConfigDescriptorBuilder(
         return MappingContext(
             logger = logger,
             sourceProps = sourceProps,
-            classOverrides = emptyMap(),                       // config mode → no @MapField
-            configOverrides = config.fieldOverrides.associate { it.target to it.source },
+            classRenames = emptyMap(),                         // config mode → no @MapField
+            configRenames = config.fieldOverrides.associate { it.target to it.source },
             converters = config.converters,
             nestedMappings = nestedMappings,
             ignoredProperties = ignoredProperties,
@@ -136,47 +87,14 @@ class ConfigDescriptorBuilder(
     // ---------------------------------------------------------
     // Build the set of target property names to ignore
     // ---------------------------------------------------------
-    // SOURCE entries are skipped — reserved for future reverse-mapping generation.
-    // BOTH entries are applied when the name exists in the forward target; silently
-    // skipped otherwise (the name may be valid for the reverse target once added).
     private fun buildIgnoredProperties(
         targetProps: List<PropertyInfo>,
         targetTypeName: String
     ): Set<String> {
         val targetPropNames = targetProps.map { it.name }.toSet()
-        val result = mutableSetOf<String>()
-
-        for (ignored in config.ignoredMappings) {
-            when (ignored.direction) {
-                IgnoreSide.SOURCE -> continue
-                IgnoreSide.TARGET -> {
-                    if (ignored.name !in targetPropNames) {
-                        logger.error(
-                            "@MapIgnoreField(\"${ignored.name}\", TARGET): property not found " +
-                                "in target '$targetTypeName' constructor. " +
-                                "Available: ${targetPropNames.sorted()}",
-                            config.configObject
-                        )
-                    } else {
-                        result.add(ignored.name)
-                    }
-                }
-                IgnoreSide.BOTH -> {
-                    if (ignored.name in targetPropNames) {
-                        result.add(ignored.name)
-                    } else {
-                        logger.warn(
-                            "@MapIgnoreField(\"${ignored.name}\", BOTH): property not found in " +
-                                "target '$targetTypeName' constructor; skipped for forward direction. " +
-                                "Available: ${targetPropNames.sorted()}",
-                            config.configObject
-                        )
-                    }
-                }
-            }
-        }
-
-        return result
+        return IgnoredPropertyAggregator.resolveConfigIgnored(
+            logger, config.ignoredMappings, targetPropNames, targetTypeName, config.configObject
+        )
     }
 
     // ---------------------------------------------------------

@@ -4,6 +4,7 @@ import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
+import com.google.devtools.ksp.validate
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
@@ -12,16 +13,12 @@ import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import hu.nova.blu3berry.kraft.config.IgnoreSide
-import hu.nova.blu3berry.kraft.config.MapConfig
-import hu.nova.blu3berry.kraft.config.MapIgnoreField
-import hu.nova.blu3berry.kraft.config.MapUsing
-import hu.nova.blu3berry.kraft.model.scan.ConfigObjectScanResult
+import hu.nova.blu3berry.kraft.model.MapperId
 import hu.nova.blu3berry.kraft.model.descriptor.ConverterDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
+import hu.nova.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import hu.nova.blu3berry.kraft.model.scan.FieldOverride
 import hu.nova.blu3berry.kraft.model.scan.IgnoredMappingConfig
-import hu.nova.blu3berry.kraft.model.MapperId
-import hu.nova.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
-import hu.nova.blu3berry.kraft.model.TypeInfo
 import hu.nova.blu3berry.kraft.model.toTypeInfo
 import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 import hu.nova.blu3berry.kraft.processor.util.annotationTargetError
@@ -38,22 +35,37 @@ class ConfigObjectScanner(
     private val resolver: Resolver,
     private val logger: KSPLogger
 ) {
-    companion object {
-        val MAP_CONFIG_FQ    = MapConfig::class.qualifiedName!!
-        val MAP_USING_FQ     = MapUsing::class.qualifiedName!!
-        val IGNORE_FIELD_FQ  = MapIgnoreField::class.qualifiedName!!
-        val STRING_PAIR_FQ   = hu.nova.blu3berry.kraft.config.FieldMapping::class.qualifiedName!!
-        val NESTED_FQ        = hu.nova.blu3berry.kraft.config.NestedMapping::class.qualifiedName!!
-    }
-
     /**
      * Scans for configuration objects and returns the results.
      */
     fun scan(): List<ConfigObjectScanResult> {
         val results = mutableListOf<ConfigObjectScanResult>()
 
-        resolver.getSymbolsWithAnnotation(MAP_CONFIG_FQ).forEach { symbol ->
-            processConfigObject(symbol)?.let { results.add(it) }
+        val configSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_CONFIG).filter { it.validate() }.toList()
+        val reverseSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_REVERSE).filter { it.validate() }
+            .filterIsInstance<KSClassDeclaration>()
+            .toSet()
+
+        configSymbols.forEach { symbol ->
+            processConfigObject(symbol, hasReverse = symbol in reverseSymbols)?.let { results.add(it) }
+        }
+
+        // Validate @MapReverse on objects without @MapConfig
+        val configObjects = results.map { it.configObject }.toSet()
+        val orphanedReverseObjects = reverseSymbols
+            .filter { it.classKind == ClassKind.OBJECT }
+            .filter { it !in configObjects }
+        orphanedReverseObjects.forEach { obj ->
+            // Only report if it doesn't also have @MapFrom/@MapTo (ClassAnnotationScanner handles those)
+            val hasClassAnnotation = obj.findAnnotation(KraftKspConstants.FQ_MAP_FROM) != null ||
+                obj.findAnnotation(KraftKspConstants.FQ_MAP_TO) != null
+            if (!hasClassAnnotation) {
+                logger.error(
+                    "@MapReverse on '${obj.simpleName.asString()}' requires " +
+                    "@MapConfig on the same object.",
+                    obj
+                )
+            }
         }
 
         return results
@@ -62,14 +74,14 @@ class ConfigObjectScanner(
     /**
      * Processes a single configuration object and returns a scan result.
      */
-    private fun processConfigObject(symbol: KSAnnotated): ConfigObjectScanResult? {
+    private fun processConfigObject(symbol: KSAnnotated, hasReverse: Boolean): ConfigObjectScanResult? {
         // Validate annotation target: must be an object
         if (!validateConfigObject(symbol)) {
             return null
         }
 
         val classDeclaration = symbol as KSClassDeclaration
-        val annotation = classDeclaration.findAnnotation(MAP_CONFIG_FQ) ?: return null
+        val annotation = classDeclaration.findAnnotation(KraftKspConstants.FQ_MAP_CONFIG) ?: return null
 
         // Extract source and target types
         val (fromType, toType) = extractSourceAndTargetTypes(annotation, classDeclaration) ?: return null
@@ -81,7 +93,7 @@ class ConfigObjectScanner(
         val nestedMappings = extractNestedMappings(annotation, classDeclaration)
 
         // Extract and validate converter functions
-        val converters = extractConverterFunctions(classDeclaration, fromType, toType)
+        val converters = extractConverterFunctions(classDeclaration, fromType, toType, hasReverse)
 
         // Extract ignored mappings
         val ignoredMappings = extractIgnoredMappings(annotation, classDeclaration)
@@ -93,7 +105,8 @@ class ConfigObjectScanner(
             fieldOverrides = fieldOverrides,
             ignoredMappings = ignoredMappings,
             converters = converters,
-            nestedMappings = nestedMappings
+            nestedMappings = nestedMappings,
+            hasReverse = hasReverse
         )
     }
 
@@ -103,7 +116,7 @@ class ConfigObjectScanner(
     private fun validateConfigObject(symbol: KSAnnotated): Boolean {
         if (symbol !is KSClassDeclaration || symbol.classKind != ClassKind.OBJECT) {
             logger.annotationTargetError(
-                annotationName = MapConfig::class.simpleName!!,
+                annotationName = KraftKspConstants.FQ_MAP_CONFIG,
                 expectedTarget = KraftKspConstants.ARG_OBJECT,
                 actualNode = symbol
             )
@@ -123,14 +136,14 @@ class ConfigObjectScanner(
             name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
             symbol = symbol,
-            annotationFqName = MAP_CONFIG_FQ
+            annotationFqName = KraftKspConstants.FQ_MAP_CONFIG
         ) ?: return null
 
         val toKSType = annotation.getKClassArgOrNull(
             name = KraftKspConstants.ARG_TARGET,
             logger = logger,
             symbol = symbol,
-            annotationFqName = MAP_CONFIG_FQ
+            annotationFqName = KraftKspConstants.FQ_MAP_CONFIG
         ) ?: return null
 
         val fromType = fromKSType.declaration as KSClassDeclaration
@@ -150,24 +163,24 @@ class ConfigObjectScanner(
             name = KraftKspConstants.ARG_FIELD_MAPPINGS,
             logger = logger,
             symbol = symbol,
-            annotationFqName = MAP_CONFIG_FQ
+            annotationFqName = KraftKspConstants.FQ_MAP_CONFIG
         ) ?: emptyList()
 
         return fieldPairAnnotations.mapNotNull { pair ->
-            if (!pair.isAnnotation(STRING_PAIR_FQ)) return@mapNotNull null
+            if (!pair.isAnnotation(KraftKspConstants.FQ_FIELD_MAPPING)) return@mapNotNull null
 
             val from = pair.getStringArgOrNull(
                 name = KraftKspConstants.ARG_SOURCE,
                 logger = logger,
                 symbol = symbol,
-                annotationFqName = STRING_PAIR_FQ
+                annotationFqName = KraftKspConstants.FQ_FIELD_MAPPING
             ) ?: return@mapNotNull null
 
             val to = pair.getStringArgOrNull(
                 name = KraftKspConstants.ARG_TARGET,
                 logger = logger,
                 symbol = symbol,
-                annotationFqName = STRING_PAIR_FQ
+                annotationFqName = KraftKspConstants.FQ_FIELD_MAPPING
             ) ?: return@mapNotNull null
 
             FieldOverride(source = from, target = to)
@@ -185,13 +198,13 @@ class ConfigObjectScanner(
             name = KraftKspConstants.ARG_NESTED_MAPPINGS,
             logger = logger,
             symbol = symbol,
-            annotationFqName = MAP_CONFIG_FQ
+            annotationFqName = KraftKspConstants.FQ_MAP_CONFIG
         ) ?: emptyList()
 
         return nestedAnnotations.mapNotNull { nestedAnn ->
-            val nestedFrom = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_SOURCE, logger, symbol, NESTED_FQ)
+            val nestedFrom = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_SOURCE, logger, symbol, KraftKspConstants.FQ_NESTED_MAPPING)
                 ?: return@mapNotNull null
-            val nestedTo = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_TARGET, logger, symbol, NESTED_FQ)
+            val nestedTo = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_TARGET, logger, symbol, KraftKspConstants.FQ_NESTED_MAPPING)
                 ?: return@mapNotNull null
 
             val fromDecl = nestedFrom.declaration as KSClassDeclaration
@@ -199,8 +212,8 @@ class ConfigObjectScanner(
 
             NestedMappingDescriptor(
                 nestedMapperId = MapperId(
-                    sourceQualifiedName = fromDecl.qualifiedName!!.asString(),
-                    targetQualifiedName = toDecl.qualifiedName!!.asString(),
+                    sourceQualifiedName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
+                    targetQualifiedName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString(),
                 ),
                 sourceType = fromDecl.toTypeInfo(fromDecl.asStarProjectedType()),
                 targetType = toDecl.toTypeInfo(toDecl.asStarProjectedType())
@@ -214,7 +227,8 @@ class ConfigObjectScanner(
     private fun extractConverterFunctions(
         symbol: KSClassDeclaration,
         fromType: KSClassDeclaration,
-        toType: KSClassDeclaration
+        toType: KSClassDeclaration,
+        hasReverse: Boolean = false
     ): List<ConverterDescriptor> {
         val converters = mutableListOf<ConverterDescriptor>()
         val propertyPairs = mutableMapOf<String, KSFunctionDeclaration>()
@@ -224,18 +238,28 @@ class ConfigObjectScanner(
         val targetPropertiesList = toType.getDeclaredProperties().toList()
         val sourceProperties = sourcePropertiesList.map { it.simpleName.asString() }.toSet()
         val targetProperties = targetPropertiesList.map { it.simpleName.asString() }.toSet()
+        // When @MapReverse is present, converters may reference properties from either side
+        val validSourceProperties = if (hasReverse) sourceProperties + targetProperties else sourceProperties
+        val validTargetProperties = if (hasReverse) targetProperties + sourceProperties else targetProperties
 
         // Create maps of property name to property declaration for type checking
-        val sourcePropertyMap = sourcePropertiesList.associateBy { it.simpleName.asString() }
-        val targetPropertyMap = targetPropertiesList.associateBy { it.simpleName.asString() }
+        // When @MapReverse is present, converters may reference properties from either side
+        val sourcePropertyMap = if (hasReverse)
+            (sourcePropertiesList + targetPropertiesList).associateBy { it.simpleName.asString() }
+        else
+            sourcePropertiesList.associateBy { it.simpleName.asString() }
+        val targetPropertyMap = if (hasReverse)
+            (targetPropertiesList + sourcePropertiesList).associateBy { it.simpleName.asString() }
+        else
+            targetPropertiesList.associateBy { it.simpleName.asString() }
 
         val converterFunctions = symbol.getDeclaredFunctions().filter { fn ->
-            fn.annotations.any { it.isAnnotation(MAP_USING_FQ) }
+            fn.annotations.any { it.isAnnotation(KraftKspConstants.FQ_MAP_USING) }
         }
 
         for (fn in converterFunctions) {
             val converter = validateAndCreateConverter(
-                fn, symbol, fromType, sourceProperties, targetProperties,
+                fn, symbol, fromType, validSourceProperties, validTargetProperties,
                 sourcePropertyMap, targetPropertyMap, propertyPairs
             ) ?: continue
 
@@ -260,20 +284,20 @@ class ConfigObjectScanner(
         targetPropertyMap: Map<String, KSPropertyDeclaration>,
         propertyPairs: MutableMap<String, KSFunctionDeclaration>
     ): ConverterDescriptor? {
-        val mapUsingAnn = fn.annotations.first { it.isAnnotation(MAP_USING_FQ) }
+        val mapUsingAnn = fn.annotations.first { it.isAnnotation(KraftKspConstants.FQ_MAP_USING) }
 
         val fromProp = mapUsingAnn.getStringArgOrNull(
             name = KraftKspConstants.ARG_SOURCE,
             logger = logger,
             symbol = fn,
-            annotationFqName = MAP_USING_FQ
+            annotationFqName = KraftKspConstants.FQ_MAP_USING
         )
 
         val toProp = mapUsingAnn.getStringArgOrNull(
             name = KraftKspConstants.ARG_TARGET,
             logger = logger,
             symbol = fn,
-            annotationFqName = MAP_USING_FQ
+            annotationFqName = KraftKspConstants.FQ_MAP_USING
         )
 
         if (toProp.isNullOrBlank()) {
@@ -427,10 +451,13 @@ class ConfigObjectScanner(
 
     /**
      * Gets the parameter type of a function.
+     * For extension functions, returns the receiver type.
+     * For regular functions, returns the first parameter type.
+     * Must be called after [validateFunctionSignature] has passed.
      */
     private fun getParameterType(fn: KSFunctionDeclaration): KSType {
         return if (fn.extensionReceiver != null) {
-            fn.extensionReceiver?.resolve() ?: return fn.parameters.first().type.resolve()
+            fn.extensionReceiver!!.resolve()
         } else {
             fn.parameters.first().type.resolve()
         }
@@ -534,17 +561,17 @@ class ConfigObjectScanner(
             name = KraftKspConstants.ARG_IGNORED_MAPPINGS,
             logger = logger,
             symbol = symbol,
-            annotationFqName = MAP_CONFIG_FQ
+            annotationFqName = KraftKspConstants.FQ_MAP_CONFIG
         ) ?: emptyList()
 
         return ignoreAnnotations.mapNotNull { ignoreAnn ->
-            if (!ignoreAnn.isAnnotation(IGNORE_FIELD_FQ)) return@mapNotNull null
+            if (!ignoreAnn.isAnnotation(KraftKspConstants.FQ_MAP_IGNORE_FIELD)) return@mapNotNull null
 
             val name = ignoreAnn.getStringArgOrNull(
                 name = KraftKspConstants.ARG_NAME,
                 logger = logger,
                 symbol = symbol,
-                annotationFqName = IGNORE_FIELD_FQ
+                annotationFqName = KraftKspConstants.FQ_MAP_IGNORE_FIELD
             ) ?: return@mapNotNull null
 
             if (name.isBlank()) {
@@ -557,7 +584,7 @@ class ConfigObjectScanner(
                 name = KraftKspConstants.ARG_DIRECTION,
                 logger = logger,
                 symbol = symbol,
-                annotationFqName = IGNORE_FIELD_FQ
+                annotationFqName = KraftKspConstants.FQ_MAP_IGNORE_FIELD
             ) ?: IgnoreSide.BOTH.name
 
             val direction = try {
