@@ -1,0 +1,8 @@
+{
+  "release-type": "simple",
+  "versioning-strategy": "default",
+  "include-v-in-tag": false,
+  "extra-files": [
+    "gradle/gradle.properties"
+  ]
+}
