@@ -67,4 +67,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(grep "^kraft.version=" gradle.properties | cut -d= -f2)
+          if [ -z "$VERSION" ]; then
+            echo "Missing or empty kraft.version in gradle.properties" >&2
+            exit 1
+          fi
           gh release create "v$VERSION" --generate-notes --title "v$VERSION" --target "$GITHUB_SHA"

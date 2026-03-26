@@ -31,8 +31,7 @@ class FunctionNameFormatOptionTest {
         )
 
         assertThat(generated).isNotEmpty()
-        val text = generated.first().readText()
-        assertThat(text).contains("fun UserDto.mapUserDtoToUser(")
+        assertThat(generated.any { it.readText().contains("fun UserDto.mapUserDtoToUser(") }).isTrue()
     }
 
     @Test
@@ -54,7 +53,53 @@ class FunctionNameFormatOptionTest {
         val generated = TestKspRunner.compileAndReturnGenerated(source)
 
         assertThat(generated).isNotEmpty()
-        val text = generated.first().readText()
-        assertThat(text).contains("fun OrderDto.toOrder(")
+        assertThat(generated.any { it.readText().contains("fun OrderDto.toOrder(") }).isTrue()
+    }
+
+    @Test
+    fun `kraft_functionNameFormat applies to enum mappers with custom format`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            enum class SourceStatus { ACTIVE, INACTIVE }
+            enum class TargetStatus { ACTIVE, INACTIVE }
+
+            @hu.nova.blu3berry.kraft.config.MapEnum(
+                source = SourceStatus::class,
+                target = TargetStatus::class
+            )
+            object StatusMapper
+            """
+        )
+
+        val generated = TestKspRunner.compileAndReturnGenerated(
+            source,
+            kspOptions = mapOf("kraft.functionNameFormat" to "map\${source}To\${target}")
+        )
+
+        assertThat(generated).isNotEmpty()
+        assertThat(generated.any { it.readText().contains("fun SourceStatus.mapSourceStatusToTargetStatus(") }).isTrue()
+    }
+
+    @Test
+    fun `enum mapper uses default function name when kraft_functionNameFormat is not set`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            enum class SourceStatus { ACTIVE, INACTIVE }
+            enum class TargetStatus { ACTIVE, INACTIVE }
+
+            @hu.nova.blu3berry.kraft.config.MapEnum(
+                source = SourceStatus::class,
+                target = TargetStatus::class
+            )
+            object StatusMapper
+            """
+        )
+
+        val generated = TestKspRunner.compileAndReturnGenerated(source)
+
+        assertThat(generated).isNotEmpty()
+        assertThat(generated.any { it.readText().contains("fun SourceStatus.toTargetStatus(") }).isTrue()
     }
 }
