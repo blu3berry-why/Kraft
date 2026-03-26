@@ -26,8 +26,8 @@ class RequiredFieldErrorRule : MappingRule {
             targetType = ctx.targetTypeName,
             targetProperty = target,
             sourceProperties = ctx.sourceProps,
-            classLevelOverrides = ctx.classOverrides,
-            configOverrides = ctx.configOverrides.map { FieldOverride(source = it.key, target = it.value) },
+            classLevelOverrides = ctx.classRenames,
+            configOverrides = ctx.configRenames.map { FieldOverride(source = it.value, target = it.key) },
             symbol = target.declaration
         )
         return null

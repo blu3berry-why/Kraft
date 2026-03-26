@@ -64,8 +64,9 @@ class EnumMapperGenerator(
             .addFunction(funSpec)
             .build()
 
-        val originating: KSFile? = fromDecl.containingFile ?: toDecl.containingFile
-        val deps = Dependencies(false, originating ?: return)
+        val sourceFiles = listOfNotNull(fromDecl.containingFile, toDecl.containingFile)
+        if (sourceFiles.isEmpty()) return
+        val deps = Dependencies(false, *sourceFiles.toTypedArray())
 
         fileSpec.writeTo(codeGenerator, deps)
 
@@ -107,15 +108,6 @@ class EnumMapperGenerator(
                 logger.error("@MapEnum error: target entry '${mapping.target}' does not exist", desc.targetType.declaration)
                 ok = false
             }
-        }
-
-        // Default target must exist
-        if (desc.allowDefault && desc.defaultTarget != null && desc.defaultTarget !in toEntries) {
-            logger.error(
-                "@MapEnum error: defaultTarget '${desc.defaultTarget}' is not a valid entry of ${desc.targetType.className}",
-                desc.targetType.declaration
-            )
-            ok = false
         }
 
         return ok

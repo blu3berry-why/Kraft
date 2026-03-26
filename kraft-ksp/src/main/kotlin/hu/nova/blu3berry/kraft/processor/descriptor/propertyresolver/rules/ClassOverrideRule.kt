@@ -14,7 +14,7 @@ class ClassOverrideRule : MappingRule {
         ctx: MappingContext
     ): PropertyMappingStrategy? {
 
-        val sourceName = ctx.classOverrides[target.name] ?: return null
+        val sourceName = ctx.classRenames[target.name] ?: return null
         val sourceProp = ctx.sourceProps[sourceName] ?: run {
             ctx.logger.invalidMapFieldOverride(
                 ctx.sourceTypeName,

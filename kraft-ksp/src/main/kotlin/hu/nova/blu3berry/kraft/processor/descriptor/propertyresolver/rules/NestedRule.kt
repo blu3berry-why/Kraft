@@ -27,7 +27,7 @@ class NestedRule : MappingRule {
         // 1. @MapNested path (highest priority)
         val mapNested = ctx.classNestedOverrides[target.name]
         if (mapNested != null) {
-            if (target.name in ctx.classOverrides) {
+            if (target.name in ctx.classRenames) {
                 ctx.logger.warn(
                     "@MapNested and @MapField both present on '${target.name}' — @MapNested takes precedence.",
                     target.declaration
@@ -100,7 +100,7 @@ class NestedRule : MappingRule {
         // 2. Explicit nestedMappings path (from @MapConfig)
         // Resolve any source override first so it can narrow the nested candidates and
         // verify the source type matches before ambiguity is decided.
-        val explicitSourceName = ctx.configOverrides[target.name]
+        val explicitSourceName = ctx.configRenames[target.name]
         // When the target property is List<T>, match descriptors by element type (T), not List.
         val targetIsCollection = isListType(target.type)
         val targetElementType = if (targetIsCollection) elementTypeInfo(target.type) else null
