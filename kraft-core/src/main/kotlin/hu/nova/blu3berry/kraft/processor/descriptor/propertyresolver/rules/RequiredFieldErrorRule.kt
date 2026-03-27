@@ -8,6 +8,7 @@ import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
 import hu.nova.blu3berry.kraft.model.scan.FieldOverride
 import hu.nova.blu3berry.kraft.processor.util.detailedMissingMapping
 
+/** Terminal [MappingRule] that emits an error for required target properties that no prior rule could resolve. */
 class RequiredFieldErrorRule : MappingRule {
 
     override fun tryResolve(

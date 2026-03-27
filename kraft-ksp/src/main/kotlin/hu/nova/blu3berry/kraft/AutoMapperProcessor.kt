@@ -20,6 +20,11 @@ import hu.nova.blu3berry.kraft.processor.scanner.EnumMapScanner
 import hu.nova.blu3berry.kraft.processor.util.KraftKspConstants
 import java.util.ServiceLoader
 
+/**
+ * Main KSP [SymbolProcessor] that orchestrates the scan, build, and generate pipeline:
+ * discovers mapping annotations, builds [MapperDescriptor]s, and delegates code generation
+ * to [MapperGenerator] implementations resolved via [ServiceLoader].
+ */
 class AutoMapperProcessor(
     private val env: SymbolProcessorEnvironment
 ) : SymbolProcessor {

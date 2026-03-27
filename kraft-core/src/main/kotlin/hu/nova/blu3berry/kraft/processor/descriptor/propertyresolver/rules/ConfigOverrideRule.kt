@@ -6,6 +6,7 @@ import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
 import hu.nova.blu3berry.kraft.processor.util.detailedTypeMismatch
 
+/** [MappingRule] for config-level property renames declared via `@FieldMapping` in `@MapConfig`. */
 class ConfigOverrideRule : MappingRule {
 
     override fun tryResolve(

@@ -6,6 +6,7 @@ import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
 import hu.nova.blu3berry.kraft.processor.util.detailedTypeMismatch
 
+/** [MappingRule] for direct same-name, same-type property assignments. */
 class DirectMatchRule : MappingRule {
 
     override fun tryResolve(

@@ -6,6 +6,7 @@ import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
 
+/** [MappingRule] that resolves properties targeted by `@MapUsing` converter functions. */
 class ConverterRule : MappingRule {
 
     override fun tryResolve(

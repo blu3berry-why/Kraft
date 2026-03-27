@@ -13,6 +13,10 @@ import hu.nova.blu3berry.kraft.processor.codegen.className
 import hu.nova.blu3berry.kraft.processor.codegen.MapperGenerator
 import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
 
+/**
+ * Built-in [MapperGenerator] that produces Kotlin extension functions
+ * (`fun Source.toTarget(): Target`) using KotlinPoet.
+ */
 class ExtensionMapperGenerator(
     private val logger: KSPLogger,
     private val config: GenerationConfig,

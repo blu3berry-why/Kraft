@@ -11,6 +11,11 @@ import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.rules.Ignor
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.rules.NestedRule
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.rules.RequiredFieldErrorRule
 
+/**
+ * Coordinates an ordered chain of [MappingRule] instances to resolve each target property to a [PropertyMappingStrategy].
+ *
+ * @param rules ordered list of rules to evaluate; the first rule that returns non-null wins.
+ */
 class PropertyResolver(private val rules: List<MappingRule> = default()) {
 
     fun resolve(

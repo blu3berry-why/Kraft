@@ -7,6 +7,7 @@ import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.toTypeInfo
 import hu.nova.blu3berry.kraft.processor.util.unsupportedSourcePropertyType
 
+/** Converts the declared properties of this [KSClassDeclaration] into a name-keyed map of [PropertyInfo]. */
 fun KSClassDeclaration.toPropertyInfoMap(logger: KSPLogger): Map<String, PropertyInfo> =
     getDeclaredProperties().mapNotNull { prop ->
         val ks = prop.type.resolve()

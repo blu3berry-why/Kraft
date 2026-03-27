@@ -10,6 +10,7 @@ import hu.nova.blu3berry.kraft.model.MapperId
 import hu.nova.blu3berry.kraft.model.descriptor.MappingDirection
 import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 
+/** Top-level orchestrator that converts scan results into a list of [MapperDescriptor], resolving implicit nested dependencies via DFS. */
 class DescriptorBuilder(
     private val logger: KSPLogger
 ) {
