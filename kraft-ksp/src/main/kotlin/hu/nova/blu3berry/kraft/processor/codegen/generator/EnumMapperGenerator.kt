@@ -5,12 +5,13 @@ import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSFile
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ksp.writeTo
 import hu.nova.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
+import hu.nova.blu3berry.kraft.processor.codegen.EnumMapperGeneratorSpi
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
+import hu.nova.blu3berry.kraft.processor.codegen.className
 import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
 
 /**
@@ -18,17 +19,26 @@ import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
  *
  * Example output:
  *
+ *   ```kotlin
  *   fun Status.toStatusDto(): StatusDto = when (this) {
  *       Status.ACTIVE  -> StatusDto.ACTIVE
  *       Status.BLOCKED -> StatusDto.BANNED
  *       else -> StatusDto.UNKNOWN
  *   }
+ *   ```
  */
 class EnumMapperGenerator(
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
     private val config: GenerationConfig = GenerationConfig()
-) {
+) : EnumMapperGeneratorSpi {
+
+    override fun generate(
+        descriptors: List<EnumMappingDescriptor>,
+        codeGenerator: CodeGenerator
+    ) {
+        descriptors.forEach(::generateOne)
+    }
 
     fun generate(descriptors: List<EnumMappingDescriptor>) {
         descriptors.forEach(::generateOne)
@@ -66,6 +76,7 @@ class EnumMapperGenerator(
 
         val sourceFiles = listOfNotNull(fromDecl.containingFile, toDecl.containingFile)
         if (sourceFiles.isEmpty()) return
+        @Suppress("SpreadOperator")
         val deps = Dependencies(false, *sourceFiles.toTypedArray())
 
         fileSpec.writeTo(codeGenerator, deps)
@@ -101,11 +112,17 @@ class EnumMapperGenerator(
         // Unknown source entries
         for (mapping in desc.entries) {
             if (mapping.source !in fromEntries) {
-                logger.error("@MapEnum error: source entry '${mapping.source}' does not exist", desc.sourceType.declaration)
+                logger.error(
+                    "@MapEnum error: source entry '${mapping.source}' does not exist",
+                    desc.sourceType.declaration
+                )
                 ok = false
             }
             if (mapping.target !in toEntries) {
-                logger.error("@MapEnum error: target entry '${mapping.target}' does not exist", desc.targetType.declaration)
+                logger.error(
+                    "@MapEnum error: target entry '${mapping.target}' does not exist",
+                    desc.targetType.declaration
+                )
                 ok = false
             }
         }
@@ -122,7 +139,9 @@ class EnumMapperGenerator(
         val fromClass = desc.sourceType.className
         val toClass = desc.targetType.className
 
-        val funName = config.functionNameFor(fromClass, toClass)
+        val funName = config.functionNameFor(
+            desc.sourceType.simpleName, desc.targetType.simpleName
+        )
 
         val builder = FunSpec.builder(funName)
             .receiver(fromClass)

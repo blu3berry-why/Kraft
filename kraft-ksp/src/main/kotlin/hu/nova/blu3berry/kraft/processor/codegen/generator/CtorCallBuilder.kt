@@ -8,6 +8,7 @@ import hu.nova.blu3berry.kraft.model.descriptor.ConverterSource
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
+import hu.nova.blu3berry.kraft.processor.codegen.className
 import hu.nova.blu3berry.kraft.processor.codegen.functionNameForNested
 
 /**
@@ -60,126 +61,161 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
     ) {
         when (strategy) {
             is PropertyMappingStrategy.Direct -> {
-                val t = strategy.targetProperty.name
-                val s = strategy.sourceProperty.name
-                block.add("%N = this.%N", t, s)
+                block.add("%N = this.%N", strategy.targetProperty.name, strategy.sourceProperty.name)
             }
-
             is PropertyMappingStrategy.Renamed -> {
-                val t = strategy.targetProperty.name
-                val s = strategy.sourceProperty.name
-                block.add("%N = this.%N", t, s)
+                block.add("%N = this.%N", strategy.targetProperty.name, strategy.sourceProperty.name)
             }
-
             is PropertyMappingStrategy.Constant -> {
-                val t = strategy.targetProperty.name
-                block.add("%N = %L", t, strategy.expression)
+                block.add("%N = %L", strategy.targetProperty.name, strategy.expression)
             }
-
             is PropertyMappingStrategy.ConverterFunction -> {
-                val t = strategy.targetProperty.name
-                val converter = strategy.converter
-
-                when (val source = strategy.source) {
-                    is ConverterSource.Property -> {
-                        val s = source.info.name
-                        when {
-                            converter.enclosingObject != null && converter.isExtension -> {
-                                val enclosingClassName = enclosingClassName(converter)
-                                block.add(
-                                    "%N = with(%T) { this@%N.%N.%N() }",
-                                    t, enclosingClassName, receiverLabel, s, converter.functionName
-                                )
-                            }
-                            converter.enclosingObject != null -> {
-                                val enclosingClassName = enclosingClassName(converter)
-                                block.add(
-                                    "%N = %T.%N(this.%N)",
-                                    t, enclosingClassName, converter.functionName, s
-                                )
-                            }
-                            converter.isExtension -> {
-                                block.add("%N = this.%N.%N()", t, s, converter.functionName)
-                            }
-                            else -> {
-                                block.add("%N = %N(this.%N)", t, converter.functionName, s)
-                            }
-                        }
-                    }
-                    is ConverterSource.WholeObject -> {
-                        when {
-                            converter.enclosingObject != null && converter.isExtension -> {
-                                val enclosingClassName = enclosingClassName(converter)
-                                block.add(
-                                    "%N = with(%T) { this@%N.%N() }",
-                                    t, enclosingClassName, receiverLabel, converter.functionName
-                                )
-                            }
-                            converter.enclosingObject != null -> {
-                                val enclosingClassName = enclosingClassName(converter)
-                                block.add(
-                                    "%N = %T.%N(this)",
-                                    t, enclosingClassName, converter.functionName
-                                )
-                            }
-                            converter.isExtension -> {
-                                block.add("%N = this.%N()", t, converter.functionName)
-                            }
-                            else -> {
-                                block.add("%N = %N(this)", t, converter.functionName)
-                            }
-                        }
-                    }
-                }
+                addConverterLine(block, strategy, receiverLabel)
             }
-
             is PropertyMappingStrategy.NestedMapper -> {
-                val t = strategy.targetProperty.name
-                val s = strategy.sourceProperty.name
-                val fnName = config.functionNameForNested(strategy.nestedMappingDescriptor)
-                val sourceIsNullable = strategy.sourceProperty.type.isNullable
-                val targetIsNullable = strategy.targetProperty.type.isNullable
-                val collKind = strategy.nestedMappingDescriptor.collectionKind
-
-                if (collKind != null) {
-                    val srcElemIsNullable = strategy.nestedMappingDescriptor.sourceType.isNullable
-                    val tgtElemIsNullable = strategy.nestedMappingDescriptor.targetType.isNullable
-                    val mapFn = if (srcElemIsNullable && !tgtElemIsNullable) "mapNotNull" else "map"
-                    val toSuffix = when (collKind) {
-                        CollectionKind.LIST -> ""
-                        CollectionKind.SET -> if (sourceIsNullable) "?.toSet()" else ".toSet()"
-                    }
-                    val emptyFallback = when (collKind) {
-                        CollectionKind.LIST -> "emptyList()"
-                        CollectionKind.SET -> "emptySet()"
-                    }
-                    val itRef = if (srcElemIsNullable) "it?" else "it"
-
-                    if (sourceIsNullable) {
-                        val fallback = if (!targetIsNullable) " ?: $emptyFallback" else ""
-                        block.add("%N = this.%N?.%L { %L.%N() }%L%L", t, s, mapFn, itRef, fnName, toSuffix, fallback)
-                    } else {
-                        block.add("%N = this.%N.%L { %L.%N() }%L", t, s, mapFn, itRef, fnName, toSuffix)
-                    }
-                } else {
-                    if (sourceIsNullable) {
-                        // Target must be nullable (non-null case is rejected by NestedRule)
-                        block.add("%N = this.%N?.%N()", t, s, fnName)
-                    } else {
-                        block.add("%N = this.%N.%N()", t, s, fnName)
-                    }
-                }
+                addNestedMapperLine(block, strategy)
             }
-
             is PropertyMappingStrategy.Ignored -> {
                 // Already filtered out before this method is called
             }
         }
     }
 
-    private fun enclosingClassName(converter: ConverterDescriptor): ClassName =
-        ClassName(
-            converter.enclosingObject!!.packageName.asString(),
-            converter.enclosingObject.simpleName.asString()
-        )
+    private fun addConverterLine(
+        block: CodeBlock.Builder,
+        strategy: PropertyMappingStrategy.ConverterFunction,
+        receiverLabel: String
+    ) {
+        val t = strategy.targetProperty.name
+        val converter = strategy.converter
+
+        when (val source = strategy.source) {
+            is ConverterSource.Property -> {
+                addPropertyConverterLine(block, t, source.info.name, converter, receiverLabel)
+            }
+            is ConverterSource.WholeObject -> {
+                addWholeObjectConverterLine(block, t, converter, receiverLabel)
+            }
+        }
+    }
+
+    private fun addPropertyConverterLine(
+        block: CodeBlock.Builder,
+        targetName: String,
+        sourceName: String,
+        converter: ConverterDescriptor,
+        receiverLabel: String
+    ) {
+        when {
+            converter.enclosingObject != null && converter.isExtension -> {
+                block.add(
+                    "%N = with(%T) { this@%N.%N.%N() }",
+                    targetName, enclosingClassName(converter),
+                    receiverLabel, sourceName, converter.functionName
+                )
+            }
+            converter.enclosingObject != null -> {
+                block.add(
+                    "%N = %T.%N(this.%N)",
+                    targetName, enclosingClassName(converter),
+                    converter.functionName, sourceName
+                )
+            }
+            converter.isExtension -> {
+                block.add(
+                    "%N = this.%N.%N()",
+                    targetName, sourceName, converter.functionName
+                )
+            }
+            else -> {
+                block.add(
+                    "%N = %N(this.%N)",
+                    targetName, converter.functionName, sourceName
+                )
+            }
+        }
+    }
+
+    private fun addWholeObjectConverterLine(
+        block: CodeBlock.Builder,
+        targetName: String,
+        converter: ConverterDescriptor,
+        receiverLabel: String
+    ) {
+        when {
+            converter.enclosingObject != null && converter.isExtension -> {
+                block.add(
+                    "%N = with(%T) { this@%N.%N() }",
+                    targetName, enclosingClassName(converter),
+                    receiverLabel, converter.functionName
+                )
+            }
+            converter.enclosingObject != null -> {
+                block.add(
+                    "%N = %T.%N(this)",
+                    targetName, enclosingClassName(converter),
+                    converter.functionName
+                )
+            }
+            converter.isExtension -> {
+                block.add("%N = this.%N()", targetName, converter.functionName)
+            }
+            else -> {
+                block.add("%N = %N(this)", targetName, converter.functionName)
+            }
+        }
+    }
+
+    private fun addNestedMapperLine(
+        block: CodeBlock.Builder,
+        strategy: PropertyMappingStrategy.NestedMapper
+    ) {
+        val t = strategy.targetProperty.name
+        val s = strategy.sourceProperty.name
+        val fnName = config.functionNameForNested(strategy.nestedMappingDescriptor)
+        val collKind = strategy.nestedMappingDescriptor.collectionKind
+
+        if (collKind != null) {
+            addCollectionNestedLine(block, strategy, t, s, fnName, collKind)
+        } else {
+            val dot = if (strategy.sourceProperty.type.isNullable) "?." else "."
+            block.add("%N = this.%N%L%N()", t, s, dot, fnName)
+        }
+    }
+
+    private fun addCollectionNestedLine(
+        block: CodeBlock.Builder,
+        strategy: PropertyMappingStrategy.NestedMapper,
+        t: String,
+        s: String,
+        fnName: String,
+        collKind: CollectionKind
+    ) {
+        val sourceIsNullable = strategy.sourceProperty.type.isNullable
+        val targetIsNullable = strategy.targetProperty.type.isNullable
+        val srcElemIsNullable = strategy.nestedMappingDescriptor.sourceType.isNullable
+        val tgtElemIsNullable = strategy.nestedMappingDescriptor.targetType.isNullable
+        val mapFn = if (srcElemIsNullable && !tgtElemIsNullable) "mapNotNull" else "map"
+        val toSuffix = when (collKind) {
+            CollectionKind.LIST -> ""
+            CollectionKind.SET -> if (sourceIsNullable) "?.toSet()" else ".toSet()"
+        }
+        val itRef = if (srcElemIsNullable) "it?" else "it"
+
+        if (sourceIsNullable) {
+            val emptyFallback = when (collKind) {
+                CollectionKind.LIST -> "emptyList()"
+                CollectionKind.SET -> "emptySet()"
+            }
+            val fallback = if (!targetIsNullable) " ?: $emptyFallback" else ""
+            block.add("%N = this.%N?.%L { %L.%N() }%L%L", t, s, mapFn, itRef, fnName, toSuffix, fallback)
+        } else {
+            block.add("%N = this.%N.%L { %L.%N() }%L", t, s, mapFn, itRef, fnName, toSuffix)
+        }
+    }
+
+    private fun enclosingClassName(converter: ConverterDescriptor): ClassName {
+        val obj = converter.enclosingObject!!
+        return ClassName(obj.packageName.asString(), obj.simpleName.asString())
+    }
 }

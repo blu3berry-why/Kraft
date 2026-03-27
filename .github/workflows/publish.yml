@@ -24,6 +24,7 @@ jobs:
       - name: Publish JVM, JS, WasmJs and KMP metadata
         run: |
           ./gradlew \
+            :kraft-core:publish \
             :kraft-ksp:publish \
             :kraft-annotations:publishKotlinMultiplatformPublicationToGitHubPackagesRepository \
             :kraft-annotations:publishJvmPublicationToGitHubPackagesRepository \

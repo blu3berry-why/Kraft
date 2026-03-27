@@ -1,0 +1,69 @@
+build:
+  maxIssues: 0
+
+complexity:
+  LongMethod:
+    threshold: 60
+  CyclomaticComplexMethod:
+    threshold: 15
+  TooManyFunctions:
+    thresholdInFiles: 15
+    thresholdInClasses: 15
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 8
+  NestedBlockDepth:
+    threshold: 4
+  ComplexCondition:
+    threshold: 5
+
+coroutines:
+  active: false
+
+empty-blocks:
+  active: true
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: true
+
+naming:
+  FunctionNaming:
+    functionPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    excludes:
+      - '**/test/**'
+      - '**/jvmTest/**'
+
+performance:
+  active: true
+
+potential-bugs:
+  active: true
+
+style:
+  WildcardImport:
+    active: false
+  MagicNumber:
+    active: true
+    ignoreNumbers:
+      - '-1'
+      - '0'
+      - '1'
+      - '2'
+    ignoreHashCodeFunction: true
+    ignorePropertyDeclaration: true
+    ignoreAnnotation: true
+    ignoreEnums: true
+  MaxLineLength:
+    maxLineLength: 120
+    excludeCommentStatements: true
+  ReturnCount:
+    max: 5
+  ForbiddenComment:
+    active: true
+  UnusedImports:
+    active: true
+  NewLineAtEndOfFile:
+    active: true
+  LoopWithTooManyJumpStatements:
+    maxJumpCount: 3

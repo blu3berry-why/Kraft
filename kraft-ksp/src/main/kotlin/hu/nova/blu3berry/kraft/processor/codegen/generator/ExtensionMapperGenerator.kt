@@ -9,9 +9,14 @@ import com.squareup.kotlinpoet.ksp.writeTo
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.MappingSource
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
+import hu.nova.blu3berry.kraft.processor.codegen.className
 import hu.nova.blu3berry.kraft.processor.codegen.MapperGenerator
 import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
 
+/**
+ * Built-in [MapperGenerator] that produces Kotlin extension functions
+ * (`fun Source.toTarget(): Target`) using KotlinPoet.
+ */
 class ExtensionMapperGenerator(
     private val logger: KSPLogger,
     private val config: GenerationConfig,
@@ -52,10 +57,12 @@ class ExtensionMapperGenerator(
             .addFunction(funBuilder.build())
             .build()
 
-        file.writeTo(
-            codeGenerator = codeGenerator,
-            dependencies = Dependencies(aggregating = false, *originatingFiles.toTypedArray())
+        @Suppress("SpreadOperator")
+        val deps = Dependencies(
+            aggregating = false,
+            *originatingFiles.toTypedArray()
         )
+        file.writeTo(codeGenerator = codeGenerator, dependencies = deps)
         logger.info("Generated extension mapper function: $packageName.$functionName")
     }
 }

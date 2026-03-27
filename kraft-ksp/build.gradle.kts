@@ -20,15 +20,11 @@ kotlin {
     sourceSets {
         val jvmMain by getting {
             dependencies {
-                implementation(project(":kraft-annotations"))
-
-                // KSP API for processors
-                implementation(libs.ksp.api)
+                implementation(project(":kraft-core"))
 
                 // KotlinPoet for code generation
                 implementation(libs.kotlinpoet)
                 implementation(libs.kotlinpoet.ksp)
-
             }
             kotlin.srcDir("src/main/kotlin")
             resources.srcDir("src/main/resources")

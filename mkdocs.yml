@@ -1,0 +1,58 @@
+site_name: Kraft
+site_description: Compile-time mapper generation for Kotlin Multiplatform
+site_url: https://blu3berry-why.github.io/Kraft/
+repo_url: https://github.com/blu3berry-why/Kraft
+repo_name: blu3berry-why/Kraft
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - User Guide:
+      - Getting Started: user-guide/getting-started.md
+      - Basic Mapping: user-guide/basic-mapping.md
+      - Field Renaming: user-guide/field-renaming.md
+      - Nested Mapping: user-guide/nested-mapping.md
+      - Collection Mapping: user-guide/collection-mapping.md
+      - Enum Mapping: user-guide/enum-mapping.md
+      - Custom Converters: user-guide/custom-converters.md
+      - Ignore Rules: user-guide/ignore-rules.md
+      - Configuration Objects: user-guide/configuration-objects.md
+      - Reverse Mapping: user-guide/reverse-mapping.md
+      - KSP Options: user-guide/ksp-options.md
+      - AI Integration: user-guide/ai-integration.md
+  - Developer Guide:
+      - Architecture: developer-guide/architecture.md

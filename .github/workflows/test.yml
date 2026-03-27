@@ -20,6 +20,16 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Run detekt
+        run: ./gradlew detekt --continue
+
+      - name: Upload detekt reports
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: detekt-reports
+          path: '**/build/reports/detekt/'
+
       - name: Run tests
         run: ./gradlew :kraft-ksp:jvmTest --continue
 
