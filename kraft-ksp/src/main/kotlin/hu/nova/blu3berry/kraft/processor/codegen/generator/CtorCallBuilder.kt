@@ -8,6 +8,7 @@ import hu.nova.blu3berry.kraft.model.descriptor.ConverterSource
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
+import hu.nova.blu3berry.kraft.processor.codegen.className
 import hu.nova.blu3berry.kraft.processor.codegen.functionNameForNested
 
 /**
@@ -213,9 +214,8 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
         }
     }
 
-    private fun enclosingClassName(converter: ConverterDescriptor): ClassName =
-        ClassName(
-            converter.enclosingObject!!.packageName.asString(),
-            converter.enclosingObject.simpleName.asString()
-        )
+    private fun enclosingClassName(converter: ConverterDescriptor): ClassName {
+        val obj = converter.enclosingObject!!
+        return ClassName(obj.packageName.asString(), obj.simpleName.asString())
+    }
 }

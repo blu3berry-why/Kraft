@@ -30,4 +30,5 @@ dependencyResolutionManagement {
 
 include(":composeApp")
 include(":kraft-annotations")
+include(":kraft-core")
 include(":kraft-ksp")

@@ -3,23 +3,26 @@ package hu.nova.blu3berry.kraft.model
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Nullability
-import com.squareup.kotlinpoet.ClassName
 
 /**
- * Wraps a KSP type reference with metadata needed for both type comparison
+ * Wraps a KSP type reference with metadata needed for type comparison
  * and code generation.
  *
  * @param declaration  KSP class declaration backing this type.
  * @param ksType       Resolved KSP type (used for equality and nullability checks).
- * @param className    KotlinPoet [ClassName] used when emitting generated code.
+ * @param packageName  Fully qualified package name (e.g. `com.example.model`).
+ * @param simpleName   Simple class name (e.g. `UserDto`).
  * @param isNullable   Whether the type is declared nullable (`?`).
  */
 data class TypeInfo(
     val declaration: KSClassDeclaration,
     val ksType: KSType,
-    val className: ClassName,
+    val packageName: String,
+    val simpleName: String,
     val isNullable: Boolean
 ) {
+    val qualifiedName: String get() = "$packageName.$simpleName"
+
     companion object {
 
         /** Creates a [TypeInfo] from a resolved [KSType]. */
@@ -30,10 +33,8 @@ data class TypeInfo(
             return TypeInfo(
                 declaration = decl,
                 ksType = type,
-                className = ClassName(
-                    decl.packageName.asString(),
-                    decl.simpleName.asString()
-                ),
+                packageName = decl.packageName.asString(),
+                simpleName = decl.simpleName.asString(),
                 isNullable = type.nullability == Nullability.NULLABLE
             )
         }
@@ -45,11 +46,7 @@ fun KSClassDeclaration.toTypeInfo(ksType: KSType): TypeInfo =
     TypeInfo(
         declaration = this,
         ksType = ksType,
-        className = ClassName(
-            packageName.asString(),
-            simpleName.asString()
-        ),
+        packageName = packageName.asString(),
+        simpleName = simpleName.asString(),
         isNullable = ksType.nullability == Nullability.NULLABLE
     )
-
-

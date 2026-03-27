@@ -38,9 +38,9 @@ class NestedRule : MappingRule {
         } else null
         val targetCandidates = ctx.nestedMappings.filter { nm ->
             if (targetIsCollection && targetElementType != null)
-                nm.targetType.className == targetElementType.className
+                nm.targetType.qualifiedName == targetElementType.qualifiedName
             else
-                nm.targetType.className == target.type.className
+                nm.targetType.qualifiedName == target.type.qualifiedName
         }
         if (targetCandidates.isNotEmpty()) {
             return resolveExplicitNested(
@@ -93,7 +93,7 @@ class NestedRule : MappingRule {
         if (nonMappableType != null) {
             ctx.logger.nestedTypeNotMappable(
                 propertyName = target.name,
-                typeName = nonMappableType.className.simpleName,
+                typeName = nonMappableType.simpleName,
                 symbol = target.declaration
             )
             return null
@@ -203,8 +203,8 @@ class NestedRule : MappingRule {
             ?: run {
                 ctx.logger.nestedMappingSourceNotFound(
                     sourceTypeName = ctx.sourceTypeName,
-                    nestedSourceType = targetCandidates.first().sourceType.className.simpleName,
-                    nestedTargetType = target.type.className.simpleName,
+                    nestedSourceType = targetCandidates.first().sourceType.simpleName,
+                    nestedTargetType = target.type.simpleName,
                     symbol = target.declaration
                 )
                 return null
@@ -215,24 +215,24 @@ class NestedRule : MappingRule {
         }
         val nestedCandidates = targetCandidates.filter { nm ->
             if (overrideElementType != null)
-                nm.sourceType.className == overrideElementType.className
+                nm.sourceType.qualifiedName == overrideElementType.qualifiedName
             else
-                nm.sourceType.className == overrideProp.type.className
+                nm.sourceType.qualifiedName == overrideProp.type.qualifiedName
         }
 
         return when {
             nestedCandidates.isEmpty() -> {
                 ctx.logger.nestedMappingSourceNotFound(
                     sourceTypeName = ctx.sourceTypeName,
-                    nestedSourceType = overrideProp.type.className.simpleName,
-                    nestedTargetType = target.type.className.simpleName,
+                    nestedSourceType = overrideProp.type.simpleName,
+                    nestedTargetType = target.type.simpleName,
                     symbol = target.declaration
                 )
                 null
             }
             nestedCandidates.size > 1 -> {
                 ctx.logger.ambiguousNestedDescriptors(
-                    targetTypeName = target.type.className.simpleName,
+                    targetTypeName = target.type.simpleName,
                     matchCount = nestedCandidates.size,
                     symbol = target.declaration
                 )
@@ -262,7 +262,7 @@ class NestedRule : MappingRule {
     ): PropertyMappingStrategy? {
         if (targetCandidates.size > 1) {
             ctx.logger.ambiguousNestedDescriptors(
-                targetTypeName = target.type.className.simpleName,
+                targetTypeName = target.type.simpleName,
                 matchCount = targetCandidates.size,
                 symbol = target.declaration
             )
@@ -279,9 +279,9 @@ class NestedRule : MappingRule {
                 ctx.logger.nestedMappingSourceNotFound(
                     sourceTypeName = ctx.sourceTypeName,
                     nestedSourceType = nested.sourceType
-                        .className.simpleName,
+                        .simpleName,
                     nestedTargetType = nested.targetType
-                        .className.simpleName,
+                        .simpleName,
                     symbol = target.declaration
                 )
                 null
@@ -307,7 +307,7 @@ class NestedRule : MappingRule {
                 ctx.logger.ambiguousNestedSourceProperty(
                     sourceTypeName = ctx.sourceTypeName,
                     nestedSourceType = nested.sourceType
-                        .className.simpleName,
+                        .simpleName,
                     matchingProps = sourcePropCandidates
                         .map { it.name }.sorted(),
                     symbol = target.declaration
@@ -325,12 +325,12 @@ class NestedRule : MappingRule {
     ): List<PropertyInfo> = if (targetIsCollection) {
         ctx.sourceProps.values.filter { prop ->
             collectionKindOf(prop.type) == targetCollKind &&
-                elementTypeInfo(prop.type)?.className ==
-                nested.sourceType.className
+                elementTypeInfo(prop.type)?.qualifiedName ==
+                nested.sourceType.qualifiedName
         }
     } else {
         ctx.sourceProps.values.filter { prop ->
-            prop.type.className == nested.sourceType.className
+            prop.type.qualifiedName == nested.sourceType.qualifiedName
         }
     }
 
@@ -350,7 +350,7 @@ class NestedRule : MappingRule {
         ) {
             val srcElement = elementTypeInfo(sourceProp.type) ?: return null
             val tgtElement = elementTypeInfo(target.type) ?: return null
-            if (srcElement.className == tgtElement.className) return null
+            if (srcElement.qualifiedName == tgtElement.qualifiedName) return null
             if (!isMappableClass(srcElement) ||
                 !isMappableClass(tgtElement)
             ) return null
@@ -365,7 +365,7 @@ class NestedRule : MappingRule {
         }
 
         // Single-object auto-detection
-        if (sourceProp.type.className == target.type.className) return null
+        if (sourceProp.type.qualifiedName == target.type.qualifiedName) return null
         if (!isMappableClass(sourceProp.type) ||
             !isMappableClass(target.type)
         ) return null

@@ -9,6 +9,7 @@ import com.squareup.kotlinpoet.ksp.writeTo
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.MappingSource
 import hu.nova.blu3berry.kraft.processor.codegen.GenerationConfig
+import hu.nova.blu3berry.kraft.processor.codegen.className
 import hu.nova.blu3berry.kraft.processor.codegen.MapperGenerator
 import hu.nova.blu3berry.kraft.processor.util.CodeGenUtils
 

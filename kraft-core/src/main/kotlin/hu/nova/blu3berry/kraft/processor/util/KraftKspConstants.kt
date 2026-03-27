@@ -13,7 +13,7 @@ import hu.nova.blu3berry.kraft.mapping.MapIgnore
 import hu.nova.blu3berry.kraft.mapping.MapNested
 import hu.nova.blu3berry.kraft.mapping.MapTo
 
-internal object KraftKspConstants {
+object KraftKspConstants {
     // Annotation argument names
     const val ARG_CLASS            = "class"
     const val ARG_NAME             = "name"

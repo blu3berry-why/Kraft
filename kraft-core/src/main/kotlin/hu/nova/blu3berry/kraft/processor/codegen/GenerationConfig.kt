@@ -1,6 +1,5 @@
 package hu.nova.blu3berry.kraft.processor.codegen
 
-import com.squareup.kotlinpoet.ClassName
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 
@@ -9,24 +8,21 @@ data class GenerationConfig(
 ) {
 
     fun functionNameFor(descriptor: MapperDescriptor): String {
-        val sourceSimple = descriptor.sourceType.className.simpleName
-        val targetSimple = descriptor.targetType.className.simpleName
+        return functionNameTemplate
+            .replace("\${source}", descriptor.sourceType.simpleName)
+            .replace("\${target}", descriptor.targetType.simpleName)
+    }
 
+    fun functionNameFor(sourceSimple: String, targetSimple: String): String {
         return functionNameTemplate
             .replace("\${source}", sourceSimple)
             .replace("\${target}", targetSimple)
-    }
-
-    fun functionNameFor(from: ClassName, to: ClassName): String {
-        return functionNameTemplate
-            .replace("\${source}", from.simpleName)
-            .replace("\${target}", to.simpleName)
     }
 }
 
 fun GenerationConfig.functionNameForNested(nested: NestedMappingDescriptor): String {
     return functionNameFor(
-        nested.sourceType.className,
-        nested.targetType.className
+        nested.sourceType.simpleName,
+        nested.targetType.simpleName
     )
 }
