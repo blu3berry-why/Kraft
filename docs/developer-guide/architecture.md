@@ -2,7 +2,7 @@
 
 ## Pipeline Overview
 
-```
+```text
 @MapFrom / @MapTo / @MapConfig / @MapEnum (annotations)
         |
         v
@@ -44,7 +44,7 @@ Concrete builders include `ClassDescriptorBuilder`, `ConfigDescriptorBuilder`, a
 
 ## Module Structure
 
-```
+```text
 kraft-annotations (KMP: JVM, iOS, JS, WasmJs)
   User-facing annotations (@MapFrom, @MapTo, @MapConfig, etc.)
   No external dependencies.
@@ -170,7 +170,7 @@ class MyGenerator(
 
 4. Register via ServiceLoader. Create the file `META-INF/services/hu.nova.blu3berry.kraft.processor.codegen.MapperGeneratorProvider`:
 
-```
+```text
 com.example.MyGeneratorProvider
 ```
 

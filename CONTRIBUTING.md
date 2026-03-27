@@ -60,7 +60,7 @@ Kraft uses [Conventional Commits](https://www.conventionalcommits.org/). The com
 | `ci:` | CI/CD changes | No release |
 
 Examples:
-```
+```text
 fix: resolve nullable nested property codegen
 feat: add Map<K,V> collection mapping support
 feat!: rename MapperGenerator SPI interface
@@ -126,7 +126,7 @@ fun `error when source property is missing`() {
 
 Tests are organized by feature in `kraft-ksp/src/jvmTest/kotlin/hu/nova/blu3berry/kraft/`:
 
-```
+```text
 basic/           — simple mapping, rename, multi-mapper, annotation guards
 nested/          — auto-detection, @MapNested, config nested, collections, nullable, circular
 mapenum/         — auto, custom, mixed, error cases

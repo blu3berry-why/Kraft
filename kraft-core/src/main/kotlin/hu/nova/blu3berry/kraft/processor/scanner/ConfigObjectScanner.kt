@@ -342,9 +342,9 @@ class ConfigObjectScanner(
         fn: KSFunctionDeclaration,
         propertyPairs: MutableMap<String, KSFunctionDeclaration>
     ): ConverterAnnotationArgs? {
-        val mapUsingAnn = fn.annotations.first {
+        val mapUsingAnn = fn.annotations.firstOrNull {
             it.isAnnotation(KraftKspConstants.FQ_MAP_USING)
-        }
+        } ?: return null
 
         val fromProp = mapUsingAnn.getStringArgOrNull(
             name = KraftKspConstants.ARG_SOURCE,

@@ -216,8 +216,8 @@ The `direction` parameter on `MapIgnoreField` controls which mapping direction t
 ```kotlin
 import hu.nova.blu3berry.kraft.config.*
 
-data class User(val id: Int, val name: String, val internalNote: String = "")
-data class UserDto(val id: Int, val name: String, val extra: String = "")
+data class User(val id: Int, val name: String, val internalNote: String = "", val extra: String = "")
+data class UserDto(val id: Int, val name: String, val internalNote: String = "", val extra: String = "")
 
 @MapReverse
 @MapConfig(
@@ -233,8 +233,8 @@ object UserMapper
 
 **Result:**
 
-- Forward (`User.toUserDto()`): `extra` is omitted (TARGET applies), `internalNote` is mapped normally.
-- Reverse (`UserDto.toUser()`): `internalNote` is omitted (SOURCE applies), `extra` is mapped normally.
+- Forward (`User.toUserDto()`): `extra` is omitted (TARGET), `internalNote` is mapped.
+- Reverse (`UserDto.toUser()`): `internalNote` is omitted (SOURCE), `extra` is mapped.
 
 ## Error Cases
 

@@ -7,6 +7,7 @@ import hu.nova.blu3berry.kraft.model.MapperId
 import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
+import hu.nova.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 import hu.nova.blu3berry.kraft.model.descriptor.MappingContext
 import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import hu.nova.blu3berry.kraft.model.scan.ConfigObjectScanResult
@@ -33,6 +34,9 @@ class ReverseDescriptorBuilder(
         val newTargetDecl = forwardDescriptor.sourceType.declaration
         val newTargetTypeName = newTargetDecl.qualifiedName?.asString()
             ?: newTargetDecl.simpleName.asString()
+        val newSourceTypeName = newSourceDecl.qualifiedName?.asString()
+            ?: newSourceDecl.simpleName.asString()
+        val reverseNestedMappings = buildReverseNestedMappings()
 
         val newTargetProps = extractTargetProps(
             newTargetDecl, newTargetTypeName
@@ -44,15 +48,13 @@ class ReverseDescriptorBuilder(
 
         val ctx = buildMappingContext(
             newSourceDecl, newTargetProps,
-            newTargetTypeName, reverseConverters
+            newSourceTypeName, newTargetTypeName,
+            reverseConverters, reverseNestedMappings
         )
 
         val mappings = resolveAllProperties(
             newTargetProps, PropertyResolver(), ctx
         ) ?: return null
-
-        val newSourceTypeName = newSourceDecl.qualifiedName?.asString()
-            ?: newSourceDecl.simpleName.asString()
 
         return MapperDescriptor(
             id = MapperId(newSourceTypeName, newTargetTypeName),
@@ -60,7 +62,7 @@ class ReverseDescriptorBuilder(
             targetType = forwardDescriptor.sourceType,
             source = forwardDescriptor.source,
             propertyMappings = mappings,
-            nestedMappings = buildReverseNestedMappings(),
+            nestedMappings = reverseNestedMappings,
             converters = reverseConverters
         )
     }
@@ -80,11 +82,11 @@ class ReverseDescriptorBuilder(
     private fun buildMappingContext(
         newSourceDecl: KSClassDeclaration,
         newTargetProps: List<PropertyInfo>,
+        newSourceTypeName: String,
         newTargetTypeName: String,
-        reverseConverters: List<ConverterDescriptor>
+        reverseConverters: List<ConverterDescriptor>,
+        reverseNestedMappings: List<NestedMappingDescriptor>
     ): MappingContext {
-        val newSourceTypeName = newSourceDecl.qualifiedName?.asString()
-            ?: newSourceDecl.simpleName.asString()
         val newSourceProps = newSourceDecl.toPropertyInfoMap(logger)
 
         val ignoredMappings = configObjects.flatMap { it.ignoredMappings }
@@ -106,7 +108,7 @@ class ReverseDescriptorBuilder(
             classRenames = extractInvertedClassRenames(),
             configRenames = extractInvertedConfigRenames(),
             converters = reverseConverters,
-            nestedMappings = buildReverseNestedMappings(),
+            nestedMappings = reverseNestedMappings,
             ignoredProperties = ignoredProperties,
             sourceTypeName = newSourceTypeName,
             targetTypeName = newTargetTypeName

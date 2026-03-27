@@ -137,6 +137,17 @@ class EnumMapScanner(
         val customMappings = extractCustomMappings(
             annotation, fromEntries, toEntries, decl
         )
+        val duplicateSources = customMappings.groupBy { it.source }
+            .filter { it.value.size > 1 }
+            .keys
+        if (duplicateSources.isNotEmpty()) {
+            logger.error(
+                "@MapEnum has duplicate source entries: ${duplicateSources.sorted()}. " +
+                    "Each source enum entry may only appear once in fieldMappings.",
+                decl
+            )
+            return null
+        }
         val allMappings = customMappings.toMutableList()
         val mappedSources = customMappings
             .mapTo(mutableSetOf()) { it.source }

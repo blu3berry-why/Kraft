@@ -30,6 +30,9 @@ exceptions:
 naming:
   FunctionNaming:
     functionPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    excludes:
+      - '**/test/**'
+      - '**/jvmTest/**'
 
 performance:
   active: true

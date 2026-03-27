@@ -8,7 +8,7 @@ Kraft requires Kotlin 2.0+ and KSP. Add the following to your `build.gradle.kts`
 
 ```kotlin
 plugins {
-    id("com.google.devtools.ksp") version "2.3.3"
+    id("com.google.devtools.ksp") version "<ksp-version>"
 }
 
 dependencies {

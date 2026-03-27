@@ -22,13 +22,27 @@ Customize the generated extension function name pattern.
 Set the option in your module's `build.gradle.kts`:
 
 ```kotlin
-// build.gradle.kts
+// build.gradle.kts — default behavior
 ksp {
-    arg("kraft.functionNameFormat", "to\${target}")              // default behavior
-    arg("kraft.functionNameFormat", "map\${source}To\${target}") // custom: includes source name
-    arg("kraft.functionNameFormat", "convert\${target}")          // custom: different prefix
+    arg("kraft.functionNameFormat", "to\${target}")
 }
 ```
+
+```kotlin
+// build.gradle.kts — custom: includes source name
+ksp {
+    arg("kraft.functionNameFormat", "map\${source}To\${target}")
+}
+```
+
+```kotlin
+// build.gradle.kts — custom: different prefix
+ksp {
+    arg("kraft.functionNameFormat", "convert\${target}")
+}
+```
+
+> **Note:** Only one format is active per build (the last `arg()` call wins).
 
 ### Examples
 

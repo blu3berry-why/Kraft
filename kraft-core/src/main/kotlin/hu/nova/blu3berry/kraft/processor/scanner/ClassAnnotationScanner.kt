@@ -90,6 +90,7 @@ class ClassAnnotationScanner(
             .getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_REVERSE)
             .filter { it.validate() }
 
+        // @MapReverse is valid on CLASS (@MapFrom/@MapTo) and OBJECT (@MapConfig)
         symbols.forEach { symbol ->
             if (symbol !is KSClassDeclaration ||
                 (symbol.classKind != ClassKind.CLASS &&

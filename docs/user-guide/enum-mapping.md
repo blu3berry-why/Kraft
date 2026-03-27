@@ -71,7 +71,7 @@ fun Status.toStatusDto(): StatusDto = when (this) {
 Auto-matched entries and custom field mappings coexist naturally. Entries that share a name are mapped automatically; entries that differ are covered by `fieldMappings`.
 
 ```kotlin
-enum class PaymentState  { PAID, PENDING, FAILED }
+enum class PaymentState { PAID, PENDING, FAILED }
 enum class PaymentStatus { PAID, AWAITING, ERROR }
 
 @MapEnum(

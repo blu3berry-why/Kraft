@@ -21,7 +21,7 @@ data class TypeInfo(
     val simpleName: String,
     val isNullable: Boolean
 ) {
-    val qualifiedName: String get() = "$packageName.$simpleName"
+    val qualifiedName: String get() = if (packageName.isEmpty()) simpleName else "$packageName.$simpleName"
 
     companion object {
 
