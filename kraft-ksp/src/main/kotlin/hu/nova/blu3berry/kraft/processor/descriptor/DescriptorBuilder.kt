@@ -97,42 +97,71 @@ class DescriptorBuilder(
         configMappings: List<ConfigObjectScanResult>,
         builtDescriptors: MutableMap<MapperId, MapperDescriptor>
     ) {
-        // Reverse for class-annotated mappings
+        buildClassReverseDescriptors(classMappings, configMappings, builtDescriptors)
+        buildConfigReverseDescriptors(classMappings, configMappings, builtDescriptors)
+    }
+
+    private fun buildClassReverseDescriptors(
+        classMappings: List<ClassMappingScanResult>,
+        configMappings: List<ConfigObjectScanResult>,
+        builtDescriptors: MutableMap<MapperId, MapperDescriptor>
+    ) {
         for (mapping in classMappings) {
             val configsForThis = configMappings.filter {
-                it.sourceType == mapping.sourceType && it.targetType == mapping.targetType
+                it.sourceType == mapping.sourceType &&
+                    it.targetType == mapping.targetType
             }
-            if (!mapping.hasReverse && configsForThis.none { it.hasReverse }) continue
-            val forwardId = MapperId(
-                sourceQualifiedName = mapping.sourceType.qualifiedName?.asString() ?: mapping.sourceType.simpleName.asString(),
-                targetQualifiedName = mapping.targetType.qualifiedName?.asString() ?: mapping.targetType.simpleName.asString()
+            if (!mapping.hasReverse && configsForThis.none { it.hasReverse }) {
+                continue
+            }
+            tryBuildReverse(
+                mapping.sourceType, mapping.targetType,
+                configsForThis, mapping.annotatedClass, builtDescriptors
             )
-            val forwardDescriptor = builtDescriptors[forwardId] ?: continue
-            val reverseId = MapperId(forwardId.targetQualifiedName, forwardId.sourceQualifiedName)
-            if (reverseId in builtDescriptors) continue // explicit reverse already exists
-
-            ReverseDescriptorBuilder(logger, forwardDescriptor, configsForThis, mapping.annotatedClass)
-                .build()
-                ?.let { builtDescriptors[it.id] = it }
         }
+    }
 
-        // Reverse for config-only mappings
-        val classPairs = classMappings.map { it.sourceType to it.targetType }.toSet()
-        for (config in configMappings) {
-            if (!config.hasReverse) continue
-            if ((config.sourceType to config.targetType) in classPairs) continue // handled above
-            val forwardId = MapperId(
-                sourceQualifiedName = config.sourceType.qualifiedName?.asString() ?: config.sourceType.simpleName.asString(),
-                targetQualifiedName = config.targetType.qualifiedName?.asString() ?: config.targetType.simpleName.asString()
-            )
-            val forwardDescriptor = builtDescriptors[forwardId] ?: continue
-            val reverseId = MapperId(forwardId.targetQualifiedName, forwardId.sourceQualifiedName)
-            if (reverseId in builtDescriptors) continue
+    private fun buildConfigReverseDescriptors(
+        classMappings: List<ClassMappingScanResult>,
+        configMappings: List<ConfigObjectScanResult>,
+        builtDescriptors: MutableMap<MapperId, MapperDescriptor>
+    ) {
+        val classPairs = classMappings
+            .map { it.sourceType to it.targetType }.toSet()
+        configMappings
+            .filter { it.hasReverse }
+            .filter { (it.sourceType to it.targetType) !in classPairs }
+            .forEach { config ->
+                tryBuildReverse(
+                    config.sourceType, config.targetType,
+                    listOf(config), config.configObject, builtDescriptors
+                )
+            }
+    }
 
-            ReverseDescriptorBuilder(logger, forwardDescriptor, listOf(config), config.configObject)
-                .build()
-                ?.let { builtDescriptors[it.id] = it }
-        }
+    private fun tryBuildReverse(
+        sourceType: KSClassDeclaration,
+        targetType: KSClassDeclaration,
+        configs: List<ConfigObjectScanResult>,
+        errorNode: KSClassDeclaration,
+        builtDescriptors: MutableMap<MapperId, MapperDescriptor>
+    ) {
+        val forwardId = MapperId(
+            sourceQualifiedName = sourceType.qualifiedName?.asString()
+                ?: sourceType.simpleName.asString(),
+            targetQualifiedName = targetType.qualifiedName?.asString()
+                ?: targetType.simpleName.asString()
+        )
+        val forwardDescriptor = builtDescriptors[forwardId] ?: return
+        val reverseId = MapperId(
+            forwardId.targetQualifiedName,
+            forwardId.sourceQualifiedName
+        )
+        if (reverseId in builtDescriptors) return
+
+        ReverseDescriptorBuilder(logger, forwardDescriptor, configs, errorNode)
+            .build()
+            ?.let { builtDescriptors[it.id] = it }
     }
 
     // ---------------------------

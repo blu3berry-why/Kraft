@@ -3,7 +3,8 @@ package hu.nova.blu3berry.kraft.processor.scanner
 import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
-import com.google.devtools.ksp.symbol.*
+import com.google.devtools.ksp.symbol.ClassKind
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.validate
 import hu.nova.blu3berry.kraft.model.scan.ClassMappingScanResult
 import hu.nova.blu3berry.kraft.model.scan.MapNestedAnnotation
@@ -20,61 +21,80 @@ class ClassAnnotationScanner(
 ) {
 
     fun scan(): List<ClassMappingScanResult> {
-        val results = mutableListOf<ClassMappingScanResult>()
+        val classesWithMapFrom = collectAndValidateAnnotated(
+            KraftKspConstants.FQ_MAP_FROM
+        )
+        val classesWithMapTo = collectAndValidateAnnotated(
+            KraftKspConstants.FQ_MAP_TO
+        )
+        val classesWithMapReverse = collectAndValidateReverse(
+            classesWithMapFrom, classesWithMapTo
+        )
 
-        // First, collect all symbols with either annotation and check if they are classes
-        val allMapFromSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_FROM).filter { it.validate() }
-        val allMapToSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_TO).filter { it.validate() }
-        val allMapReverseSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_REVERSE).filter { it.validate() }
-
-        // Check for non-class elements with @MapFrom and show error
-        allMapFromSymbols.forEach { symbol ->
-            if (symbol !is KSClassDeclaration || symbol.classKind != ClassKind.CLASS) {
-                logger.annotationTargetError(
-                    actualNode = symbol,
-                    annotationName = KraftKspConstants.FQ_MAP_FROM,
-                    expectedTarget = KraftKspConstants.ARG_CLASS
-                )
-            }
-        }
-
-        // Check for non-class elements with @MapTo and show error
-        allMapToSymbols.forEach { symbol ->
-            if (symbol !is KSClassDeclaration || symbol.classKind != ClassKind.CLASS) {
-                logger.annotationTargetError(
-                    actualNode = symbol,
-                    annotationName = KraftKspConstants.FQ_MAP_TO,
-                    expectedTarget = KraftKspConstants.ARG_CLASS
-                )
-            }
-        }
-
-        // Filter to only include regular class declarations (not objects, interfaces, enums, etc.)
-        val classesWithMapFrom = allMapFromSymbols
-            .filterIsInstance<KSClassDeclaration>()
-            .filter { it.classKind == ClassKind.CLASS }
-            .toSet()
-
-        val classesWithMapTo = allMapToSymbols
-            .filterIsInstance<KSClassDeclaration>()
-            .filter { it.classKind == ClassKind.CLASS }
-            .toSet()
-
-        // Find classes with both annotations
-        val classesWithBothAnnotations = classesWithMapFrom.intersect(classesWithMapTo)
-
-        // Report error for classes with both annotations
-        classesWithBothAnnotations.forEach { classDeclaration ->
+        val bothAnnotations = classesWithMapFrom.intersect(classesWithMapTo)
+        bothAnnotations.forEach { decl ->
             logger.error(
-                "Class ${classDeclaration.simpleName.asString()} has both @MapFrom and @MapTo annotations. " +
-                "Only one mapping annotation is allowed per class.",
-                classDeclaration
+                "Class ${decl.simpleName.asString()} has both " +
+                    "@MapFrom and @MapTo annotations. " +
+                    "Only one mapping annotation is allowed per class.",
+                decl
             )
         }
 
-        // Validate @MapReverse targets — must be CLASS or OBJECT (objects handled by ConfigObjectScanner)
-        allMapReverseSymbols.forEach { symbol ->
-            if (symbol !is KSClassDeclaration || (symbol.classKind != ClassKind.CLASS && symbol.classKind != ClassKind.OBJECT)) {
+        val results = mutableListOf<ClassMappingScanResult>()
+
+        (classesWithMapFrom - bothAnnotations).forEach { decl ->
+            processMapFromClass(
+                decl, decl in classesWithMapReverse, results
+            )
+        }
+        (classesWithMapTo - bothAnnotations).forEach { decl ->
+            processMapToClass(
+                decl, decl in classesWithMapReverse, results
+            )
+        }
+
+        return results
+    }
+
+    private fun collectAndValidateAnnotated(
+        annotationFq: String
+    ): Set<KSClassDeclaration> {
+        val symbols = resolver
+            .getSymbolsWithAnnotation(annotationFq)
+            .filter { it.validate() }
+
+        symbols.forEach { symbol ->
+            if (symbol !is KSClassDeclaration ||
+                symbol.classKind != ClassKind.CLASS
+            ) {
+                logger.annotationTargetError(
+                    actualNode = symbol,
+                    annotationName = annotationFq,
+                    expectedTarget = KraftKspConstants.ARG_CLASS
+                )
+            }
+        }
+
+        return symbols
+            .filterIsInstance<KSClassDeclaration>()
+            .filter { it.classKind == ClassKind.CLASS }
+            .toSet()
+    }
+
+    private fun collectAndValidateReverse(
+        classesWithMapFrom: Set<KSClassDeclaration>,
+        classesWithMapTo: Set<KSClassDeclaration>
+    ): Set<KSClassDeclaration> {
+        val symbols = resolver
+            .getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_REVERSE)
+            .filter { it.validate() }
+
+        symbols.forEach { symbol ->
+            if (symbol !is KSClassDeclaration ||
+                (symbol.classKind != ClassKind.CLASS &&
+                    symbol.classKind != ClassKind.OBJECT)
+            ) {
                 logger.annotationTargetError(
                     actualNode = symbol,
                     annotationName = KraftKspConstants.FQ_MAP_REVERSE,
@@ -83,33 +103,22 @@ class ClassAnnotationScanner(
             }
         }
 
-        // Collect classes with @MapReverse (objects are handled by ConfigObjectScanner)
-        val classesWithMapReverse = allMapReverseSymbols
+        val classesWithReverse = symbols
             .filterIsInstance<KSClassDeclaration>()
             .filter { it.classKind == ClassKind.CLASS }
             .toSet()
 
-        // Validate @MapReverse is not used without @MapFrom/@MapTo
-        val orphanedReverseClasses = classesWithMapReverse - classesWithMapFrom - classesWithMapTo
-        orphanedReverseClasses.forEach { classDeclaration ->
+        val orphaned = classesWithReverse -
+            classesWithMapFrom - classesWithMapTo
+        orphaned.forEach { decl ->
             logger.error(
-                "@MapReverse on '${classDeclaration.simpleName.asString()}' requires " +
-                "@MapFrom or @MapTo on the same class.",
-                classDeclaration
+                "@MapReverse on '${decl.simpleName.asString()}' " +
+                    "requires @MapFrom or @MapTo on the same class.",
+                decl
             )
         }
 
-        // Process valid @MapFrom classes (excluding those with both annotations)
-        (classesWithMapFrom - classesWithBothAnnotations).forEach { classDeclaration ->
-            processMapFromClass(classDeclaration, classDeclaration in classesWithMapReverse, results)
-        }
-
-        // Process valid @MapTo classes (excluding those with both annotations)
-        (classesWithMapTo - classesWithBothAnnotations).forEach { classDeclaration ->
-            processMapToClass(classDeclaration, classDeclaration in classesWithMapReverse, results)
-        }
-
-        return results
+        return classesWithReverse
     }
 
     private fun processMapFromClass(

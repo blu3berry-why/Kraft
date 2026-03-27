@@ -1,0 +1,5 @@
+pre-commit:
+  commands:
+    detekt:
+      glob: "*.{kt,kts}"
+      run: ./gradlew detekt

@@ -3,7 +3,6 @@ package hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver
 import hu.nova.blu3berry.kraft.model.descriptor.MappingContext
 import hu.nova.blu3berry.kraft.model.PropertyInfo
 import hu.nova.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
-import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ClassOverrideRule
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConfigOverrideRule
 import hu.nova.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConverterRule

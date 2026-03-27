@@ -31,6 +31,7 @@ import hu.nova.blu3berry.kraft.processor.util.getStringArgOrNull
 /**
  * Scans for configuration objects annotated with @MapConfig and extracts mapping information.
  */
+@Suppress("TooManyFunctions")
 class ConfigObjectScanner(
     private val resolver: Resolver,
     private val logger: KSPLogger
@@ -41,8 +42,12 @@ class ConfigObjectScanner(
     fun scan(): List<ConfigObjectScanResult> {
         val results = mutableListOf<ConfigObjectScanResult>()
 
-        val configSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_CONFIG).filter { it.validate() }.toList()
-        val reverseSymbols = resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_REVERSE).filter { it.validate() }
+        val configSymbols = resolver
+            .getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_CONFIG)
+            .filter { it.validate() }.toList()
+        val reverseSymbols = resolver
+            .getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_REVERSE)
+            .filter { it.validate() }
             .filterIsInstance<KSClassDeclaration>()
             .toSet()
 
@@ -202,9 +207,14 @@ class ConfigObjectScanner(
         ) ?: emptyList()
 
         return nestedAnnotations.mapNotNull { nestedAnn ->
-            val nestedFrom = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_SOURCE, logger, symbol, KraftKspConstants.FQ_NESTED_MAPPING)
-                ?: return@mapNotNull null
-            val nestedTo = nestedAnn.getKClassArgOrNull(KraftKspConstants.ARG_TARGET, logger, symbol, KraftKspConstants.FQ_NESTED_MAPPING)
+            val nestedFrom = nestedAnn.getKClassArgOrNull(
+                KraftKspConstants.ARG_SOURCE, logger, symbol,
+                KraftKspConstants.FQ_NESTED_MAPPING
+            ) ?: return@mapNotNull null
+            val nestedTo = nestedAnn.getKClassArgOrNull(
+                KraftKspConstants.ARG_TARGET, logger, symbol,
+                KraftKspConstants.FQ_NESTED_MAPPING
+            )
                 ?: return@mapNotNull null
 
             val fromDecl = nestedFrom.declaration as KSClassDeclaration
@@ -269,11 +279,7 @@ class ConfigObjectScanner(
         return converters
     }
 
-    /**
-     * Validates a converter function and creates a ConverterDescriptor if valid.
-     * When [fromProp] is blank, whole-source mode is used: the function receives the
-     * entire source object instead of a single property value.
-     */
+    @Suppress("LongParameterList", "ReturnCount")
     private fun validateAndCreateConverter(
         fn: KSFunctionDeclaration,
         symbol: KSClassDeclaration,
@@ -284,7 +290,61 @@ class ConfigObjectScanner(
         targetPropertyMap: Map<String, KSPropertyDeclaration>,
         propertyPairs: MutableMap<String, KSFunctionDeclaration>
     ): ConverterDescriptor? {
-        val mapUsingAnn = fn.annotations.first { it.isAnnotation(KraftKspConstants.FQ_MAP_USING) }
+        val parsed = parseConverterAnnotation(fn, propertyPairs)
+            ?: return null
+
+        if (!validatePropertyExists(
+                parsed.toProp, targetProperties, symbol, fn, "target"
+            )
+        ) return null
+        if (!validateFunctionSignature(fn)) return null
+
+        val paramType = getParameterType(fn)
+        val returnType = getReturnType(fn) ?: return null
+        val returnTypeDecl = getTypeDeclaration(
+            returnType, fn, "return"
+        ) ?: return null
+
+        val targetProp = targetPropertyMap[parsed.toProp] ?: run {
+            logger.error(
+                "Internal error: property '${parsed.toProp}' (target) " +
+                    "passed validatePropertyExists but was not found " +
+                    "in targetPropertyMap. Converter " +
+                    "'${fn.simpleName.asString()}' in " +
+                    "'${symbol.simpleName.asString()}' will be skipped.",
+                fn
+            )
+            return null
+        }
+        val targetType = targetProp.type.resolve()
+
+        return if (parsed.isWholeSource) {
+            createWholeSourceConverter(
+                fn, symbol, sourceClass, parsed.toProp,
+                paramType, returnType, returnTypeDecl, targetType
+            )
+        } else {
+            createPropertySourceConverter(
+                fn, symbol, parsed.fromProp!!, parsed.toProp,
+                sourceProperties, sourcePropertyMap,
+                paramType, returnType, returnTypeDecl, targetType
+            )
+        }
+    }
+
+    private data class ConverterAnnotationArgs(
+        val fromProp: String?,
+        val toProp: String,
+        val isWholeSource: Boolean
+    )
+
+    private fun parseConverterAnnotation(
+        fn: KSFunctionDeclaration,
+        propertyPairs: MutableMap<String, KSFunctionDeclaration>
+    ): ConverterAnnotationArgs? {
+        val mapUsingAnn = fn.annotations.first {
+            it.isAnnotation(KraftKspConstants.FQ_MAP_USING)
+        }
 
         val fromProp = mapUsingAnn.getStringArgOrNull(
             name = KraftKspConstants.ARG_SOURCE,
@@ -301,95 +361,117 @@ class ConfigObjectScanner(
         )
 
         if (toProp.isNullOrBlank()) {
-            logger.error("@MapUsing must specify a non-empty 'target' value", fn)
+            logger.error(
+                "@MapUsing must specify a non-empty 'target' value", fn
+            )
             return null
         }
 
         val isWholeSource = fromProp.isNullOrBlank()
 
-        // Check for duplicate target entries — keyed on toProp alone so that
-        // mixed-mode duplicates (whole-source vs property-source) are also rejected.
         val existingFn = propertyPairs[toProp]
         if (existingFn != null) {
             val sourceDesc = if (isWholeSource) "<whole source>" else fromProp
             logger.error(
-                "Multiple @MapUsing converters target property '$toProp': " +
-                "already defined in '${existingFn.simpleName.asString()}' " +
-                "(source: $sourceDesc), then again in '${fn.simpleName.asString()}'. " +
-                "Only one converter per target property is allowed.",
+                "Multiple @MapUsing converters target property " +
+                    "'$toProp': already defined in " +
+                    "'${existingFn.simpleName.asString()}' " +
+                    "(source: $sourceDesc), then again in " +
+                    "'${fn.simpleName.asString()}'. " +
+                    "Only one converter per target property is allowed.",
                 fn
             )
             return null
         }
         propertyPairs[toProp] = fn
 
-        if (!validatePropertyExists(toProp, targetProperties, symbol, fn, "target")) return null
+        return ConverterAnnotationArgs(fromProp, toProp, isWholeSource)
+    }
 
-        if (!validateFunctionSignature(fn)) return null
-
-        val paramType = getParameterType(fn)
-        val returnType = getReturnType(fn) ?: return null
-        val returnTypeDecl = getTypeDeclaration(returnType, fn, "return") ?: return null
-
-        val targetProp = targetPropertyMap[toProp] ?: run {
+    @Suppress("LongParameterList")
+    private fun createWholeSourceConverter(
+        fn: KSFunctionDeclaration,
+        symbol: KSClassDeclaration,
+        sourceClass: KSClassDeclaration,
+        toProp: String,
+        paramType: KSType,
+        returnType: KSType,
+        returnTypeDecl: KSClassDeclaration,
+        targetType: KSType
+    ): ConverterDescriptor? {
+        if (paramType.declaration.qualifiedName?.asString() !=
+            sourceClass.qualifiedName?.asString()
+        ) {
             logger.error(
-                "Internal error: property '$toProp' (target) passed validatePropertyExists " +
-                "but was not found in targetPropertyMap. " +
-                "Converter '${fn.simpleName.asString()}' in '${symbol.simpleName.asString()}' will be skipped.",
+                "@MapUsing whole-source converter " +
+                    "'${fn.simpleName.asString()}': parameter type " +
+                    "'$paramType' must match source class " +
+                    "'${sourceClass.qualifiedName?.asString()}'",
                 fn
             )
             return null
         }
-        val targetType = targetProp.type.resolve()
-
-        if (isWholeSource) {
-            // Whole-source: parameter/receiver must be the source class itself
-            val sourceClassType = sourceClass.asStarProjectedType()
-            if (paramType.declaration.qualifiedName?.asString() != sourceClass.qualifiedName?.asString()) {
-                logger.error(
-                    "@MapUsing whole-source converter '${fn.simpleName.asString()}': " +
-                    "parameter type '$paramType' must match source class '${sourceClass.qualifiedName?.asString()}'",
-                    fn
-                )
-                return null
-            }
-            if (!typesMatch(returnType, targetType)) {
-                logger.error(
-                    "Type mismatch in @MapUsing converter function '${fn.simpleName.asString()}': " +
-                    "Return type '$returnType' doesn't match target property '$toProp' type '$targetType'",
-                    fn
-                )
-                return null
-            }
-            val sourceTypeInfo = sourceClass.toTypeInfo(sourceClassType)
-            val targetTypeInfo = returnTypeDecl.toTypeInfo(returnType)
-            return ConverterDescriptor(
-                enclosingObject = symbol,
-                function = fn,
-                sourcePropertyName = null,
-                targetPropertyName = toProp,
-                sourceType = sourceTypeInfo,
-                targetType = targetTypeInfo
+        if (!typesMatch(returnType, targetType)) {
+            logger.error(
+                "Type mismatch in @MapUsing converter function " +
+                    "'${fn.simpleName.asString()}': Return type " +
+                    "'$returnType' doesn't match target property " +
+                    "'$toProp' type '$targetType'",
+                fn
             )
+            return null
         }
+        val sourceClassType = sourceClass.asStarProjectedType()
+        return ConverterDescriptor(
+            enclosingObject = symbol,
+            function = fn,
+            sourcePropertyName = null,
+            targetPropertyName = toProp,
+            sourceType = sourceClass.toTypeInfo(sourceClassType),
+            targetType = returnTypeDecl.toTypeInfo(returnType)
+        )
+    }
 
-        // Property-source path
-        if (!validatePropertyExists(fromProp, sourceProperties, symbol, fn, "source")) return null
+    @Suppress("LongParameterList", "ReturnCount")
+    private fun createPropertySourceConverter(
+        fn: KSFunctionDeclaration,
+        symbol: KSClassDeclaration,
+        fromProp: String,
+        toProp: String,
+        sourceProperties: Set<String>,
+        sourcePropertyMap: Map<String, KSPropertyDeclaration>,
+        paramType: KSType,
+        returnType: KSType,
+        returnTypeDecl: KSClassDeclaration,
+        targetType: KSType
+    ): ConverterDescriptor? {
+        if (!validatePropertyExists(
+                fromProp, sourceProperties, symbol, fn, "source"
+            )
+        ) return null
 
         val sourceProp = sourcePropertyMap[fromProp] ?: run {
             logger.error(
-                "Internal error: property '$fromProp' (source) passed validatePropertyExists " +
-                "but was not found in sourcePropertyMap. " +
-                "Converter '${fn.simpleName.asString()}' in '${symbol.simpleName.asString()}' will be skipped.",
+                "Internal error: property '$fromProp' (source) " +
+                    "passed validatePropertyExists but was not found " +
+                    "in sourcePropertyMap. Converter " +
+                    "'${fn.simpleName.asString()}' in " +
+                    "'${symbol.simpleName.asString()}' will be skipped.",
                 fn
             )
             return null
         }
         val sourceType = sourceProp.type.resolve()
 
-        val paramTypeDecl = getTypeDeclaration(paramType, fn, "parameter") ?: return null
+        val paramTypeDecl = getTypeDeclaration(
+            paramType, fn, "parameter"
+        ) ?: return null
 
-        if (!validateTypeCompatibility(paramType, sourceType, returnType, targetType, fromProp, toProp, fn)) return null
+        if (!validateTypeCompatibility(
+                paramType, sourceType, returnType,
+                targetType, fromProp, toProp, fn
+            )
+        ) return null
 
         return ConverterDescriptor(
             enclosingObject = symbol,

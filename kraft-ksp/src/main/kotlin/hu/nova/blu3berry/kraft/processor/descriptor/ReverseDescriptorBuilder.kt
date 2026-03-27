@@ -1,6 +1,7 @@
 package hu.nova.blu3berry.kraft.processor.descriptor
 
 import com.google.devtools.ksp.processing.KSPLogger
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSNode
 import hu.nova.blu3berry.kraft.model.MapperId
 import hu.nova.blu3berry.kraft.model.PropertyInfo
@@ -28,84 +29,103 @@ class ReverseDescriptorBuilder(
 ) {
 
     fun build(): MapperDescriptor? {
-        // Reverse: old target becomes new source, old source becomes new target
         val newSourceDecl = forwardDescriptor.targetType.declaration
         val newTargetDecl = forwardDescriptor.sourceType.declaration
+        val newTargetTypeName = newTargetDecl.qualifiedName?.asString()
+            ?: newTargetDecl.simpleName.asString()
 
-        val newSourceTypeName = newSourceDecl.qualifiedName?.asString() ?: newSourceDecl.simpleName.asString()
-        val newTargetTypeName = newTargetDecl.qualifiedName?.asString() ?: newTargetDecl.simpleName.asString()
+        val newTargetProps = extractTargetProps(
+            newTargetDecl, newTargetTypeName
+        ) ?: return null
 
-        val newSourceTypeInfo = forwardDescriptor.targetType
-        val newTargetTypeInfo = forwardDescriptor.sourceType
+        val reverseConverters = resolveReverseConverters(
+            newTargetTypeName
+        ) ?: return null
 
-        // Extract new target's constructor properties (old source's properties)
+        val ctx = buildMappingContext(
+            newSourceDecl, newTargetProps,
+            newTargetTypeName, reverseConverters
+        )
+
+        val mappings = resolveAllProperties(
+            newTargetProps, PropertyResolver(), ctx
+        ) ?: return null
+
+        val newSourceTypeName = newSourceDecl.qualifiedName?.asString()
+            ?: newSourceDecl.simpleName.asString()
+
+        return MapperDescriptor(
+            id = MapperId(newSourceTypeName, newTargetTypeName),
+            sourceType = forwardDescriptor.targetType,
+            targetType = forwardDescriptor.sourceType,
+            source = forwardDescriptor.source,
+            propertyMappings = mappings,
+            nestedMappings = buildReverseNestedMappings(),
+            converters = reverseConverters
+        )
+    }
+
+    private fun extractTargetProps(
+        newTargetDecl: KSClassDeclaration,
+        newTargetTypeName: String
+    ): List<PropertyInfo>? {
         val newTargetCtor = newTargetDecl.primaryConstructor ?: run {
             logger.missingPrimaryConstructor(newTargetTypeName, newTargetDecl)
             return null
         }
-        val newTargetProps = TargetPropertyExtractor(logger)
-            .extract(newTargetDecl, newTargetCtor, newTargetTypeName) ?: return null
+        return TargetPropertyExtractor(logger)
+            .extract(newTargetDecl, newTargetCtor, newTargetTypeName)
+    }
 
-        // Extract new source properties (old target's declared properties)
+    private fun buildMappingContext(
+        newSourceDecl: KSClassDeclaration,
+        newTargetProps: List<PropertyInfo>,
+        newTargetTypeName: String,
+        reverseConverters: List<ConverterDescriptor>
+    ): MappingContext {
+        val newSourceTypeName = newSourceDecl.qualifiedName?.asString()
+            ?: newSourceDecl.simpleName.asString()
         val newSourceProps = newSourceDecl.toPropertyInfoMap(logger)
 
-        // Invert rename maps: forward was targetName → sourceName, reverse needs newTargetName → newSourceName
-        val invertedClassRenames = extractInvertedClassRenames()
-        val invertedConfigRenames = extractInvertedConfigRenames()
-
-        // Resolve ignored properties with reverse=true (SOURCE entries now active)
         val ignoredMappings = configObjects.flatMap { it.ignoredMappings }
         val ignoredProperties = if (ignoredMappings.isNotEmpty()) {
             IgnoredPropertyAggregator.resolveConfigIgnored(
                 logger = logger,
                 ignoredMappings = ignoredMappings,
-                targetPropNames = newTargetProps.map { it.name }.toSet(),
+                targetPropNames = newTargetProps
+                    .map { it.name }.toSet(),
                 targetTypeName = newTargetTypeName,
                 errorNode = errorNode,
                 reverse = true
             )
         } else emptySet()
 
-        // Validate and collect reverse converters
-        val reverseConverters = resolveReverseConverters(newTargetTypeName) ?: return null
+        return MappingContext(
+            logger = logger,
+            sourceProps = newSourceProps,
+            classRenames = extractInvertedClassRenames(),
+            configRenames = extractInvertedConfigRenames(),
+            converters = reverseConverters,
+            nestedMappings = buildReverseNestedMappings(),
+            ignoredProperties = ignoredProperties,
+            sourceTypeName = newSourceTypeName,
+            targetTypeName = newTargetTypeName
+        )
+    }
 
-        // Build nested mapping descriptors with swapped source/target
-        val reverseNestedMappings = forwardDescriptor.nestedMappings.map { nested ->
+    private fun buildReverseNestedMappings() =
+        forwardDescriptor.nestedMappings.map { nested ->
             nested.copy(
                 nestedMapperId = MapperId(
-                    sourceQualifiedName = nested.nestedMapperId.targetQualifiedName,
-                    targetQualifiedName = nested.nestedMapperId.sourceQualifiedName
+                    sourceQualifiedName = nested.nestedMapperId
+                        .targetQualifiedName,
+                    targetQualifiedName = nested.nestedMapperId
+                        .sourceQualifiedName
                 ),
                 sourceType = nested.targetType,
                 targetType = nested.sourceType
             )
         }
-
-        val ctx = MappingContext(
-            logger = logger,
-            sourceProps = newSourceProps,
-            classRenames = invertedClassRenames,
-            configRenames = invertedConfigRenames,
-            converters = reverseConverters,
-            nestedMappings = reverseNestedMappings,
-            ignoredProperties = ignoredProperties,
-            sourceTypeName = newSourceTypeName,
-            targetTypeName = newTargetTypeName
-        )
-
-        val resolver = PropertyResolver()
-        val mappings = resolveAllProperties(newTargetProps, resolver, ctx) ?: return null
-
-        return MapperDescriptor(
-            id = MapperId(newSourceTypeName, newTargetTypeName),
-            sourceType = newSourceTypeInfo,
-            targetType = newTargetTypeInfo,
-            source = forwardDescriptor.source,
-            propertyMappings = mappings,
-            nestedMappings = reverseNestedMappings,
-            converters = reverseConverters
-        )
-    }
 
     /**
      * Invert class-level renames from the forward descriptor's property mappings.
@@ -175,7 +195,8 @@ class ReverseDescriptorBuilder(
 
             if (reverseConverter == null) {
                 val fwdSourceDesc = if (fwdConverter.sourcePropertyName != null)
-                    "@MapUsing(source = \"${fwdConverter.sourcePropertyName}\", target = \"${fwdConverter.targetPropertyName}\")"
+                    "@MapUsing(source = \"${fwdConverter.sourcePropertyName}\", " +
+                        "target = \"${fwdConverter.targetPropertyName}\")"
                 else
                     "@MapUsing(target = \"${fwdConverter.targetPropertyName}\") (whole-source)"
                 val neededDesc = if (reversePropTarget != null)

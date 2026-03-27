@@ -118,7 +118,8 @@ fun <T> KSAnnotation.getArrayArgOrNull(
         is List<*> -> {
             value as? List<T> ?: run {
                 logger.error(
-                    "@$annotationFqName argument '$name' must be a List<T>. Found List<${value.firstOrNull()?.let { it::class.simpleName }}>",
+                    "@$annotationFqName argument '$name' must be a List<T>. " +
+                        "Found List<${value.firstOrNull()?.let { it::class.simpleName }}>",
                     symbol
                 )
                 null
@@ -128,7 +129,8 @@ fun <T> KSAnnotation.getArrayArgOrNull(
         is Array<*> -> {
             value.toList() as? List<T> ?: run {
                 logger.error(
-                    "@$annotationFqName argument '$name' must be an Array<T>. Found Array<${value.firstOrNull()?.let { it::class.simpleName }}>",
+                    "@$annotationFqName argument '$name' must be an Array<T>. " +
+                        "Found Array<${value.firstOrNull()?.let { it::class.simpleName }}>",
                     symbol
                 )
                 null

@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package hu.nova.blu3berry.kraft.processor.util
 
 import com.google.devtools.ksp.processing.KSPLogger
@@ -368,6 +370,7 @@ fun KSPLogger.unsupportedSourcePropertyType(
 /**
  * One or more source enum entries have no mapping to the target enum.
  */
+@Suppress("LongParameterList")
 fun KSPLogger.unmappedEnumEntries(
     declaringClass: String,
     sourceQualifiedName: String,

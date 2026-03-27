@@ -2,7 +2,6 @@ package hu.nova.blu3berry.kraft.processor.codegen
 
 import com.squareup.kotlinpoet.ClassName
 import hu.nova.blu3berry.kraft.model.descriptor.MapperDescriptor
-import hu.nova.blu3berry.kraft.model.descriptor.MappingSource
 import hu.nova.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 
 data class GenerationConfig(

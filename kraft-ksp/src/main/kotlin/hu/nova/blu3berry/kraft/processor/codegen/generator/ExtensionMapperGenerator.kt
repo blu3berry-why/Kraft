@@ -52,10 +52,12 @@ class ExtensionMapperGenerator(
             .addFunction(funBuilder.build())
             .build()
 
-        file.writeTo(
-            codeGenerator = codeGenerator,
-            dependencies = Dependencies(aggregating = false, *originatingFiles.toTypedArray())
+        @Suppress("SpreadOperator")
+        val deps = Dependencies(
+            aggregating = false,
+            *originatingFiles.toTypedArray()
         )
+        file.writeTo(codeGenerator = codeGenerator, dependencies = deps)
         logger.info("Generated extension mapper function: $packageName.$functionName")
     }
 }

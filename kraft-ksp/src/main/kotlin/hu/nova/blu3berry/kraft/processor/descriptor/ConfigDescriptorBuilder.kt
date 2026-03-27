@@ -35,7 +35,8 @@ class ConfigDescriptorBuilder(
             return null
         }
 
-        val targetProps = TargetPropertyExtractor(logger).extract(toDecl, targetCtor, toDecl.simpleName.asString()) ?: return null
+        val targetProps = TargetPropertyExtractor(logger)
+            .extract(toDecl, targetCtor, toDecl.simpleName.asString()) ?: return null
 
         val ignoredProperties = buildIgnoredProperties(targetProps, toDecl.simpleName.asString())
         val ctx = buildMappingContext(fromDecl, toDecl, sourceProps, config.nestedMappings, ignoredProperties)
