@@ -1,3 +1,5 @@
+[![Test](https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml/badge.svg)](https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml)
+
 # Kraft – A Kotlin Multiplatform Auto-Mapper (KSP)
 
 Kraft is a Kotlin Multiplatform (KMP) code-generation library that automatically generates type-safe mappers between data classes, enums, and nested structures — powered by **KSP (Kotlin Symbol Processing)**.
