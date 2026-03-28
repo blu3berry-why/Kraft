@@ -141,3 +141,7 @@ signing {
     isRequired = findProperty("signing.gnupg.keyName") != null
     sign(publishing.publications)
 }
+
+tasks.withType<AbstractPublishToMaven>().configureEach {
+    mustRunAfter(tasks.withType<Sign>())
+}

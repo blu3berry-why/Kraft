@@ -81,6 +81,8 @@ runs:
         MAVEN_PASS: ${{ inputs.maven-central-password }}
       run: |
         set -euo pipefail
+        # Ensure a newline separator from existing content
+        printf '\n' >> gradle.properties
         {
           printf 'gpr.user=%s\n' "$GPR_USER"
           printf 'gpr.token=%s\n' "$GPR_TOKEN"
