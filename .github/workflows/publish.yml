@@ -21,7 +21,19 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Inject publish credentials
+        uses: ./.github/actions/inject-credentials
+        with:
+          gpr-user: ${{ github.actor }}
+          gpr-token: ${{ secrets.GITHUB_TOKEN }}
+          signing-key-id: ${{ secrets.GPG_KEY_ID }}
+          signing-password: ${{ secrets.GPG_PASSPHRASE }}
+          maven-central-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          maven-central-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+
       - name: Publish JVM, JS, WasmJs and KMP metadata
+        env:
+          SIGNING_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           ./gradlew \
             :kraft-core:publish \
@@ -34,14 +46,7 @@ jobs:
             :kraft-annotations:publishJvmPublicationToMavenCentralRepository \
             :kraft-annotations:publishJsPublicationToMavenCentralRepository \
             :kraft-annotations:publishWasmJsPublicationToMavenCentralRepository \
-            --no-configuration-cache \
-            -Pgpr.user=${{ github.actor }} \
-            -Pgpr.token=${{ secrets.GITHUB_TOKEN }} \
-            -Psigning.keyId=${{ secrets.GPG_KEY_ID }} \
-            -Psigning.key="${{ secrets.GPG_PRIVATE_KEY }}" \
-            -Psigning.password=${{ secrets.GPG_PASSPHRASE }} \
-            -Pmaven.central.username=${{ secrets.MAVEN_CENTRAL_USERNAME }} \
-            -Pmaven.central.password=${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+            --no-configuration-cache
 
   publish-ios:
     runs-on: macos-latest
@@ -55,7 +60,19 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Inject publish credentials
+        uses: ./.github/actions/inject-credentials
+        with:
+          gpr-user: ${{ github.actor }}
+          gpr-token: ${{ secrets.GITHUB_TOKEN }}
+          signing-key-id: ${{ secrets.GPG_KEY_ID }}
+          signing-password: ${{ secrets.GPG_PASSPHRASE }}
+          maven-central-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          maven-central-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+
       - name: Publish iOS targets
+        env:
+          SIGNING_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           ./gradlew \
             :kraft-annotations:publishIosX64PublicationToGitHubPackagesRepository \
@@ -64,14 +81,7 @@ jobs:
             :kraft-annotations:publishIosX64PublicationToMavenCentralRepository \
             :kraft-annotations:publishIosArm64PublicationToMavenCentralRepository \
             :kraft-annotations:publishIosSimulatorArm64PublicationToMavenCentralRepository \
-            --no-configuration-cache \
-            -Pgpr.user=${{ github.actor }} \
-            -Pgpr.token=${{ secrets.GITHUB_TOKEN }} \
-            -Psigning.keyId=${{ secrets.GPG_KEY_ID }} \
-            -Psigning.key="${{ secrets.GPG_PRIVATE_KEY }}" \
-            -Psigning.password=${{ secrets.GPG_PASSPHRASE }} \
-            -Pmaven.central.username=${{ secrets.MAVEN_CENTRAL_USERNAME }} \
-            -Pmaven.central.password=${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+            --no-configuration-cache
 
   create-release:
     needs: [ publish-jvm, publish-ios ]
