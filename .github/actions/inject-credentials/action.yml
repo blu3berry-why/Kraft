@@ -41,7 +41,7 @@ runs:
 
         # Import GPG key — auto-detect ASCII-armored vs base64-encoded
         KEY_FILE=$(mktemp)
-        trap "rm -f '$KEY_FILE'" EXIT
+        trap 'rm -f "$KEY_FILE"' EXIT
 
         if printf '%s' "$GPG_PRIVATE_KEY" | grep -q -- '-----BEGIN PGP'; then
           printf '%s\n' "$GPG_PRIVATE_KEY" > "$KEY_FILE"
@@ -50,6 +50,11 @@ runs:
           if ! printf '%s' "$GPG_PRIVATE_KEY" | base64 -d > "$KEY_FILE" 2>/dev/null; then
             printf '%s' "$GPG_PRIVATE_KEY" | base64 -D > "$KEY_FILE" 2>/dev/null
           fi
+        fi
+
+        if [ ! -s "$KEY_FILE" ]; then
+          echo "::error::Failed to decode GPG_PRIVATE_KEY — neither valid ASCII-armored PGP nor valid base64."
+          exit 1
         fi
 
         gpg --batch --import "$KEY_FILE" 2>&1
@@ -75,6 +80,7 @@ runs:
         MAVEN_USER: ${{ inputs.maven-central-username }}
         MAVEN_PASS: ${{ inputs.maven-central-password }}
       run: |
+        set -euo pipefail
         {
           printf 'gpr.user=%s\n' "$GPR_USER"
           printf 'gpr.token=%s\n' "$GPR_TOKEN"
