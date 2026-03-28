@@ -95,6 +95,9 @@ jobs:
             fi
           } > /tmp/pr-body.md
 
+      - name: Reset release-branch to main
+        run: git push --force-with-lease origin HEAD~1:release-branch
+
       - name: Open pull request
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
