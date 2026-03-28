@@ -9,7 +9,7 @@ inputs:
     description: GitHub Packages token
     required: true
   gpg-private-key:
-    description: ASCII-armored GPG private key
+    description: GPG private key (base64-encoded or ASCII-armored)
     required: true
   gpg-key-id:
     description: GPG signing key ID
@@ -31,15 +31,40 @@ runs:
       env:
         GPG_PRIVATE_KEY: ${{ inputs.gpg-private-key }}
       run: |
+        set -euo pipefail
         gpg --version | head -1
         mkdir -p ~/.gnupg
         chmod 700 ~/.gnupg
-        echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
-        echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+        printf '%s\n' "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
+        printf '%s\n' "pinentry-mode loopback" > ~/.gnupg/gpg.conf
         gpgconf --kill gpg-agent || true
-        echo "$GPG_PRIVATE_KEY" | gpg --batch --import 2>&1
+
+        # Import GPG key — auto-detect ASCII-armored vs base64-encoded
+        KEY_FILE=$(mktemp)
+        trap "rm -f '$KEY_FILE'" EXIT
+
+        if printf '%s' "$GPG_PRIVATE_KEY" | grep -q -- '-----BEGIN PGP'; then
+          printf '%s\n' "$GPG_PRIVATE_KEY" > "$KEY_FILE"
+        else
+          # base64 decode: try GNU (-d) then BSD/macOS (-D)
+          if ! printf '%s' "$GPG_PRIVATE_KEY" | base64 -d > "$KEY_FILE" 2>/dev/null; then
+            printf '%s' "$GPG_PRIVATE_KEY" | base64 -D > "$KEY_FILE" 2>/dev/null
+          fi
+        fi
+
+        gpg --batch --import "$KEY_FILE" 2>&1
+        rm -f "$KEY_FILE"
+
+        # Validate import succeeded
         echo "Imported keys:"
         gpg --list-secret-keys --keyid-format short
+
+        KEY_COUNT=$(gpg --list-secret-keys --with-colons 2>/dev/null | grep -c '^sec:' || true)
+        if [ "$KEY_COUNT" -eq 0 ]; then
+          echo "::error::GPG key import failed — no secret keys in keyring. Check that GPG_PRIVATE_KEY secret is set and valid (ASCII-armored or base64-encoded)."
+          exit 1
+        fi
+        echo "Successfully imported $KEY_COUNT secret key(s)."
 
     - shell: bash
       env:
