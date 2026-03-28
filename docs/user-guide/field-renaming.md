@@ -11,8 +11,8 @@ When source and target properties have different names, Kraft provides two ways 
 `counterPartName` is the **source** property name:
 
 ```kotlin
-import hu.nova.blu3berry.kraft.mapping.MapFrom
-import hu.nova.blu3berry.kraft.mapping.MapField
+import com.blu3berry.kraft.mapping.MapFrom
+import com.blu3berry.kraft.mapping.MapField
 
 data class UserSource(val userId: Int, val fullName: String)
 
@@ -40,8 +40,8 @@ The `id` property on `UserDto` reads from `userId` on `UserSource`. The `fullNam
 `counterPartName` is the **target** property name:
 
 ```kotlin
-import hu.nova.blu3berry.kraft.mapping.MapTo
-import hu.nova.blu3berry.kraft.mapping.MapField
+import com.blu3berry.kraft.mapping.MapTo
+import com.blu3berry.kraft.mapping.MapField
 
 data class UserDto(val id: Int, val fullName: String)
 
@@ -69,8 +69,8 @@ The rule is consistent: `counterPartName` always points to the other side.
 When using `@MapConfig`, declare renames with `FieldMapping`. Its parameters use explicit `source` and `target` names -- no ambiguity about direction.
 
 ```kotlin
-import hu.nova.blu3berry.kraft.config.MapConfig
-import hu.nova.blu3berry.kraft.config.FieldMapping
+import com.blu3berry.kraft.config.MapConfig
+import com.blu3berry.kraft.config.FieldMapping
 
 data class PersonDto(val fullName: String)
 data class Person(val name: String)

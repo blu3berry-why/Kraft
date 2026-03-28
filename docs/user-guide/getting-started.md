@@ -12,8 +12,8 @@ plugins {
 }
 
 dependencies {
-    implementation("hu.nova.blu3berry.kraft:kraft-annotations:<version>")
-    ksp("hu.nova.blu3berry.kraft:kraft-ksp:<version>")
+    implementation("com.blu3berry.kraft:kraft-annotations:<version>")
+    ksp("com.blu3berry.kraft:kraft-ksp:<version>")
 }
 ```
 
@@ -22,13 +22,13 @@ For Kotlin Multiplatform projects:
 ```kotlin
 val commonMain by getting {
     dependencies {
-        implementation("hu.nova.blu3berry.kraft:kraft-annotations:<version>")
+        implementation("com.blu3berry.kraft:kraft-annotations:<version>")
     }
 }
 
 // Add KSP for common main metadata:
 dependencies {
-    add("kspCommonMainMetadata", "hu.nova.blu3berry.kraft:kraft-ksp:<version>")
+    add("kspCommonMainMetadata", "com.blu3berry.kraft:kraft-ksp:<version>")
 }
 ```
 
@@ -37,7 +37,7 @@ dependencies {
 Define two data classes and annotate the target with `@MapFrom`:
 
 ```kotlin
-import hu.nova.blu3berry.kraft.mapping.MapFrom
+import com.blu3berry.kraft.mapping.MapFrom
 
 data class User(val name: String, val age: Int)
 

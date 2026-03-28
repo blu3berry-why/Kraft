@@ -2,8 +2,9 @@ import org.gradle.api.tasks.testing.Test
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.ksp)   // KSP plugin
-    id("maven-publish")       // for publishing to GitHub Packages
+    alias(libs.plugins.ksp)
+    id("maven-publish")
+    signing
 }
 
 kotlin {
@@ -51,19 +52,47 @@ ksp {
     arg("kraft.functionNameFormat", "to${'$'}{target}From${'$'}{source}")
 }
 
-// Publishing to GitHub Packages (add missing part)
+val javadocJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("javadoc")
+}
+
 publishing {
     publications {
         withType<MavenPublication> {
-            // ONLY publish the multiplatform metadata
             if (name != "jvm") {
                 tasks.withType<PublishToMavenRepository>().configureEach {
                     onlyIf { publication.name == "jvm" }
                 }
             }
-            groupId = "hu.nova.blu3berry.kraft"
+            groupId = "com.blu3berry.kraft"
             artifactId = "kraft-ksp"
             version = (project.properties["kraft.version"] as? String) ?: "0.0.0-SNAPSHOT"
+
+            artifact(javadocJar)
+
+            pom {
+                name.set("kraft-ksp")
+                description.set("KSP annotation processor for the Kraft mapper generator")
+                url.set("https://github.com/blu3berry-why/Kraft")
+                licenses {
+                    license {
+                        name.set("Apache-2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("blu3berry-why")
+                        name.set("blu3berry")
+                        url.set("https://github.com/blu3berry-why")
+                    }
+                }
+                scm {
+                    url.set("https://github.com/blu3berry-why/Kraft")
+                    connection.set("scm:git:git://github.com/blu3berry-why/Kraft.git")
+                    developerConnection.set("scm:git:ssh://github.com/blu3berry-why/Kraft.git")
+                }
+            }
         }
     }
 
@@ -77,7 +106,26 @@ publishing {
                 password = project.findProperty("gpr.token") as String?
             }
         }
+        maven {
+            name = "MavenCentral"
+            url = uri("https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/")
+
+            credentials {
+                username = findProperty("maven.central.username") as String?
+                password = findProperty("maven.central.password") as String?
+            }
+        }
     }
+}
+
+signing {
+    isRequired = findProperty("signing.key") != null
+    useInMemoryPgpKeys(
+        findProperty("signing.keyId") as String?,
+        findProperty("signing.key") as String?,
+        findProperty("signing.password") as String?
+    )
+    sign(publishing.publications)
 }
 
 tasks.withType<Test>().configureEach {

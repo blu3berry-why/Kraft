@@ -7,8 +7,8 @@
 ### With @MapFrom
 
 ```kotlin
-import hu.nova.blu3berry.kraft.config.MapReverse
-import hu.nova.blu3berry.kraft.mapping.MapFrom
+import com.blu3berry.kraft.config.MapReverse
+import com.blu3berry.kraft.mapping.MapFrom
 
 data class User(val id: Int, val name: String)
 
@@ -36,8 +36,8 @@ public fun UserDto.toUser(): User = User(
 ### With @MapTo
 
 ```kotlin
-import hu.nova.blu3berry.kraft.config.MapReverse
-import hu.nova.blu3berry.kraft.mapping.MapTo
+import com.blu3berry.kraft.config.MapReverse
+import com.blu3berry.kraft.mapping.MapTo
 
 @MapReverse
 @MapTo(UserDto::class)
@@ -51,8 +51,8 @@ Generates the same two functions: `User.toUserDto()` and `UserDto.toUser()`.
 ### With @MapConfig
 
 ```kotlin
-import hu.nova.blu3berry.kraft.config.MapReverse
-import hu.nova.blu3berry.kraft.config.MapConfig
+import com.blu3berry.kraft.config.MapReverse
+import com.blu3berry.kraft.config.MapConfig
 
 data class User(val id: Int, val name: String)
 data class UserDto(val id: Int, val name: String)
@@ -69,9 +69,9 @@ Generates both `fun User.toUserDto()` and `fun UserDto.toUser()`.
 Forward renames declared with `@MapField` or `FieldMapping` are automatically inverted in the reverse direction.
 
 ```kotlin
-import hu.nova.blu3berry.kraft.config.MapReverse
-import hu.nova.blu3berry.kraft.mapping.MapFrom
-import hu.nova.blu3berry.kraft.mapping.MapField
+import com.blu3berry.kraft.config.MapReverse
+import com.blu3berry.kraft.mapping.MapFrom
+import com.blu3berry.kraft.mapping.MapField
 
 data class User(val userId: Int, val fullName: String)
 
@@ -121,8 +121,8 @@ object UserMapper
 Nested child mappers are auto-reversed. When you add `@MapReverse` to a parent mapping that contains nested objects, Kraft generates reverse mappers for the children too.
 
 ```kotlin
-import hu.nova.blu3berry.kraft.config.MapReverse
-import hu.nova.blu3berry.kraft.mapping.MapFrom
+import com.blu3berry.kraft.config.MapReverse
+import com.blu3berry.kraft.mapping.MapFrom
 
 data class Address(val street: String, val city: String)
 data class AddressDto(val street: String, val city: String)
@@ -167,7 +167,7 @@ This also works for collection nested properties (e.g. `List<Item>` mapped to `L
 If the forward mapping uses `@MapUsing` converters, you must provide a corresponding reverse converter in the same config object. The reverse converter maps from the target property back to the source property.
 
 ```kotlin
-import hu.nova.blu3berry.kraft.config.*
+import com.blu3berry.kraft.config.*
 
 data class User(val birthYear: Int, val name: String)
 data class UserDto(val age: String, val name: String)
@@ -214,7 +214,7 @@ The `direction` parameter on `MapIgnoreField` controls which mapping direction t
 | `IgnoreSide.BOTH` | Property is ignored | Property is ignored |
 
 ```kotlin
-import hu.nova.blu3berry.kraft.config.*
+import com.blu3berry.kraft.config.*
 
 data class User(val id: Int, val name: String, val internalNote: String = "", val extra: String = "")
 data class UserDto(val id: Int, val name: String, val internalNote: String = "", val extra: String = "")

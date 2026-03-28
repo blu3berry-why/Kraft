@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -30,15 +30,24 @@ jobs:
             :kraft-annotations:publishJvmPublicationToGitHubPackagesRepository \
             :kraft-annotations:publishJsPublicationToGitHubPackagesRepository \
             :kraft-annotations:publishWasmJsPublicationToGitHubPackagesRepository \
+            :kraft-annotations:publishKotlinMultiplatformPublicationToMavenCentralRepository \
+            :kraft-annotations:publishJvmPublicationToMavenCentralRepository \
+            :kraft-annotations:publishJsPublicationToMavenCentralRepository \
+            :kraft-annotations:publishWasmJsPublicationToMavenCentralRepository \
             --no-configuration-cache \
             -Pgpr.user=${{ github.actor }} \
-            -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
+            -Pgpr.token=${{ secrets.GITHUB_TOKEN }} \
+            -Psigning.keyId=${{ secrets.GPG_KEY_ID }} \
+            -Psigning.key="${{ secrets.GPG_PRIVATE_KEY }}" \
+            -Psigning.password=${{ secrets.GPG_PASSPHRASE }} \
+            -Pmaven.central.username=${{ secrets.MAVEN_CENTRAL_USERNAME }} \
+            -Pmaven.central.password=${{ secrets.MAVEN_CENTRAL_PASSWORD }}
 
   publish-ios:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -52,16 +61,24 @@ jobs:
             :kraft-annotations:publishIosX64PublicationToGitHubPackagesRepository \
             :kraft-annotations:publishIosArm64PublicationToGitHubPackagesRepository \
             :kraft-annotations:publishIosSimulatorArm64PublicationToGitHubPackagesRepository \
+            :kraft-annotations:publishIosX64PublicationToMavenCentralRepository \
+            :kraft-annotations:publishIosArm64PublicationToMavenCentralRepository \
+            :kraft-annotations:publishIosSimulatorArm64PublicationToMavenCentralRepository \
             --no-configuration-cache \
             -Pgpr.user=${{ github.actor }} \
-            -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
+            -Pgpr.token=${{ secrets.GITHUB_TOKEN }} \
+            -Psigning.keyId=${{ secrets.GPG_KEY_ID }} \
+            -Psigning.key="${{ secrets.GPG_PRIVATE_KEY }}" \
+            -Psigning.password=${{ secrets.GPG_PASSPHRASE }} \
+            -Pmaven.central.username=${{ secrets.MAVEN_CENTRAL_USERNAME }} \
+            -Pmaven.central.password=${{ secrets.MAVEN_CENTRAL_PASSWORD }}
 
   create-release:
     needs: [ publish-jvm, publish-ios ]
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Read version from gradle.properties
         id: version
@@ -85,3 +102,25 @@ jobs:
             --generate-notes \
             --title "${{ steps.version.outputs.version }}" \
             --target "${{ github.sha }}"
+
+  sync-version-to-main:
+    needs: [ create-release ]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release-branch
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push version files to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          VERSION=$(grep "^kraft.version=" gradle.properties | cut -d= -f2)
+          git checkout main
+          git checkout release-branch -- gradle.properties .release-please-manifest.json
+          git add gradle.properties .release-please-manifest.json
+          git diff --cached --quiet || git commit -m "chore: sync version $VERSION to main"
+          git push origin main

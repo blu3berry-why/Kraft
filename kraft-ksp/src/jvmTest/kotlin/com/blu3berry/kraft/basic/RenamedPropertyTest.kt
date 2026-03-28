@@ -1,0 +1,34 @@
+package com.blu3berry.kraft.basic
+
+import com.tschuchort.compiletesting.SourceFile
+import com.google.common.truth.Truth.assertThat
+import com.blu3berry.kraft.TestKspRunner
+import org.junit.jupiter.api.Test
+
+class RenamedPropertyTest {
+
+    @Test
+    fun `renamed property mapping works`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            data class PersonDto(val fullName: String)
+            data class Person(val name: String)
+
+            @com.blu3berry.kraft.config.MapConfig(
+                source = PersonDto::class,
+                target = Person::class,
+                fieldMappings = [
+                    com.blu3berry.kraft.config.FieldMapping("fullName", "name")
+                ]
+            )
+            object PersonMapper
+            """
+        )
+
+        val generated = TestKspRunner.compileAndReturnGenerated(source)
+        val text = generated.first().readText()
+
+        assertThat(text).contains("name = this.fullName")
+    }
+}

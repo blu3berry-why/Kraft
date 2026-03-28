@@ -7,7 +7,7 @@ This page covers the core mapping annotations and how Kraft matches properties b
 `@MapFrom` is placed on the **target** class. The `source` parameter specifies the class to map from.
 
 ```kotlin
-import hu.nova.blu3berry.kraft.mapping.MapFrom
+import com.blu3berry.kraft.mapping.MapFrom
 
 data class User(val name: String, val age: Int)
 
@@ -31,7 +31,7 @@ Property matching is by name and type. Every target constructor parameter that s
 `@MapTo` is placed on the **source** class. The `target` parameter specifies the class to map to.
 
 ```kotlin
-import hu.nova.blu3berry.kraft.mapping.MapTo
+import com.blu3berry.kraft.mapping.MapTo
 
 @MapTo(UserDto::class)
 data class User(val name: String, val age: Int)
@@ -53,7 +53,7 @@ fun User.toUserDto(): UserDto = UserDto(
 `@MapConfig` is placed on a standalone object and references both source and target externally. This is useful when you do not control either class or prefer to keep mapping logic separate.
 
 ```kotlin
-import hu.nova.blu3berry.kraft.config.MapConfig
+import com.blu3berry.kraft.config.MapConfig
 
 data class UserDto(val name: String, val age: Int)
 data class User(val name: String, val age: Int)
@@ -112,8 +112,8 @@ fun OrderSource.toOrderDto(): OrderDto = OrderDto(
 Use `@MapIgnore` to explicitly skip a target property. The property must have a default value (or be nullable) since Kraft will not supply a value for it.
 
 ```kotlin
-import hu.nova.blu3berry.kraft.mapping.MapFrom
-import hu.nova.blu3berry.kraft.mapping.MapIgnore
+import com.blu3berry.kraft.mapping.MapFrom
+import com.blu3berry.kraft.mapping.MapIgnore
 
 data class ProductSource(val name: String, val price: Double)
 

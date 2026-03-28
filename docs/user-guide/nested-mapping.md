@@ -7,7 +7,7 @@ When source and target objects contain properties that are themselves mapped typ
 When a source and target share a same-named property with **different** data class types, Kraft auto-detects the nested relationship and generates a child mapper alongside the parent.
 
 ```kotlin
-import hu.nova.blu3berry.kraft.mapping.MapFrom
+import com.blu3berry.kraft.mapping.MapFrom
 
 data class AddressSource(val street: String, val city: String)
 data class PersonSource(val name: String, val address: AddressSource)
@@ -96,8 +96,8 @@ When `sourceName` is left empty (the default), Kraft uses the annotated property
 When using `@MapConfig`, declare nested type pairs with `NestedMapping`:
 
 ```kotlin
-import hu.nova.blu3berry.kraft.config.MapConfig
-import hu.nova.blu3berry.kraft.config.NestedMapping
+import com.blu3berry.kraft.config.MapConfig
+import com.blu3berry.kraft.config.NestedMapping
 
 data class AddressSource(val street: String, val city: String)
 data class PersonSource(val name: String, val address: AddressSource)

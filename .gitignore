@@ -17,3 +17,9 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# Project management docs (not committed)
+docs/assessment.md
+docs/naming.md
+docs/tasks.md
+improvements.md

@@ -1,0 +1,41 @@
+package com.blu3berry.kraft.configignore
+
+import com.google.common.truth.Truth.assertThat
+import com.tschuchort.compiletesting.SourceFile
+import com.blu3berry.kraft.TestKspRunner
+import org.junit.jupiter.api.Test
+
+class MapIgnoreFieldWithFieldMappingTest {
+
+    @Test
+    fun `MapIgnoreField and FieldMapping coexist correctly in the same MapConfig`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            data class User(val id: Int, val email: String, val notes: String)
+
+            @com.blu3berry.kraft.config.MapConfig(
+                source = User::class,
+                target   = UserDto::class,
+                fieldMappings = [
+                    com.blu3berry.kraft.config.FieldMapping(source = "email", target = "contactEmail")
+                ],
+                ignoredMappings = [
+                    com.blu3berry.kraft.config.MapIgnoreField("notes")
+                ]
+            )
+            object UserMapper
+
+            data class UserDto(val id: Int, val contactEmail: String, val notes: String? = null)
+            """
+        )
+
+        val content = TestKspRunner.compileAndReturnGenerated(source)
+            .first().readText()
+
+        assertThat(content).contains("fun User.toUserDto()")
+        assertThat(content).contains("id = this.id")
+        assertThat(content).contains("contactEmail = this.email")
+        assertThat(content).doesNotContain("notes")
+    }
+}
