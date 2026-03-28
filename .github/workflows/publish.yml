@@ -26,14 +26,13 @@ jobs:
         with:
           gpr-user: ${{ github.actor }}
           gpr-token: ${{ secrets.GITHUB_TOKEN }}
-          signing-key-id: ${{ secrets.GPG_KEY_ID }}
-          signing-password: ${{ secrets.GPG_PASSPHRASE }}
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-key-id: ${{ secrets.GPG_KEY_ID }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
           maven-central-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           maven-central-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
 
       - name: Publish JVM, JS, WasmJs and KMP metadata
-        env:
-          SIGNING_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           ./gradlew \
             :kraft-core:publish \
@@ -65,14 +64,13 @@ jobs:
         with:
           gpr-user: ${{ github.actor }}
           gpr-token: ${{ secrets.GITHUB_TOKEN }}
-          signing-key-id: ${{ secrets.GPG_KEY_ID }}
-          signing-password: ${{ secrets.GPG_PASSPHRASE }}
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-key-id: ${{ secrets.GPG_KEY_ID }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
           maven-central-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           maven-central-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
 
       - name: Publish iOS targets
-        env:
-          SIGNING_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           ./gradlew \
             :kraft-annotations:publishIosX64PublicationToGitHubPackagesRepository \

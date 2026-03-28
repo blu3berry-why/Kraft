@@ -137,12 +137,7 @@ publishing {
 }
 
 signing {
-    val signingKey = findProperty("signing.key") as String? ?: System.getenv("SIGNING_KEY")
-    isRequired = signingKey != null
-    useInMemoryPgpKeys(
-        findProperty("signing.keyId") as String?,
-        signingKey,
-        findProperty("signing.password") as String?
-    )
+    useGpgCmd()
+    isRequired = findProperty("signing.gnupg.keyName") != null
     sign(publishing.publications)
 }

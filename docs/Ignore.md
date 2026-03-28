@@ -2,8 +2,8 @@
 
 > Implemented in T-10 on branch `ignore-rule`.
 > Test suites:
-> - `kraft-ksp/src/jvmTest/kotlin/hu/nova/blu3berry/kraft/mapignore/`
-> - `kraft-ksp/src/jvmTest/kotlin/hu/nova/blu3berry/kraft/configignore/`
+> - `kraft-ksp/src/jvmTest/kotlin/com/blu3berry/kraft/mapignore/`
+> - `kraft-ksp/src/jvmTest/kotlin/com/blu3berry/kraft/configignore/`
 
 ---
 
