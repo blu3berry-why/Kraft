@@ -139,7 +139,7 @@ Aggregated context passed to each `MappingRule`:
 
 ```kotlin
 dependencies {
-    implementation("hu.nova.blu3berry.kraft:kraft-core:<version>")
+    implementation("com.blu3berry.kraft:kraft-core:<version>")
 }
 ```
 
@@ -168,7 +168,7 @@ class MyGenerator(
 }
 ```
 
-4. Register via ServiceLoader. Create the file `META-INF/services/hu.nova.blu3berry.kraft.processor.codegen.MapperGeneratorProvider`:
+4. Register via ServiceLoader. Create the file `META-INF/services/com.blu3berry.kraft.processor.codegen.MapperGeneratorProvider`:
 
 ```text
 com.example.MyGeneratorProvider
@@ -177,7 +177,7 @@ com.example.MyGeneratorProvider
 5. Add your module as a KSP dependency alongside kraft-ksp:
 
 ```kotlin
-ksp("hu.nova.blu3berry.kraft:kraft-ksp:<version>")
+ksp("com.blu3berry.kraft:kraft-ksp:<version>")
 ksp("com.example:my-kraft-generator:<version>")
 ```
 

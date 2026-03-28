@@ -31,7 +31,7 @@ publishing {
                     onlyIf { publication.name == "jvm" }
                 }
             }
-            groupId = "hu.nova.blu3berry.kraft"
+            groupId = "com.blu3berry.kraft"
             artifactId = "kraft-core"
             version = (project.properties["kraft.version"] as? String) ?: "0.0.0-SNAPSHOT"
         }

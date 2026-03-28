@@ -27,8 +27,8 @@ plugins {
 }
 
 dependencies {
-    implementation("hu.nova.blu3berry.kraft:kraft-annotations:<version>")
-    ksp("hu.nova.blu3berry.kraft:kraft-ksp:<version>")
+    implementation("com.blu3berry.kraft:kraft-annotations:<version>")
+    ksp("com.blu3berry.kraft:kraft-ksp:<version>")
 }
 ```
 

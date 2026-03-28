@@ -84,7 +84,7 @@ fun `descriptive test name in backticks`() {
     val source = SourceFile.kotlin("Models.kt", """
         package test
 
-        import hu.nova.blu3berry.kraft.mapping.MapFrom
+        import com.blu3berry.kraft.mapping.MapFrom
 
         data class Source(val name: String, val age: Int)
 
@@ -108,7 +108,7 @@ fun `error when source property is missing`() {
     val source = SourceFile.kotlin("Models.kt", """
         package test
 
-        import hu.nova.blu3berry.kraft.mapping.MapFrom
+        import com.blu3berry.kraft.mapping.MapFrom
 
         data class Source(val name: String)
 

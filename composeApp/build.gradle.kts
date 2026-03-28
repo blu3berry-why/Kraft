@@ -54,11 +54,11 @@ kotlin {
 }
 
 android {
-    namespace = "hu.nova.blu3berry.kraft"
+    namespace = "com.blu3berry.kraft"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "hu.nova.blu3berry.kraft"
+        applicationId = "com.blu3berry.kraft"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1

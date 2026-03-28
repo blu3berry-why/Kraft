@@ -60,8 +60,8 @@ Generated extension functions appear in:
 ### Imports
 
 Annotations are in two packages:
-- `hu.nova.blu3berry.kraft.mapping.*` -- @MapFrom, @MapTo, @MapField, @MapIgnore, @MapNested
-- `hu.nova.blu3berry.kraft.config.*` -- @MapConfig, @MapEnum, @MapUsing, @MapReverse, FieldMapping, NestedMapping, MapIgnoreField, IgnoreSide
+- `com.blu3berry.kraft.mapping.*` -- @MapFrom, @MapTo, @MapField, @MapIgnore, @MapNested
+- `com.blu3berry.kraft.config.*` -- @MapConfig, @MapEnum, @MapUsing, @MapReverse, FieldMapping, NestedMapping, MapIgnoreField, IgnoreSide
 ````
 
 ## How It Works

@@ -51,13 +51,13 @@ plugins {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("hu.nova.blu3berry.kraft:kraft-annotations:<version>")
+            implementation("com.blu3berry.kraft:kraft-annotations:<version>")
         }
     }
 }
 
 dependencies {
-    add("kspCommonMainMetadata", "hu.nova.blu3berry.kraft:kraft-ksp:<version>")
+    add("kspCommonMainMetadata", "com.blu3berry.kraft:kraft-ksp:<version>")
 }
 ```
 
@@ -70,8 +70,8 @@ plugins {
 }
 
 dependencies {
-    implementation("hu.nova.blu3berry.kraft:kraft-annotations:<version>")
-    ksp("hu.nova.blu3berry.kraft:kraft-ksp:<version>")
+    implementation("com.blu3berry.kraft:kraft-annotations:<version>")
+    ksp("com.blu3berry.kraft:kraft-ksp:<version>")
 }
 ```
 

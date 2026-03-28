@@ -1,0 +1,7 @@
+package com.blu3berry.kraft
+
+interface Platform {
+    val name: String
+}
+
+expect fun getPlatform(): Platform
