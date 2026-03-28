@@ -124,7 +124,7 @@ fun `error when source property is missing`() {
 
 ### Test Directory Structure
 
-Tests are organized by feature in `kraft-ksp/src/jvmTest/kotlin/hu/nova/blu3berry/kraft/`:
+Tests are organized by feature in `kraft-ksp/src/jvmTest/kotlin/com/blu3berry/kraft/`:
 
 ```text
 basic/           — simple mapping, rename, multi-mapper, annotation guards
