@@ -8,9 +8,6 @@ permissions:
   contents: write
   packages: write
 
-env:
-  SIGNING_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-
 jobs:
   publish-jvm:
     runs-on: ubuntu-latest
@@ -26,16 +23,18 @@ jobs:
 
       - name: Inject publish credentials
         run: |
-          cat >> gradle.properties <<EOF
-          gpr.user=${{ github.actor }}
-          gpr.token=${{ secrets.GITHUB_TOKEN }}
-          signing.keyId=${{ secrets.GPG_KEY_ID }}
-          signing.password=${{ secrets.GPG_PASSPHRASE }}
-          maven.central.username=${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          maven.central.password=${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          EOF
+          printf '%s\n' \
+            'gpr.user=${{ github.actor }}' \
+            'gpr.token=${{ secrets.GITHUB_TOKEN }}' \
+            'signing.keyId=${{ secrets.GPG_KEY_ID }}' \
+            'signing.password=${{ secrets.GPG_PASSPHRASE }}' \
+            'maven.central.username=${{ secrets.MAVEN_CENTRAL_USERNAME }}' \
+            'maven.central.password=${{ secrets.MAVEN_CENTRAL_PASSWORD }}' \
+            >> gradle.properties
 
       - name: Publish JVM, JS, WasmJs and KMP metadata
+        env:
+          SIGNING_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           ./gradlew \
             :kraft-core:publish \
@@ -64,16 +63,18 @@ jobs:
 
       - name: Inject publish credentials
         run: |
-          cat >> gradle.properties <<EOF
-          gpr.user=${{ github.actor }}
-          gpr.token=${{ secrets.GITHUB_TOKEN }}
-          signing.keyId=${{ secrets.GPG_KEY_ID }}
-          signing.password=${{ secrets.GPG_PASSPHRASE }}
-          maven.central.username=${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          maven.central.password=${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          EOF
+          printf '%s\n' \
+            'gpr.user=${{ github.actor }}' \
+            'gpr.token=${{ secrets.GITHUB_TOKEN }}' \
+            'signing.keyId=${{ secrets.GPG_KEY_ID }}' \
+            'signing.password=${{ secrets.GPG_PASSPHRASE }}' \
+            'maven.central.username=${{ secrets.MAVEN_CENTRAL_USERNAME }}' \
+            'maven.central.password=${{ secrets.MAVEN_CENTRAL_PASSWORD }}' \
+            >> gradle.properties
 
       - name: Publish iOS targets
+        env:
+          SIGNING_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           ./gradlew \
             :kraft-annotations:publishIosX64PublicationToGitHubPackagesRepository \
