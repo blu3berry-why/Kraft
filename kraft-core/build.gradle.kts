@@ -91,10 +91,11 @@ publishing {
 }
 
 signing {
-    isRequired = findProperty("signing.key") != null
+    val signingKey = findProperty("signing.key") as String? ?: System.getenv("SIGNING_KEY")
+    isRequired = signingKey != null
     useInMemoryPgpKeys(
         findProperty("signing.keyId") as String?,
-        findProperty("signing.key") as String?,
+        signingKey,
         findProperty("signing.password") as String?
     )
     sign(publishing.publications)
