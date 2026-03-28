@@ -1,0 +1,43 @@
+name: Inject publish credentials
+description: Appends publishing credentials to gradle.properties
+
+inputs:
+  gpr-user:
+    description: GitHub Packages username
+    required: true
+  gpr-token:
+    description: GitHub Packages token
+    required: true
+  signing-key-id:
+    description: GPG signing key ID
+    required: true
+  signing-password:
+    description: GPG signing passphrase
+    required: true
+  maven-central-username:
+    description: Maven Central username
+    required: true
+  maven-central-password:
+    description: Maven Central password
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GPR_USER: ${{ inputs.gpr-user }}
+        GPR_TOKEN: ${{ inputs.gpr-token }}
+        SIGNING_KEY_ID: ${{ inputs.signing-key-id }}
+        SIGNING_PASSWORD: ${{ inputs.signing-password }}
+        MAVEN_USER: ${{ inputs.maven-central-username }}
+        MAVEN_PASS: ${{ inputs.maven-central-password }}
+      run: |
+        {
+          printf 'gpr.user=%s\n' "$GPR_USER"
+          printf 'gpr.token=%s\n' "$GPR_TOKEN"
+          printf 'signing.keyId=%s\n' "$SIGNING_KEY_ID"
+          printf 'signing.password=%s\n' "$SIGNING_PASSWORD"
+          printf 'maven.central.username=%s\n' "$MAVEN_USER"
+          printf 'maven.central.password=%s\n' "$MAVEN_PASS"
+        } >> gradle.properties
