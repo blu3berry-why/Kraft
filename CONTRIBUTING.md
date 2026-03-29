@@ -155,14 +155,7 @@ The property resolver uses an ordered chain of rules. Each rule tries to resolve
 4. Add unit tests in `kraft-ksp/src/jvmTest/.../propertyresolver/rules/`
 5. Add integration tests with full KSP compilation
 
-Current rule chain order:
-1. `IgnoreRule` — skip ignored properties
-2. `ConverterRule` — apply @MapUsing converters
-3. `ClassOverrideRule` — apply @MapField renames
-4. `ConfigOverrideRule` — apply @FieldMapping renames
-5. `NestedRule` — resolve nested object/collection mapping
-6. `DirectMatchRule` — same name, same type
-7. `RequiredFieldErrorRule` — emit error for unresolved required properties
+For the current rule chain order, see [Architecture: Property Resolver Rule Chain](docs/developer-guide/architecture.md#property-resolver-rule-chain).
 
 ## How to Add a New Annotation
 

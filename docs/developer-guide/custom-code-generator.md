@@ -326,34 +326,36 @@ class JsonSchemaGenerator(
 When iterating `descriptor.propertyMappings`, handle each variant according to your output format:
 
 ```kotlin
-for (strategy in descriptor.propertyMappings) {
-    when (strategy) {
-        is PropertyMappingStrategy.Direct -> {
-            // Same name, same type: source.x -> target.x
-            val name = strategy.targetProperty.name
-            val type = strategy.targetProperty.type
-        }
-        is PropertyMappingStrategy.Renamed -> {
-            // Different name: source.oldName -> target.newName
-            val sourceName = strategy.sourceProperty.name
-            val targetName = strategy.targetProperty.name
-        }
-        is PropertyMappingStrategy.ConverterFunction -> {
-            // Custom converter applied
-            val converter = strategy.converter
-            val targetName = strategy.targetProperty.name
-        }
-        is PropertyMappingStrategy.NestedMapper -> {
-            // Delegates to a child mapper
-            val nested = strategy.nestedMappingDescriptor
-            val isCollection = nested.isCollection
-        }
-        is PropertyMappingStrategy.Constant -> {
-            // Literal expression (reserved for future use)
-            val expr = strategy.expression
-        }
-        is PropertyMappingStrategy.Ignored -> {
-            // Property skipped — has a default value
+fun processStrategies(descriptor: MapperDescriptor) {
+    for (strategy in descriptor.propertyMappings) {
+        when (strategy) {
+            is PropertyMappingStrategy.Direct -> {
+                // Same name, same type: source.x -> target.x
+                val name = strategy.targetProperty.name
+                val type = strategy.targetProperty.type
+            }
+            is PropertyMappingStrategy.Renamed -> {
+                // Different name: source.oldName -> target.newName
+                val sourceName = strategy.sourceProperty.name
+                val targetName = strategy.targetProperty.name
+            }
+            is PropertyMappingStrategy.ConverterFunction -> {
+                // Custom converter applied
+                val converter = strategy.converter
+                val targetName = strategy.targetProperty.name
+            }
+            is PropertyMappingStrategy.NestedMapper -> {
+                // Delegates to a child mapper
+                val nested = strategy.nestedMappingDescriptor
+                val isCollection = nested.isCollection
+            }
+            is PropertyMappingStrategy.Constant -> {
+                // Literal expression (reserved for future use)
+                val expr = strategy.expression
+            }
+            is PropertyMappingStrategy.Ignored -> {
+                // Property skipped — has a default value
+            }
         }
     }
 }

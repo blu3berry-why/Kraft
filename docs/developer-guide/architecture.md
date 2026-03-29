@@ -133,57 +133,11 @@ Aggregated context passed to each `MappingRule`:
 
 ## SPI: Custom Code Generators
 
-### Writing a Custom Generator
+The code generation phase is pluggable via a ServiceLoader-based SPI. You can replace or supplement the built-in `ExtensionMapperGenerator` with your own `MapperGenerator` that consumes `MapperDescriptor` and emits any output format — interface adapters, JSON schemas, documentation, test stubs, etc.
 
-1. Add `kraft-core` as a dependency (no KotlinPoet pulled in):
+`AutoMapperProcessor` uses `java.util.ServiceLoader` to discover `MapperGeneratorProvider` implementations on the KSP classpath. If none are found, it falls back to the built-in generator. The same pattern applies to `EnumMapperGeneratorProvider`.
 
-```kotlin
-dependencies {
-    implementation("com.blu3berry.kraft:kraft-core:<version>")
-}
-```
-
-2. Implement `MapperGeneratorProvider`:
-
-```kotlin
-class MyGeneratorProvider : MapperGeneratorProvider {
-    override fun create(environment: GeneratorEnvironment): MapperGenerator {
-        return MyGenerator(environment.logger, environment.config)
-    }
-}
-```
-
-3. Implement `MapperGenerator`:
-
-```kotlin
-class MyGenerator(
-    private val logger: KSPLogger,
-    private val config: GenerationConfig
-) : MapperGenerator {
-    override fun generate(descriptor: MapperDescriptor, codeGenerator: CodeGenerator) {
-        val functionName = config.functionNameFor(descriptor)
-        // Use descriptor.propertyMappings to emit code
-        // Use codeGenerator to write files
-    }
-}
-```
-
-4. Register via ServiceLoader. Create the file `META-INF/services/com.blu3berry.kraft.processor.codegen.MapperGeneratorProvider`:
-
-```text
-com.example.MyGeneratorProvider
-```
-
-5. Add your module as a KSP dependency alongside kraft-ksp:
-
-```kotlin
-ksp("com.blu3berry.kraft:kraft-ksp:<version>")
-ksp("com.example:my-kraft-generator:<version>")
-```
-
-### How Discovery Works
-
-`AutoMapperProcessor` uses `java.util.ServiceLoader` to find `MapperGeneratorProvider` implementations on the KSP classpath. If none are found, it falls back to the built-in `ExtensionMapperGenerator`. The same pattern applies to `EnumMapperGeneratorProvider`.
+For a full step-by-step guide, data structure diagram, and working example, see [Adding a Custom Code Generator](custom-code-generator.md).
 
 ---
 

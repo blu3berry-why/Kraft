@@ -75,32 +75,128 @@ When you add this to your project's AI config:
 
 ## Example Interaction
 
-Without the skill, asking an AI to "create a mapper from User to UserDto" typically produces:
+Consider a real-world e-commerce scenario. Your domain model has an `Order` entity and you need a `OrderDto` for your API layer:
 
 ```kotlin
-// Manual code the AI would write without Kraft context
-fun User.toUserDto(): UserDto = UserDto(
-    id = this.userId,
-    name = this.fullName
+// Domain model
+data class Order(
+    val orderId: String,
+    val customerName: String,
+    val customerEmail: String,
+    val shippingAddress: Address,
+    val billingAddress: Address,
+    val items: List<OrderItem>,
+    val status: OrderStatus,
+    val subtotalCents: Long,
+    val taxCents: Long,
+    val totalCents: Long,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val internalNotes: String,
+)
+
+data class Address(val street: String, val city: String, val zip: String, val country: String)
+data class OrderItem(val sku: String, val name: String, val quantity: Int, val priceCents: Long)
+enum class OrderStatus { PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED }
+
+// API DTO
+data class OrderDto(
+    val id: String,                    // renamed from orderId
+    val customerName: String,          // direct match
+    val customerEmail: String,         // direct match
+    val shippingAddress: AddressDto,   // nested mapping
+    val billingAddress: AddressDto,    // nested mapping
+    val items: List<OrderItemDto>,     // nested collection
+    val status: OrderStatusDto,        // enum mapping
+    val subtotalCents: Long,           // direct match
+    val taxCents: Long,                // direct match
+    val totalCents: Long,              // direct match
+    val createdAt: Instant,            // direct match
+    val updatedAt: Instant,            // direct match
+    // internalNotes intentionally excluded from DTO
+)
+
+data class AddressDto(val street: String, val city: String, val zip: String, val country: String)
+data class OrderItemDto(val sku: String, val name: String, val quantity: Int, val priceCents: Long)
+enum class OrderStatusDto { PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED }
+```
+
+**Without Kraft**, the AI writes (and you maintain) every single property assignment:
+
+```kotlin
+fun Order.toOrderDto(): OrderDto = OrderDto(
+    id = this.orderId,
+    customerName = this.customerName,
+    customerEmail = this.customerEmail,
+    shippingAddress = AddressDto(
+        street = this.shippingAddress.street,
+        city = this.shippingAddress.city,
+        zip = this.shippingAddress.zip,
+        country = this.shippingAddress.country,
+    ),
+    billingAddress = AddressDto(
+        street = this.billingAddress.street,
+        city = this.billingAddress.city,
+        zip = this.billingAddress.zip,
+        country = this.billingAddress.country,
+    ),
+    items = this.items.map { item ->
+        OrderItemDto(
+            sku = item.sku,
+            name = item.name,
+            quantity = item.quantity,
+            priceCents = item.priceCents,
+        )
+    },
+    status = when (this.status) {
+        OrderStatus.PENDING -> OrderStatusDto.PENDING
+        OrderStatus.CONFIRMED -> OrderStatusDto.CONFIRMED
+        OrderStatus.SHIPPED -> OrderStatusDto.SHIPPED
+        OrderStatus.DELIVERED -> OrderStatusDto.DELIVERED
+        OrderStatus.CANCELLED -> OrderStatusDto.CANCELLED
+    },
+    subtotalCents = this.subtotalCents,
+    taxCents = this.taxCents,
+    totalCents = this.totalCents,
+    createdAt = this.createdAt,
+    updatedAt = this.updatedAt,
 )
 ```
 
-With the skill, the same request produces:
+That is **35+ lines** of boilerplate. Every time you add, rename, or remove a field in either class, you must update this function manually — and the compiler won't always catch the mismatch.
+
+**With Kraft**, the AI writes only the exceptions — the 3 things that aren't a direct match:
 
 ```kotlin
-// Annotation-based mapper the AI writes with Kraft context
-@MapConfig(
-    source = User::class,
-    target = UserDto::class,
-    fieldMappings = [
-        FieldMapping(source = "userId", target = "id"),
-        FieldMapping(source = "fullName", target = "name")
-    ]
+@MapFrom(Order::class)
+data class OrderDto(
+    @MapField(counterPartName = "orderId")
+    val id: String,
+    val customerName: String,
+    val customerEmail: String,
+    @MapNested val shippingAddress: AddressDto,
+    @MapNested val billingAddress: AddressDto,
+    @MapNested val items: List<OrderItemDto>,
+    val status: OrderStatusDto,
+    val subtotalCents: Long,
+    val taxCents: Long,
+    val totalCents: Long,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    // internalNotes is simply not declared — Kraft ignores it
 )
-object UserMapper
+
+@MapFrom(Address::class)
+data class AddressDto(val street: String, val city: String, val zip: String, val country: String)
+
+@MapFrom(OrderItem::class)
+data class OrderItemDto(val sku: String, val name: String, val quantity: Int, val priceCents: Long)
+
+@MapEnum(source = OrderStatus::class, target = OrderStatusDto::class)
+object OrderStatusMapping
 ```
 
-The generated extension function is produced at compile time by KSP, is type-safe, and stays in sync with your data classes.
+Kraft auto-matches the 9 same-named properties, handles nested objects and collections, maps the enum, and the one rename (`orderId` → `id`) is a single annotation. When you add a new field to both classes, Kraft picks it up automatically — no mapper code to update. The generated code is produced at compile time, is type-safe, and stays in sync with your data classes.
 
 ## Customizing the Skill
 

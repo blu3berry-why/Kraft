@@ -243,3 +243,8 @@ object UserMapper
 | `@MapReverse` without `@MapFrom`, `@MapTo`, or `@MapConfig` on the same declaration | Compile-time error: must be paired with a mapping annotation |
 | Forward converter exists but no reverse converter is defined | Compile-time error: `no reverse converter` message |
 | Ignored property without a default value | Compile-time error (same as without `@MapReverse`) |
+
+## See Also
+
+- [Custom Converters](custom-converters.md) -- writing converter functions that work with forward and reverse mappings.
+- [Configuration Objects](configuration-objects.md) -- using `@MapConfig` as the base for `@MapReverse`.

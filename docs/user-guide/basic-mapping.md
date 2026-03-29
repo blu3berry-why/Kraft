@@ -139,3 +139,9 @@ fun ProductSource.toProductDto(): ProductDto = ProductDto(
 **Missing source property with no default:** If the target has a non-nullable constructor parameter without a default value and there is no matching source property, Kraft reports a compile-time error.
 
 **Type mismatch:** If a source property and target property share the same name but have incompatible types, Kraft reports a compile-time error. Use a field rename or converter to handle this situation.
+
+## See Also
+
+- [Configuration Objects](configuration-objects.md) -- an alternative way to declare mappings without annotating the classes themselves.
+- [Field Renaming](field-renaming.md) -- mapping properties with different names.
+- [Nested Mapping](nested-mapping.md) -- mapping properties that contain other mapped types.

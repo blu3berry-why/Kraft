@@ -2,6 +2,8 @@
 
 Use `@MapUsing` inside a `@MapConfig`-annotated object to provide custom conversion logic for individual target properties. Kraft calls your function during code generation and wires the result into the generated constructor call.
 
+*See also: [Configuration Objects](configuration-objects.md) for a full overview of `@MapConfig`-based mapping.*
+
 ## Property-Source Mode
 
 When `source` is specified, the function receives the value of that single source property and converts it to the target type.
