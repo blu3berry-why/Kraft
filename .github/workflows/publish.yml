@@ -9,45 +9,7 @@ permissions:
   packages: write
 
 jobs:
-  publish-jvm:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Inject publish credentials
-        uses: ./.github/actions/inject-credentials
-        with:
-          gpr-user: ${{ github.actor }}
-          gpr-token: ${{ secrets.GITHUB_TOKEN }}
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-key-id: ${{ secrets.GPG_KEY_ID }}
-          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
-          maven-central-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          maven-central-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-
-      - name: Publish JVM, JS, WasmJs and KMP metadata
-        run: |
-          ./gradlew \
-            :kraft-core:publish \
-            :kraft-ksp:publish \
-            :kraft-annotations:publishKotlinMultiplatformPublicationToGitHubPackagesRepository \
-            :kraft-annotations:publishJvmPublicationToGitHubPackagesRepository \
-            :kraft-annotations:publishJsPublicationToGitHubPackagesRepository \
-            :kraft-annotations:publishWasmJsPublicationToGitHubPackagesRepository \
-            :kraft-annotations:publishKotlinMultiplatformPublicationToMavenCentralRepository \
-            :kraft-annotations:publishJvmPublicationToMavenCentralRepository \
-            :kraft-annotations:publishJsPublicationToMavenCentralRepository \
-            :kraft-annotations:publishWasmJsPublicationToMavenCentralRepository \
-            --no-configuration-cache
-
-  publish-ios:
+  publish:
     runs-on: macos-latest
 
     steps:
@@ -59,6 +21,28 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Validate required secrets are set
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -z "$GPG_PRIVATE_KEY" ]        && missing+=("GPG_PRIVATE_KEY")
+          [ -z "$GPG_KEY_ID" ]             && missing+=("GPG_KEY_ID")
+          [ -z "$GPG_PASSPHRASE" ]         && missing+=("GPG_PASSPHRASE")
+          [ -z "$MAVEN_CENTRAL_USERNAME" ] && missing+=("MAVEN_CENTRAL_USERNAME")
+          [ -z "$MAVEN_CENTRAL_PASSWORD" ] && missing+=("MAVEN_CENTRAL_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required secrets: ${missing[*]}"
+            echo "Go to Settings > Secrets and variables > Actions to configure them."
+            exit 1
+          fi
+          echo "All required secrets are set."
+
       - name: Inject publish credentials
         uses: ./.github/actions/inject-credentials
         with:
@@ -70,19 +54,31 @@ jobs:
           maven-central-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           maven-central-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
 
-      - name: Publish iOS targets
+      - name: Verify gradle.properties has credentials
+        run: |
+          set -euo pipefail
+          for prop in gpr.user gpr.token signing.gnupg.keyName signing.gnupg.passphrase maven.central.username maven.central.password; do
+            if ! grep -q "^${prop}=" gradle.properties; then
+              echo "::error::Property '${prop}' missing from gradle.properties after credential injection."
+              exit 1
+            fi
+          done
+          echo "All credential properties verified in gradle.properties."
+
+      - name: Publish all modules to GitHub Packages
         run: |
           ./gradlew \
-            :kraft-annotations:publishIosX64PublicationToGitHubPackagesRepository \
-            :kraft-annotations:publishIosArm64PublicationToGitHubPackagesRepository \
-            :kraft-annotations:publishIosSimulatorArm64PublicationToGitHubPackagesRepository \
-            :kraft-annotations:publishIosX64PublicationToMavenCentralRepository \
-            :kraft-annotations:publishIosArm64PublicationToMavenCentralRepository \
-            :kraft-annotations:publishIosSimulatorArm64PublicationToMavenCentralRepository \
+            :kraft-core:publish \
+            :kraft-ksp:publish \
+            :kraft-annotations:publish \
             --no-configuration-cache
 
+      - name: Publish all modules to Central Portal
+        run: |
+          ./gradlew publishAggregationToCentralPortal --no-configuration-cache
+
   create-release:
-    needs: [ publish-jvm, publish-ios ]
+    needs: [ publish ]
     runs-on: ubuntu-latest
 
     steps:
