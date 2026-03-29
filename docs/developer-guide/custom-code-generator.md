@@ -4,90 +4,142 @@ Kraft's code generation phase is pluggable via a **ServiceLoader-based SPI**. In
 
 ---
 
-## Data Structure Diagram
+## Data Structure Diagrams
 
-The diagram below shows the IR types your generator receives. `MapperDescriptor` is the central node — everything a generator needs is reachable from it.
+### SPI Wiring
+
+How your generator is discovered and invoked by the processor:
 
 ```mermaid
 classDiagram
-    direction TB
+    direction LR
 
     class MapperGeneratorProvider {
         <<fun interface>>
-        +create(environment: GeneratorEnvironment) MapperGenerator
+        +create(env) MapperGenerator
     }
-
     class GeneratorEnvironment {
         +logger: KSPLogger
         +options: Map~String, String~
         +config: GenerationConfig
     }
-
     class GenerationConfig {
         +functionNameTemplate: String
-        +functionNameFor(descriptor: MapperDescriptor) String
-        +functionNameFor(sourceSimple: String, targetSimple: String) String
+        +functionNameFor(descriptor) String
     }
-
     class MapperGenerator {
         <<fun interface>>
-        +generate(descriptor: MapperDescriptor, codeGenerator: CodeGenerator)
+        +generate(descriptor, codeGenerator)
     }
+
+    class EnumMapperGeneratorProvider {
+        <<fun interface>>
+        +create(env) EnumMapperGeneratorSpi
+    }
+    class EnumMapperGeneratorSpi {
+        <<fun interface>>
+        +generate(descriptors, codeGenerator)
+    }
+
+    MapperGeneratorProvider --> GeneratorEnvironment : receives
+    MapperGeneratorProvider --> MapperGenerator : creates
+    GeneratorEnvironment --> GenerationConfig
+    MapperGenerator --> MapperDescriptor : consumes
+
+    EnumMapperGeneratorProvider --> GeneratorEnvironment : receives
+    EnumMapperGeneratorProvider --> EnumMapperGeneratorSpi : creates
+    EnumMapperGeneratorSpi --> EnumMappingDescriptor : consumes
+```
+
+### MapperDescriptor — The Central IR
+
+The `MapperDescriptor` is what your `generate()` method receives. It contains everything needed to emit mapper code for one source-target pair:
+
+```mermaid
+classDiagram
+    direction TB
 
     class MapperDescriptor {
         +id: MapperId
         +sourceType: TypeInfo
         +targetType: TypeInfo
         +source: MappingSource
-        +propertyMappings: List~PropertyMappingStrategy~
-        +nestedMappings: List~NestedMappingDescriptor~
-        +enumMappings: List~EnumMappingDescriptor~
-        +converters: List~ConverterDescriptor~
-        +nestedDependencies: Set~MapperId~
+        +propertyMappings: List
+        +nestedMappings: List
+        +enumMappings: List
+        +converters: List
     }
 
     class MapperId {
         +sourceQualifiedName: String
         +targetQualifiedName: String
     }
-
     class TypeInfo {
-        +declaration: KSClassDeclaration
-        +ksType: KSType
         +packageName: String
         +simpleName: String
         +isNullable: Boolean
         +qualifiedName: String
     }
-
     class PropertyInfo {
         +name: String
         +type: TypeInfo
-        +declaration: KSPropertyDeclaration
         +hasDefault: Boolean
     }
 
     class MappingSource {
-        <<sealed interface>>
+        <<sealed>>
     }
     class ClassAnnotation {
-        +annotatedClass: KSClassDeclaration
         +direction: MappingDirection
     }
-    class ConfigObject {
-        +configObject: KSClassDeclaration
+    class ConfigObject
+
+    class NestedMappingDescriptor {
+        +nestedMapperId: MapperId
+        +sourceType: TypeInfo
+        +targetType: TypeInfo
+        +collectionKind: CollectionKind?
+    }
+    class EnumMappingDescriptor {
+        +sourceType: TypeInfo
+        +targetType: TypeInfo
+        +entries: List~EnumEntryMapping~
+    }
+    class ConverterDescriptor {
+        +targetPropertyName: String
+        +sourcePropertyName: String?
+        +functionName: String
+        +isExtension: Boolean
     }
 
-    class MappingDirection {
-        <<enum>>
-        MAP_FROM
-        MAP_TO
-    }
+    MapperDescriptor --> MapperId : id
+    MapperDescriptor --> TypeInfo : sourceType / targetType
+    MapperDescriptor --> MappingSource : source
+    MapperDescriptor --> NestedMappingDescriptor : nestedMappings *
+    MapperDescriptor --> EnumMappingDescriptor : enumMappings *
+    MapperDescriptor --> ConverterDescriptor : converters *
+
+    MappingSource <|-- ClassAnnotation
+    MappingSource <|-- ConfigObject
+
+    NestedMappingDescriptor --> MapperId
+    NestedMappingDescriptor --> TypeInfo
+    EnumMappingDescriptor --> TypeInfo
+```
+
+### PropertyMappingStrategy Variants
+
+Each target property is resolved to exactly one strategy. Your generator iterates `descriptor.propertyMappings` and handles each variant:
+
+```mermaid
+classDiagram
+    direction TB
 
     class PropertyMappingStrategy {
-        <<sealed interface>>
+        <<sealed>>
         +targetProperty: PropertyInfo
     }
+
     class Direct {
         +sourceProperty: PropertyInfo
     }
@@ -107,44 +159,8 @@ classDiagram
     }
     class Ignored
 
-    class NestedMappingDescriptor {
-        +nestedMapperId: MapperId
-        +sourceType: TypeInfo
-        +targetType: TypeInfo
-        +collectionKind: CollectionKind?
-        +isCollection: Boolean
-    }
-
-    class CollectionKind {
-        <<enum>>
-        LIST
-        SET
-    }
-
-    class EnumMappingDescriptor {
-        +sourceType: TypeInfo
-        +targetType: TypeInfo
-        +entries: List~EnumEntryMapping~
-    }
-
-    class EnumEntryMapping {
-        +source: String
-        +target: String
-    }
-
-    class ConverterDescriptor {
-        +enclosingObject: KSClassDeclaration?
-        +function: KSFunctionDeclaration
-        +sourcePropertyName: String?
-        +targetPropertyName: String
-        +sourceType: TypeInfo
-        +targetType: TypeInfo
-        +functionName: String
-        +isExtension: Boolean
-    }
-
     class ConverterSource {
-        <<sealed interface>>
+        <<sealed>>
     }
     class Property {
         +info: PropertyInfo
@@ -153,74 +169,16 @@ classDiagram
         +sourceType: TypeInfo
     }
 
-    class EnumMapperGeneratorProvider {
-        <<fun interface>>
-        +create(environment: GeneratorEnvironment) EnumMapperGeneratorSpi
-    }
-
-    class EnumMapperGeneratorSpi {
-        <<fun interface>>
-        +generate(descriptors: List~EnumMappingDescriptor~, codeGenerator: CodeGenerator)
-    }
-
-    %% SPI wiring
-    MapperGeneratorProvider --> GeneratorEnvironment : receives
-    MapperGeneratorProvider --> MapperGenerator : creates
-    GeneratorEnvironment --> GenerationConfig
-    MapperGenerator --> MapperDescriptor : consumes
-
-    EnumMapperGeneratorProvider --> GeneratorEnvironment : receives
-    EnumMapperGeneratorProvider --> EnumMapperGeneratorSpi : creates
-    EnumMapperGeneratorSpi --> EnumMappingDescriptor : consumes
-
-    %% MapperDescriptor relationships
-    MapperDescriptor --> MapperId : id
-    MapperDescriptor --> TypeInfo : sourceType / targetType
-    MapperDescriptor --> MappingSource : source
-    MapperDescriptor --> PropertyMappingStrategy : propertyMappings *
-    MapperDescriptor --> NestedMappingDescriptor : nestedMappings *
-    MapperDescriptor --> EnumMappingDescriptor : enumMappings *
-    MapperDescriptor --> ConverterDescriptor : converters *
-
-    %% MappingSource hierarchy
-    MappingSource <|-- ClassAnnotation
-    MappingSource <|-- ConfigObject
-    ClassAnnotation --> MappingDirection
-
-    %% PropertyMappingStrategy hierarchy
     PropertyMappingStrategy <|-- Direct
     PropertyMappingStrategy <|-- Renamed
     PropertyMappingStrategy <|-- ConverterFunction
     PropertyMappingStrategy <|-- NestedMapper
     PropertyMappingStrategy <|-- Constant
     PropertyMappingStrategy <|-- Ignored
-    PropertyMappingStrategy --> PropertyInfo : targetProperty
 
-    Direct --> PropertyInfo : sourceProperty
-    Renamed --> PropertyInfo : sourceProperty
-    NestedMapper --> PropertyInfo : sourceProperty
-    NestedMapper --> NestedMappingDescriptor
-    ConverterFunction --> ConverterDescriptor
     ConverterFunction --> ConverterSource
-
-    %% ConverterSource hierarchy
     ConverterSource <|-- Property
     ConverterSource <|-- WholeObject
-    Property --> PropertyInfo : info
-    WholeObject --> TypeInfo : sourceType
-
-    %% Nested & Enum
-    NestedMappingDescriptor --> MapperId : nestedMapperId
-    NestedMappingDescriptor --> TypeInfo : sourceType / targetType
-    NestedMappingDescriptor --> CollectionKind
-
-    EnumMappingDescriptor --> TypeInfo : sourceType / targetType
-    EnumMappingDescriptor --> EnumEntryMapping : entries *
-
-    ConverterDescriptor --> TypeInfo : sourceType / targetType
-
-    %% PropertyInfo
-    PropertyInfo --> TypeInfo : type
 ```
 
 ---
