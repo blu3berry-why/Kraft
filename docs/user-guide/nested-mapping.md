@@ -7,8 +7,6 @@ When source and target objects contain properties that are themselves mapped typ
 When a source and target share a same-named property with **different** data class types, Kraft auto-detects the nested relationship and generates a child mapper alongside the parent.
 
 ```kotlin
-import com.blu3berry.kraft.config.MapConfig
-
 data class AddressSource(val street: String, val city: String)
 data class PersonSource(val name: String, val address: AddressSource)
 
