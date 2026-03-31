@@ -2,6 +2,32 @@
 
 Skip target properties during mapping when the target has fields that should not be populated from the source. Ignored properties must have a default value in the target constructor, since they are omitted from the generated constructor call.
 
+## @MapIgnoreField (Config-Level)
+
+Declare ignored properties inside `@MapConfig.ignoredMappings` using `MapIgnoreField`.
+
+```kotlin
+data class UserSource(val id: Int, val name: String)
+data class UserDto(val id: Int, val name: String, val internalNotes: String? = null)
+
+@MapConfig(
+    source = UserSource::class,
+    target = UserDto::class,
+    ignoredMappings = [MapIgnoreField("internalNotes")]
+)
+object UserMapper
+```
+
+Generated code:
+
+```kotlin
+fun UserSource.toUserDto(): UserDto = UserDto(
+    id = this.id,
+    name = this.name
+    // internalNotes is omitted -- uses its default value null
+)
+```
+
 ## @MapIgnore (Class-Level)
 
 Place `@MapIgnore` on a property in a `@MapFrom` or `@MapTo` class. The annotated property is omitted from the generated constructor call and falls back to its default value.
@@ -47,33 +73,6 @@ data class User(
 
 Generated: the `internalNotes` parameter is omitted from the `UserDto(...)` constructor call.
 
-## @MapIgnoreField (Config-Level)
-
-Declare ignored properties inside `@MapConfig.ignoredMappings` using `MapIgnoreField`. This is the config-based equivalent of `@MapIgnore`.
-
-```kotlin
-data class UserSource(val id: Int, val name: String)
-
-@MapConfig(
-    source = UserSource::class,
-    target = UserDto::class,
-    ignoredMappings = [MapIgnoreField("internalNotes")]
-)
-object UserMapper
-
-data class UserDto(val id: Int, val name: String, val internalNotes: String? = null)
-```
-
-Generated code:
-
-```kotlin
-fun UserSource.toUserDto(): UserDto = UserDto(
-    id = this.id,
-    name = this.name
-    // internalNotes is omitted -- uses its default value null
-)
-```
-
 ## IgnoreSide -- Directional Ignoring
 
 `MapIgnoreField` accepts an optional `direction` parameter of type `IgnoreSide` to control which mapping direction the ignore applies to. The default is `IgnoreSide.BOTH`.
@@ -88,6 +87,7 @@ fun UserSource.toUserDto(): UserDto = UserDto(
 
 ```kotlin
 data class User(val id: Int, val name: String, val secret: String)
+data class UserDto(val id: Int, val name: String, val secret: String? = null)
 
 @MapConfig(
     source = User::class,
@@ -97,8 +97,6 @@ data class User(val id: Int, val name: String, val secret: String)
     ]
 )
 object UserMapper
-
-data class UserDto(val id: Int, val name: String, val secret: String? = null)
 ```
 
 Generated: the `secret` parameter is omitted from the `UserDto(...)` constructor call. If a reverse mapper were generated in the future, `secret` would not be ignored in that direction.

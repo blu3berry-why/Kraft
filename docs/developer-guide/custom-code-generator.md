@@ -110,6 +110,7 @@ classDiagram
         +sourcePropertyName: String?
         +functionName: String
         +isExtension: Boolean
+        +resolvedDirection: ConverterDirection
     }
 
     MapperDescriptor --> MapperId : id

@@ -4,17 +4,18 @@
 
 ## Basic Usage
 
-### With @MapFrom
+### With @MapConfig
 
 ```kotlin
 import com.blu3berry.kraft.config.MapReverse
-import com.blu3berry.kraft.mapping.MapFrom
+import com.blu3berry.kraft.config.MapConfig
 
 data class User(val id: Int, val name: String)
+data class UserDto(val id: Int, val name: String)
 
 @MapReverse
-@MapFrom(User::class)
-data class UserDto(val id: Int, val name: String)
+@MapConfig(source = User::class, target = UserDto::class)
+object UserMapper
 ```
 
 **Generated output:**
@@ -33,6 +34,21 @@ public fun UserDto.toUser(): User = User(
 )
 ```
 
+### With @MapFrom
+
+```kotlin
+import com.blu3berry.kraft.config.MapReverse
+import com.blu3berry.kraft.mapping.MapFrom
+
+data class User(val id: Int, val name: String)
+
+@MapReverse
+@MapFrom(User::class)
+data class UserDto(val id: Int, val name: String)
+```
+
+Generates the same two functions: `User.toUserDto()` and `UserDto.toUser()`.
+
 ### With @MapTo
 
 ```kotlin
@@ -47,22 +63,6 @@ data class UserDto(val id: Int, val name: String)
 ```
 
 Generates the same two functions: `User.toUserDto()` and `UserDto.toUser()`.
-
-### With @MapConfig
-
-```kotlin
-import com.blu3berry.kraft.config.MapReverse
-import com.blu3berry.kraft.config.MapConfig
-
-data class User(val id: Int, val name: String)
-data class UserDto(val id: Int, val name: String)
-
-@MapReverse
-@MapConfig(source = User::class, target = UserDto::class)
-object UserMapper
-```
-
-Generates both `fun User.toUserDto()` and `fun UserDto.toUser()`.
 
 ## Renamed Properties
 
@@ -203,6 +203,39 @@ public fun UserDto.toUser(): User = User(
 
 If you omit the reverse converter, Kraft emits a compile-time error with a message indicating that `@MapReverse` requires a reverse converter and none was found.
 
+### Same Property Name with Different Types
+
+When both source and target share a property name but have different types (e.g. `id: Int` vs `id: String`), Kraft auto-detects which converter belongs to which direction by matching the function's parameter type.
+
+```kotlin
+data class Entity(val id: Int, val name: String)
+data class Dto(val id: String, val name: String)
+
+@MapReverse
+@MapConfig(source = Entity::class, target = Dto::class)
+object EntityMapper {
+    // Forward: Int -> String (auto-detected as forward because param matches Entity.id)
+    @MapUsing(source = "id", target = "id")
+    fun intToString(v: Int): String = v.toString()
+
+    // Reverse: String -> Int (auto-detected as reverse because param matches Dto.id)
+    @MapUsing(source = "id", target = "id")
+    fun stringToInt(v: String): Int = v.toInt()
+}
+```
+
+If auto-detection cannot disambiguate (e.g. both sides have the same type), use the `direction` parameter to be explicit:
+
+```kotlin
+@MapUsing(source = "id", target = "id", direction = ConverterDirection.FORWARD)
+fun forwardConvert(v: Int): String = v.toString()
+
+@MapUsing(source = "id", target = "id", direction = ConverterDirection.REVERSE)
+fun reverseConvert(v: String): Int = v.toInt()
+```
+
+See [Custom Converters -- Direction Parameter](custom-converters.md#direction-parameter) for full details.
+
 ## IgnoreSide with Reverse
 
 The `direction` parameter on `MapIgnoreField` controls which mapping direction the ignore applies to.
@@ -243,6 +276,7 @@ object UserMapper
 | `@MapReverse` without `@MapFrom`, `@MapTo`, or `@MapConfig` on the same declaration | Compile-time error: must be paired with a mapping annotation |
 | Forward converter exists but no reverse converter is defined | Compile-time error: `no reverse converter` message |
 | Ignored property without a default value | Compile-time error (same as without `@MapReverse`) |
+| Explicit `direction` mismatches the converter's types | Compile-time error: type mismatch |
 
 ## See Also
 

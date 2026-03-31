@@ -1,6 +1,54 @@
 # Field Renaming
 
-When source and target properties have different names, Kraft provides two ways to declare the mapping: `@MapField` (on properties in annotated classes) and `FieldMapping` (in `@MapConfig`).
+When source and target properties have different names, Kraft provides two ways to declare the mapping: `FieldMapping` (in `@MapConfig`) and `@MapField` (on properties in annotated classes).
+
+## FieldMapping (in @MapConfig)
+
+When using `@MapConfig`, declare renames with `FieldMapping`. Its parameters use explicit `source` and `target` names -- no ambiguity about direction.
+
+```kotlin
+import com.blu3berry.kraft.config.MapConfig
+import com.blu3berry.kraft.config.FieldMapping
+
+data class PersonDto(val fullName: String)
+data class Person(val name: String)
+
+@MapConfig(
+    source = PersonDto::class,
+    target = Person::class,
+    fieldMappings = [
+        FieldMapping(source = "fullName", target = "name")
+    ]
+)
+object PersonMapper
+```
+
+Generated output:
+
+```kotlin
+fun PersonDto.toPerson(): Person = Person(
+    name = this.fullName,
+)
+```
+
+`source` is the property name on the source class; `target` is the constructor parameter name on the target class.
+
+### Multiple Field Mappings
+
+You can declare as many renames as needed in a single `@MapConfig`:
+
+```kotlin
+@MapConfig(
+    source = EmployeeRecord::class,
+    target = EmployeeDto::class,
+    fieldMappings = [
+        FieldMapping(source = "empId", target = "id"),
+        FieldMapping(source = "empName", target = "name"),
+        FieldMapping(source = "empEmail", target = "email"),
+    ]
+)
+object EmployeeMapper
+```
 
 ## @MapField (on @MapFrom / @MapTo Classes)
 
@@ -63,54 +111,6 @@ fun User.toUserDto(): UserDto = UserDto(
 ```
 
 The rule is consistent: `counterPartName` always points to the other side.
-
-## FieldMapping (in @MapConfig)
-
-When using `@MapConfig`, declare renames with `FieldMapping`. Its parameters use explicit `source` and `target` names -- no ambiguity about direction.
-
-```kotlin
-import com.blu3berry.kraft.config.MapConfig
-import com.blu3berry.kraft.config.FieldMapping
-
-data class PersonDto(val fullName: String)
-data class Person(val name: String)
-
-@MapConfig(
-    source = PersonDto::class,
-    target = Person::class,
-    fieldMappings = [
-        FieldMapping(source = "fullName", target = "name")
-    ]
-)
-object PersonMapper
-```
-
-Generated output:
-
-```kotlin
-fun PersonDto.toPerson(): Person = Person(
-    name = this.fullName,
-)
-```
-
-`source` is the property name on the source class; `target` is the constructor parameter name on the target class.
-
-### Multiple Field Mappings
-
-You can declare as many renames as needed in a single `@MapConfig`:
-
-```kotlin
-@MapConfig(
-    source = EmployeeRecord::class,
-    target = EmployeeDto::class,
-    fieldMappings = [
-        FieldMapping(source = "empId", target = "id"),
-        FieldMapping(source = "empName", target = "name"),
-        FieldMapping(source = "empEmail", target = "email"),
-    ]
-)
-object EmployeeMapper
-```
 
 ## Combining with Other Features
 

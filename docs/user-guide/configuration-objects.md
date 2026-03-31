@@ -14,8 +14,6 @@
 Annotate a Kotlin `object` with `@MapConfig`, specifying source and target classes. Kraft generates an extension function on the source class.
 
 ```kotlin
-import com.blu3berry.kraft.config.MapConfig
-
 data class User(val id: Int, val name: String)
 data class UserDto(val id: Int, val name: String)
 
@@ -37,9 +35,6 @@ public fun User.toUserDto(): UserDto = UserDto(
 Use `fieldMappings` when the source and target have properties with different names.
 
 ```kotlin
-import com.blu3berry.kraft.config.MapConfig
-import com.blu3berry.kraft.config.FieldMapping
-
 data class User(val userId: Int, val fullName: String)
 data class UserDto(val id: Int, val name: String)
 
@@ -63,25 +58,18 @@ public fun User.toUserDto(): UserDto = UserDto(
 )
 ```
 
-## Nested Mappings with NestedMapping
+## Nested Objects
 
-When source and target contain nested objects of different types, declare them with `nestedMappings`. Kraft generates (or reuses) a child mapper for the nested pair.
+When source and target contain nested objects of different types, Kraft auto-detects the nested relationship and generates a child mapper. No additional configuration is needed for same-named properties:
 
 ```kotlin
-import com.blu3berry.kraft.config.MapConfig
-import com.blu3berry.kraft.config.NestedMapping
-
 data class Address(val street: String, val city: String)
 data class AddressDto(val street: String, val city: String)
 
 data class Store(val location: Address)
 data class StoreDto(val location: AddressDto)
 
-@MapConfig(
-    source = Store::class,
-    target = StoreDto::class,
-    nestedMappings = [NestedMapping(source = Address::class, target = AddressDto::class)]
-)
+@MapConfig(source = Store::class, target = StoreDto::class)
 object StoreMapper
 ```
 
@@ -98,14 +86,13 @@ public fun Address.toAddressDto(): AddressDto = AddressDto(
 )
 ```
 
+If the nested property is renamed, use `FieldMapping` -- the child mapper is still auto-detected. See [Nested Mapping](nested-mapping.md#renamed-nested-properties) for details.
+
 ## Ignoring Properties with MapIgnoreField
 
 Use `ignoredMappings` to skip target constructor parameters. The skipped property must have a default value.
 
 ```kotlin
-import com.blu3berry.kraft.config.MapConfig
-import com.blu3berry.kraft.config.MapIgnoreField
-
 data class User(val id: Int, val name: String, val internalNotes: String)
 data class UserDto(val id: Int, val name: String, val internalNotes: String = "")
 
@@ -136,9 +123,6 @@ Place `@MapUsing`-annotated functions inside the config object to transform prop
 The function receives a single source property value.
 
 ```kotlin
-import com.blu3berry.kraft.config.MapConfig
-import com.blu3berry.kraft.config.MapUsing
-
 data class Src(val int: Int)
 data class Dst(val text: String)
 
@@ -195,13 +179,15 @@ public fun Src.toDst(): Dst = Dst(
 )
 ```
 
+### Converter Direction
+
+When using `@MapReverse` and both classes share a property name with different types, use the `direction` parameter to specify which direction each converter applies to. Kraft auto-detects direction by default, but you can be explicit with `ConverterDirection.FORWARD` or `ConverterDirection.REVERSE`. See [Custom Converters -- Direction Parameter](custom-converters.md#direction-parameter) for details.
+
 ## Combining All Features
 
-Here is an example using field renames, nested mappings, ignore rules, and a converter together.
+Here is an example using field renames, auto-detected nested mapping, ignore rules, and a converter together.
 
 ```kotlin
-import com.blu3berry.kraft.config.*
-
 data class Address(val street: String, val city: String)
 data class AddressDto(val street: String, val city: String)
 
@@ -222,7 +208,6 @@ data class OrderDto(
     source = Order::class,
     target = OrderDto::class,
     fieldMappings = [FieldMapping(source = "orderId", target = "id")],
-    nestedMappings = [NestedMapping(source = Address::class, target = AddressDto::class)],
     ignoredMappings = [MapIgnoreField("internalNotes")]
 )
 object OrderMapper {
@@ -252,10 +237,6 @@ public fun Address.toAddressDto(): AddressDto = AddressDto(
 `@MapConfig` can supplement a `@MapFrom` or `@MapTo` class by providing converters and overrides. Reference the config via the `config` parameter.
 
 ```kotlin
-import com.blu3berry.kraft.mapping.MapFrom
-import com.blu3berry.kraft.config.MapConfig
-import com.blu3berry.kraft.config.MapUsing
-
 data class User(val birthDate: Long, val name: String)
 
 @MapConfig(source = User::class, target = UserDto::class)

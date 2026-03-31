@@ -20,9 +20,15 @@ dependencies {
 For Kotlin Multiplatform projects:
 
 ```kotlin
-val commonMain by getting {
-    dependencies {
-        implementation("com.blu3berry.kraft:kraft-annotations:<version>")
+kotlin {
+    sourceSets {
+        commonMain {
+            // Make generated mappers visible to common source code
+            kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
+        }
+        commonMain.dependencies {
+            implementation("com.blu3berry.kraft:kraft-annotations:<version>")
+        }
     }
 }
 
@@ -30,19 +36,29 @@ val commonMain by getting {
 dependencies {
     add("kspCommonMainMetadata", "com.blu3berry.kraft:kraft-ksp:<version>")
 }
+
+// Ensure KSP runs before compilation so generated code is available:
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().all {
+    if (name != "kspCommonMainKotlinMetadata") {
+        dependsOn("kspCommonMainKotlinMetadata")
+    }
+}
 ```
+
+The `kotlin.srcDir` line adds the KSP output directory to your common source set so the IDE and all platform compilations can see the generated mappers. The `dependsOn` block ensures `kspCommonMainKotlinMetadata` runs before any Kotlin compilation task, so generated code is always up to date.
 
 ## Your First Mapper
 
-Define two data classes and annotate the target with `@MapFrom`:
+Define two data classes and a mapping config object:
 
 ```kotlin
-import com.blu3berry.kraft.mapping.MapFrom
+import com.blu3berry.kraft.config.MapConfig
 
 data class User(val name: String, val age: Int)
-
-@MapFrom(User::class)
 data class UserDto(val name: String, val age: Int)
+
+@MapConfig(source = User::class, target = UserDto::class)
+object UserMapper
 ```
 
 Kraft generates an extension function on the source class:
@@ -79,11 +95,11 @@ Kraft provides three annotation styles depending on where you want to place the 
 
 | Annotation | Placed on | Declares |
 |---|---|---|
+| `@MapConfig(source = ..., target = ...)` | Standalone object | External config, neither class is annotated |
 | `@MapFrom(Source::class)` | Target class | "I am built from Source" |
 | `@MapTo(Target::class)` | Source class | "I can be converted to Target" |
-| `@MapConfig(source = ..., target = ...)` | Standalone object | External config, neither class is annotated |
 
-All three generate the same extension function: `fun Source.toTarget(): Target`. Choose whichever fits your codebase conventions. The rest of this guide uses `@MapFrom` for most examples, but the concepts apply equally to `@MapTo` and `@MapConfig`.
+All three generate the same extension function: `fun Source.toTarget(): Target`. Choose whichever fits your codebase conventions. The rest of this guide uses `@MapConfig` for most examples, but the concepts apply equally to `@MapFrom` and `@MapTo`.
 
 ## Next Steps
 

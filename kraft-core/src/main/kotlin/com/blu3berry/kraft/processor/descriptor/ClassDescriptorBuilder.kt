@@ -1,6 +1,7 @@
 package com.blu3berry.kraft.processor.descriptor
 
 import com.google.devtools.ksp.processing.KSPLogger
+import com.blu3berry.kraft.config.ConverterDirection
 import com.blu3berry.kraft.model.MapperId
 import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
@@ -51,7 +52,9 @@ class ClassDescriptorBuilder(
         val ignoredProperties =
             IgnoredPropertyAggregator(logger).aggregate(mapping, configObjects, targetProps, targetTypeName)
         val configRenames = configObjects.toConfigOverridesMap()
+        // Exclude reverse-only converters from the forward mapping context
         val converters = configObjects.flatMap { it.converters }
+            .filter { it.resolvedDirection != ConverterDirection.REVERSE }
         val nestedMappings = configObjects.flatMap { it.nestedMappings }
         val classNestedOverrides = extractClassNestedOverrides()
 

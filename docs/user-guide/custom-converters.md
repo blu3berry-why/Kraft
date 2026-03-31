@@ -145,6 +145,49 @@ object SrcMapper {
 
 Generated: `tagStr = SrcMapper.convert(this.tags)`
 
+## Direction Parameter
+
+When using `@MapReverse`, you may need both a forward and a reverse converter for the same property. The `direction` parameter on `@MapUsing` controls which mapping direction the converter applies to.
+
+| Value | Meaning |
+|---|---|
+| `ConverterDirection.AUTO` (default) | Kraft infers the direction from the converter's parameter type |
+| `ConverterDirection.FORWARD` | Converter is used only for source -> target |
+| `ConverterDirection.REVERSE` | Converter is used only for target -> source |
+
+### Auto-Detection
+
+By default (`AUTO`), Kraft matches the converter's parameter type against the source property types of each direction. This works automatically when the types differ between source and target:
+
+```kotlin
+data class Entity(val id: Int, val name: String)
+data class Dto(val id: String, val name: String)
+
+@MapReverse
+@MapConfig(source = Entity::class, target = Dto::class)
+object EntityMapper {
+    @MapUsing(source = "id", target = "id")  // param Int matches Entity.id -> forward
+    fun intToString(v: Int): String = v.toString()
+
+    @MapUsing(source = "id", target = "id")  // param String matches Dto.id -> reverse
+    fun stringToInt(v: String): Int = v.toInt()
+}
+```
+
+### Explicit Direction
+
+Use explicit `direction` when auto-detection cannot disambiguate (e.g. both sides have the same type for a property) or when you prefer to be explicit:
+
+```kotlin
+@MapUsing(source = "id", target = "id", direction = ConverterDirection.FORWARD)
+fun forwardConvert(v: Int): String = v.toString()
+
+@MapUsing(source = "id", target = "id", direction = ConverterDirection.REVERSE)
+fun reverseConvert(v: String): Int = v.toInt()
+```
+
+See [Reverse Mapping -- Converters in Reverse](reverse-mapping.md#converters-in-reverse) for the full reverse converter workflow.
+
 ## Error Cases
 
 | Condition | Result |
@@ -156,5 +199,6 @@ Generated: `tagStr = SrcMapper.convert(this.tags)`
 | Return type does not match the target constructor parameter type | Compile-time error ("mismatch") |
 | Nullable parameter with non-nullable source property | Compile-time error ("mismatch") |
 | Generic type argument mismatch (e.g., `List<Int>` vs `List<String>`) | Compile-time error ("mismatch") |
-| Two `@MapUsing` functions targeting the same property | Compile-time error ("Multiple") |
+| Two `@MapUsing` functions targeting the same property in the same direction | Compile-time error ("Multiple") |
 | Whole-source function parameter type does not match the source class | Compile-time error ("source class") |
+| Explicit `direction` mismatches the converter's types | Compile-time error ("mismatch") |

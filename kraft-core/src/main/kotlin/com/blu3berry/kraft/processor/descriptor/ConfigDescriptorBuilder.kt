@@ -3,6 +3,8 @@ package com.blu3berry.kraft.processor.descriptor
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolver
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.blu3berry.kraft.config.ConverterDirection
+import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
@@ -38,8 +40,16 @@ class ConfigDescriptorBuilder(
         val targetProps = TargetPropertyExtractor(logger)
             .extract(toDecl, targetCtor, toDecl.simpleName.asString()) ?: return null
 
+        // Exclude reverse-only converters from the forward mapping context
+        val forwardConverters = config.converters.filter {
+            it.resolvedDirection != ConverterDirection.REVERSE
+        }
+
         val ignoredProperties = buildIgnoredProperties(targetProps, toDecl.simpleName.asString())
-        val ctx = buildMappingContext(fromDecl, toDecl, sourceProps, config.nestedMappings, ignoredProperties)
+        val ctx = buildMappingContext(
+            fromDecl, toDecl, sourceProps, forwardConverters,
+            config.nestedMappings, ignoredProperties
+        )
 
         val resolver = PropertyResolver()
         val mappings = resolveAllProperties(targetProps, resolver, ctx) ?: return null
@@ -57,7 +67,7 @@ class ConfigDescriptorBuilder(
             source = MappingSource.ConfigObject(config.configObject),
             propertyMappings = mappings,
             enumMappings = enums,
-            converters = config.converters,
+            converters = forwardConverters,
             nestedMappings = config.nestedMappings,
         )
     }
@@ -69,6 +79,7 @@ class ConfigDescriptorBuilder(
         fromDecl: KSClassDeclaration,
         toDecl: KSClassDeclaration,
         sourceProps: Map<String, PropertyInfo>,
+        converters: List<ConverterDescriptor>,
         nestedMappings: List<NestedMappingDescriptor>,
         ignoredProperties: Set<String>
     ): MappingContext {
@@ -77,7 +88,7 @@ class ConfigDescriptorBuilder(
             sourceProps = sourceProps,
             classRenames = emptyMap(),                         // config mode → no @MapField
             configRenames = config.fieldOverrides.associate { it.target to it.source },
-            converters = config.converters,
+            converters = converters,
             nestedMappings = nestedMappings,
             ignoredProperties = ignoredProperties,
             sourceTypeName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
