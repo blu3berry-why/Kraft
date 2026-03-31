@@ -23,26 +23,30 @@ This project uses Kraft, a KSP-based compile-time mapper generator for Kotlin. W
 
 | Task | Annotation | Placement |
 |------|-----------|-----------|
+| Config-based mapping | `@MapConfig(source = A::class, target = B::class)` | On object |
 | Map source to target | `@MapFrom(Source::class)` | On target class |
 | Map target from source | `@MapTo(Target::class)` | On source class |
-| Rename property | `@MapField(counterPartName = "srcProp")` | On target property |
-| Nested object mapping | `@MapNested` or `@MapNested(sourceName = "other")` | On target property |
-| Ignore property | `@MapIgnore` | On target property (must have default) |
+| Rename property (config) | `FieldMapping(source = "src", target = "tgt")` | In @MapConfig.fieldMappings |
+| Rename property (class) | `@MapField(counterPartName = "srcProp")` | On target property |
+| Nested object mapping | Auto-detected when types differ | No annotation needed; use `FieldMapping` if renamed |
+| Ignore property (config) | `MapIgnoreField("prop")` | In @MapConfig.ignoredMappings |
+| Ignore property (class) | `@MapIgnore` | On target property (must have default) |
 | Reverse mapping | `@MapReverse` | On class with @MapFrom/@MapTo or on @MapConfig object |
 | Enum mapping | `@MapEnum(source = A::class, target = B::class)` | On config object |
 | Custom converter | `@MapUsing(source = "prop", target = "prop")` | On function in @MapConfig object |
 | Whole-source converter | `@MapUsing(target = "prop")` | On function in @MapConfig object (omit source) |
-| Config-based mapping | `@MapConfig(source = A::class, target = B::class)` | On object |
+| Converter direction | `@MapUsing(..., direction = ConverterDirection.FORWARD)` | On function when @MapReverse has same-name properties |
 
 ### Decision Rules
 
 - **Simple same-name properties**: No annotation needed -- Kraft maps them automatically.
-- **Different property names**: Use `@MapField` on the class or `FieldMapping` in `@MapConfig`.
-- **Nested objects**: Use `@MapNested` or let auto-detection handle same-named properties with different types. Use `NestedMapping` in `@MapConfig` when classes cannot be annotated.
+- **Standalone mapping config**: Use `@MapConfig` on an object. Supports field renames, nested mappings, ignore rules, converters, and reverse mapping.
+- **Different property names**: Use `FieldMapping` in `@MapConfig`, or `@MapField` on the class.
+- **Nested objects**: Auto-detected when source and target have same-named properties with different types. Use `FieldMapping` or `@MapField` if the property is renamed.
 - **Complex transformations**: Use `@MapUsing` inside a `@MapConfig` object. Omit the `source` parameter to receive the whole source object.
-- **Cannot modify the classes**: Use `@MapConfig` on a standalone object.
-- **Need both directions**: Add `@MapReverse` to generate the inverse mapper.
+- **Need both directions**: Add `@MapReverse` to generate the inverse mapper. If both classes share a property name with different types, provide both forward and reverse `@MapUsing` converters -- Kraft auto-detects direction, or use `direction = ConverterDirection.FORWARD/REVERSE` to be explicit.
 - **Enum-to-enum**: Use `@MapEnum` with auto-matching or explicit `fieldMappings`.
+- **Class-level annotations**: Use `@MapFrom` on the target class or `@MapTo` on the source class when you prefer annotating the data classes directly.
 
 ### Anti-Patterns
 
@@ -61,7 +65,7 @@ Generated extension functions appear in:
 
 Annotations are in two packages:
 - `com.blu3berry.kraft.mapping.*` -- @MapFrom, @MapTo, @MapField, @MapIgnore, @MapNested
-- `com.blu3berry.kraft.config.*` -- @MapConfig, @MapEnum, @MapUsing, @MapReverse, FieldMapping, NestedMapping, MapIgnoreField, IgnoreSide
+- `com.blu3berry.kraft.config.*` -- @MapConfig, @MapEnum, @MapUsing, @MapReverse, FieldMapping, MapIgnoreField, IgnoreSide, ConverterDirection
 ````
 
 ## How It Works
@@ -168,15 +172,13 @@ That is **35+ lines** of boilerplate. Every time you add, rename, or remove a fi
 **With Kraft**, the AI writes only the exceptions — the 3 things that aren't a direct match:
 
 ```kotlin
-@MapFrom(Order::class)
 data class OrderDto(
-    @MapField(counterPartName = "orderId")
     val id: String,
     val customerName: String,
     val customerEmail: String,
-    @MapNested val shippingAddress: AddressDto,
-    @MapNested val billingAddress: AddressDto,
-    @MapNested val items: List<OrderItemDto>,
+    val shippingAddress: AddressDto,
+    val billingAddress: AddressDto,
+    val items: List<OrderItemDto>,
     val status: OrderStatusDto,
     val subtotalCents: Long,
     val taxCents: Long,
@@ -186,17 +188,21 @@ data class OrderDto(
     // internalNotes is simply not declared — Kraft ignores it
 )
 
-@MapFrom(Address::class)
 data class AddressDto(val street: String, val city: String, val zip: String, val country: String)
-
-@MapFrom(OrderItem::class)
 data class OrderItemDto(val sku: String, val name: String, val quantity: Int, val priceCents: Long)
+
+@MapConfig(
+    source = Order::class,
+    target = OrderDto::class,
+    fieldMappings = [FieldMapping(source = "orderId", target = "id")]
+)
+object OrderMapper
 
 @MapEnum(source = OrderStatus::class, target = OrderStatusDto::class)
 object OrderStatusMapping
 ```
 
-Kraft auto-matches the 9 same-named properties, handles nested objects and collections, maps the enum, and the one rename (`orderId` → `id`) is a single annotation. When you add a new field to both classes, Kraft picks it up automatically — no mapper code to update. The generated code is produced at compile time, is type-safe, and stays in sync with your data classes.
+Kraft auto-matches the 9 same-named properties, handles nested objects and collections, maps the enum, and the one rename (`orderId` → `id`) is a single `FieldMapping`. When you add a new field to both classes, Kraft picks it up automatically — no mapper code to update. The generated code is produced at compile time, is type-safe, and stays in sync with your data classes.
 
 ## Customizing the Skill
 

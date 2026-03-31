@@ -82,7 +82,7 @@ The central intermediate representation. Contains:
 - `sourceType / targetType: TypeInfo` -- source and target class info.
 - `propertyMappings: List<PropertyMappingStrategy>` -- resolved strategy for each target property.
 - `nestedMappings: List<NestedMappingDescriptor>` -- child mapper dependencies.
-- `converters: List<ConverterDescriptor>` -- `@MapUsing` converter functions.
+- `converters: List<ConverterDescriptor>` -- `@MapUsing` converter functions. Each carries a `resolvedDirection` (`AUTO`, `FORWARD`, or `REVERSE`) for directional filtering when `@MapReverse` is active.
 
 ### PropertyMappingStrategy (sealed interface)
 

@@ -17,9 +17,10 @@ data class ItemSource(val id: Int, val label: String)
 data class OrderSource(val ref: String, val items: List<ItemSource>)
 
 data class ItemDto(val id: Int, val label: String)
-
-@MapFrom(OrderSource::class)
 data class OrderDto(val ref: String, val items: List<ItemDto>)
+
+@MapConfig(source = OrderSource::class, target = OrderDto::class)
+object OrderMapper
 ```
 
 Generated code:
@@ -45,9 +46,10 @@ data class ItemSource(val id: Int, val label: String)
 data class OrderSource(val ref: String, val items: Set<ItemSource>)
 
 data class ItemDto(val id: Int, val label: String)
-
-@MapFrom(OrderSource::class)
 data class OrderDto(val ref: String, val items: Set<ItemDto>)
+
+@MapConfig(source = OrderSource::class, target = OrderDto::class)
+object OrderMapper
 ```
 
 Generated code:
@@ -72,9 +74,10 @@ When the element types are identical, the collection is assigned directly:
 ```kotlin
 data class Item(val id: Int)
 data class OrderSource(val ref: String, val items: List<Item>)
-
-@MapFrom(OrderSource::class)
 data class OrderDto(val ref: String, val items: List<Item>)
+
+@MapConfig(source = OrderSource::class, target = OrderDto::class)
+object OrderMapper
 ```
 
 Generated: `items = this.items` (no `.map` call needed).
@@ -90,9 +93,10 @@ data class PostSource(val title: String, val authors: List<AuthorSource>, val co
 
 data class AuthorDto(val name: String)
 data class CommentDto(val text: String)
-
-@MapFrom(PostSource::class)
 data class PostDto(val title: String, val authors: List<AuthorDto>, val comments: List<CommentDto>)
+
+@MapConfig(source = PostSource::class, target = PostDto::class)
+object PostMapper
 ```
 
 Generated:
@@ -150,38 +154,26 @@ When the source element type is nullable but the target element type is not, Kra
 
 Generated: `items = this.items.mapNotNull { it?.toItemDto() }`
 
-## With @MapNested
+## Renamed Collection Properties
 
-You can use `@MapNested` explicitly on a collection property. The behavior is the same as auto-detection but makes the intent explicit:
+When the collection property has a different name on source and target, use `FieldMapping` to declare the rename. Auto-detection generates the child mapper:
 
 ```kotlin
 data class TagSource(val value: String)
-data class ArticleSource(val title: String, val tags: List<TagSource>)
+data class ArticleSource(val title: String, val articleTags: List<TagSource>)
 
 data class TagDto(val value: String)
+data class ArticleDto(val title: String, val tags: List<TagDto>)
 
-@MapFrom(ArticleSource::class)
-data class ArticleDto(
-    val title: String,
-    @MapNested
-    val tags: List<TagDto>
+@MapConfig(
+    source = ArticleSource::class,
+    target = ArticleDto::class,
+    fieldMappings = [FieldMapping(source = "articleTags", target = "tags")]
 )
+object ArticleMapper
 ```
 
-Generated: `tags = this.tags.map { it.toTagDto() }`
-
-This also works with `Set`:
-
-```kotlin
-@MapFrom(ArticleSource::class)
-data class ArticleDto(
-    val title: String,
-    @MapNested
-    val tags: Set<TagDto>
-)
-```
-
-Generated: `tags = this.tags.map { it.toTagDto() }.toSet()`
+Generated: `tags = this.articleTags.map { it.toTagDto() }`
 
 ## Error Cases
 

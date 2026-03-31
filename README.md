@@ -1,3 +1,4 @@
+[![GitHub Release](https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/blu3berry-why/Kraft/releases/latest&query=tag_name&label=release&color=blue)](https://github.com/blu3berry-why/Kraft/releases/latest)
 [![Test](https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml/badge.svg)](https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0%2B-7F52FF.svg)](https://kotlinlang.org)
@@ -10,9 +11,10 @@ Kraft generates type-safe extension functions to map between data classes. No re
 
 ```kotlin
 data class User(val id: Int, val name: String, val email: String)
-
-@MapFrom(User::class)
 data class UserDto(val id: Int, val name: String, val email: String)
+
+@MapConfig(source = User::class, target = UserDto::class)
+object UserMapper
 
 // Generated: fun User.toUserDto(): UserDto
 val dto = user.toUserDto()
@@ -22,7 +24,7 @@ val dto = user.toUserDto()
 
 - **Automatic property matching** — same-name properties mapped without configuration
 - **Field renaming** — `@MapField` or `@FieldMapping` for cross-name mapping
-- **Nested objects** — auto-detected or explicit `@MapNested`, with child mapper generation
+- **Nested objects** — auto-detected when types differ, including renamed properties
 - **Collections** — `List<T>` and `Set<T>` with nested element mapping
 - **Enum mapping** — `@MapEnum` with auto-matching and custom entry pairs
 - **Custom converters** — `@MapUsing` for property-source or whole-source transformations
@@ -79,17 +81,17 @@ dependencies {
 
 | Annotation | Purpose | Placement |
 |-----------|---------|-----------|
+| `@MapConfig` | Standalone mapping config | On object |
 | `@MapFrom` | Map from source class | On target data class |
 | `@MapTo` | Map to target class | On source data class |
-| `@MapConfig` | Standalone mapping config | On object |
 | `@MapField` | Rename a property | On property in `@MapFrom`/`@MapTo` class |
-| `@MapNested` | Nested object mapping | On property in `@MapFrom`/`@MapTo` class |
+| `@MapNested` | ~~Deprecated~~ — auto-detected | On property in `@MapFrom`/`@MapTo` class |
 | `@MapIgnore` | Skip a property | On property (must have default value) |
 | `@MapUsing` | Custom converter function | On function in `@MapConfig` object |
 | `@MapEnum` | Enum-to-enum mapping | On object |
 | `@MapReverse` | Generate inverse mapper | On class or `@MapConfig` object |
 | `@FieldMapping` | Config-level rename | In `@MapConfig.fieldMappings` |
-| `@NestedMapping` | Config-level nested pair | In `@MapConfig.nestedMappings` |
+| `@NestedMapping` | ~~Deprecated~~ — auto-detected | In `@MapConfig.nestedMappings` |
 | `@MapIgnoreField` | Config-level ignore | In `@MapConfig.ignoredMappings` |
 
 ## Documentation

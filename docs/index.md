@@ -1,3 +1,5 @@
+[![GitHub Release](https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/blu3berry-why/Kraft/releases/latest&query=tag_name&label=release&color=blue)](https://github.com/blu3berry-why/Kraft/releases/latest)
+
 # Kraft
 
 **Compile-time mapper generation for Kotlin Multiplatform.**
@@ -6,7 +8,7 @@ Kraft is a KSP-based annotation processor that generates type-safe extension fun
 
 ## Features
 
-- **Annotation-driven** — `@MapFrom`, `@MapTo`, or `@MapConfig` to declare mappings
+- **Annotation-driven** — `@MapConfig`, `@MapFrom`, or `@MapTo` to declare mappings
 - **Property matching** — same-name properties mapped automatically
 - **Field renaming** — `@MapField` or `@FieldMapping` for cross-name mapping
 - **Nested objects** — auto-detected or explicit `@MapNested`, with implicit child mapper generation
@@ -34,9 +36,10 @@ dependencies {
 
 ```kotlin
 data class User(val id: Int, val name: String, val email: String)
-
-@MapFrom(User::class)
 data class UserDto(val id: Int, val name: String, val email: String)
+
+@MapConfig(source = User::class, target = UserDto::class)
+object UserMapper
 
 // Generated: fun User.toUserDto(): UserDto
 ```

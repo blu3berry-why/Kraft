@@ -63,13 +63,12 @@ public fun User.toUserDto(): UserDto = UserDto(
 )
 ```
 
-## Nested Mappings with NestedMapping
+## Nested Objects
 
-When source and target contain nested objects of different types, declare them with `nestedMappings`. Kraft generates (or reuses) a child mapper for the nested pair.
+When source and target contain nested objects of different types, Kraft auto-detects the nested relationship and generates a child mapper. No additional configuration is needed for same-named properties:
 
 ```kotlin
 import com.blu3berry.kraft.config.MapConfig
-import com.blu3berry.kraft.config.NestedMapping
 
 data class Address(val street: String, val city: String)
 data class AddressDto(val street: String, val city: String)
@@ -77,11 +76,7 @@ data class AddressDto(val street: String, val city: String)
 data class Store(val location: Address)
 data class StoreDto(val location: AddressDto)
 
-@MapConfig(
-    source = Store::class,
-    target = StoreDto::class,
-    nestedMappings = [NestedMapping(source = Address::class, target = AddressDto::class)]
-)
+@MapConfig(source = Store::class, target = StoreDto::class)
 object StoreMapper
 ```
 
@@ -97,6 +92,8 @@ public fun Address.toAddressDto(): AddressDto = AddressDto(
   city = this.city
 )
 ```
+
+If the nested property is renamed, use `FieldMapping` -- the child mapper is still auto-detected. See [Nested Mapping](nested-mapping.md#renamed-nested-properties) for details.
 
 ## Ignoring Properties with MapIgnoreField
 
@@ -194,6 +191,10 @@ public fun Src.toDst(): Dst = Dst(
   combined = with(SrcMapper) { this@toDst.combine() }
 )
 ```
+
+### Converter Direction
+
+When using `@MapReverse` and both classes share a property name with different types, use the `direction` parameter to specify which direction each converter applies to. Kraft auto-detects direction by default, but you can be explicit with `ConverterDirection.FORWARD` or `ConverterDirection.REVERSE`. See [Custom Converters -- Direction Parameter](custom-converters.md#direction-parameter) for details.
 
 ## Combining All Features
 
