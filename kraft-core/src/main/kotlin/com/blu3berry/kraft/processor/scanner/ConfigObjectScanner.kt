@@ -235,16 +235,12 @@ class ConfigObjectScanner(
     /**
      * Extracts and validates converter functions from the configuration object.
      */
-    @Suppress("CyclomaticComplexMethod")
     private fun extractConverterFunctions(
         symbol: KSClassDeclaration,
         fromType: KSClassDeclaration,
         toType: KSClassDeclaration,
         hasReverse: Boolean = false
     ): List<ConverterDescriptor> {
-        val converters = mutableListOf<ConverterDescriptor>()
-
-        // Get source and target properties for validation (separate maps per direction)
         val sourcePropertiesList = fromType.getDeclaredProperties().toList()
         val targetPropertiesList = toType.getDeclaredProperties().toList()
         val fwdSourceProperties = sourcePropertiesList.map { it.simpleName.asString() }.toSet()
@@ -257,6 +253,7 @@ class ConfigObjectScanner(
         }
 
         if (!hasReverse) {
+            val converters = mutableListOf<ConverterDescriptor>()
             val propertyPairs = mutableMapOf<String, KSFunctionDeclaration>()
             for (fn in converterFunctions) {
                 val parsed = parseConverterAnnotation(fn) ?: continue
@@ -270,11 +267,35 @@ class ConfigObjectScanner(
             return converters
         }
 
-        // With @MapReverse: classify each converter as forward or reverse direction,
-        // then validate against the appropriate property maps with separate duplicate tracking.
+        return extractConverterFunctionsWithReverse(
+            converterFunctions, symbol, fromType, toType,
+            fwdSourceProperties, fwdTargetProperties,
+            fwdSourcePropertyMap, fwdTargetPropertyMap,
+            targetPropertiesList, sourcePropertiesList
+        )
+    }
+
+    /**
+     * Handles converter extraction when @MapReverse is present.
+     * Classifies each converter as forward or reverse, validates against the
+     * appropriate property maps, and tracks duplicates per direction.
+     */
+    @Suppress("LongParameterList")
+    private fun extractConverterFunctionsWithReverse(
+        converterFunctions: Sequence<KSFunctionDeclaration>,
+        symbol: KSClassDeclaration,
+        fromType: KSClassDeclaration,
+        toType: KSClassDeclaration,
+        fwdSourceProperties: Set<String>,
+        fwdTargetProperties: Set<String>,
+        fwdSourcePropertyMap: Map<String, KSPropertyDeclaration>,
+        fwdTargetPropertyMap: Map<String, KSPropertyDeclaration>,
+        targetPropertiesList: List<KSPropertyDeclaration>,
+        sourcePropertiesList: List<KSPropertyDeclaration>
+    ): List<ConverterDescriptor> {
+        val converters = mutableListOf<ConverterDescriptor>()
         val forwardPropertyPairs = mutableMapOf<String, KSFunctionDeclaration>()
         val reversePropertyPairs = mutableMapOf<String, KSFunctionDeclaration>()
-        // Reverse direction swaps source ↔ target
         val revSourcePropertyMap = targetPropertiesList.associateBy { it.simpleName.asString() }
         val revTargetPropertyMap = sourcePropertiesList.associateBy { it.simpleName.asString() }
 

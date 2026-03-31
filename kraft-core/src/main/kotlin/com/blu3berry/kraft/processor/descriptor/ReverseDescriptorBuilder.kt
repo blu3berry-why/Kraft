@@ -177,7 +177,9 @@ class ReverseDescriptorBuilder(
         val forwardConverterDescriptors = forwardConverterStrategies.map { it.converter }.toSet()
 
         // Start with only non-forward converters (reverse-direction or unrelated)
-        val reverseConverters = allConverters.filter { it !in forwardConverterDescriptors }.toMutableList()
+        val reverseConverters = allConverters.filter {
+            it !in forwardConverterDescriptors && it.resolvedDirection != ConverterDirection.FORWARD
+        }.toMutableList()
 
         for (fwdStrategy in forwardConverterStrategies) {
             val fwdConverter = fwdStrategy.converter

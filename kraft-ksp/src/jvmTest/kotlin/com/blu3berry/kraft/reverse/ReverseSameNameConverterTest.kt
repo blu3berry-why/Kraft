@@ -36,13 +36,17 @@ class ReverseSameNameConverterTest {
         val generated = TestKspRunner.compileAndReturnGenerated(source)
         val allContent = generated.joinToString("\n") { it.readText() }
 
-        // Forward: Entity → Dto
-        assertThat(allContent).contains("fun Entity.toDto()")
-        assertThat(allContent).contains("EntityMapper.intToString(this.id)")
+        // Forward: Entity → Dto — converter wired inside the constructor call
+        assertThat(allContent).contains(
+            "fun Entity.toDto(): Dto = Dto(\n" +
+            "  id = EntityMapper.intToString(this.id),"
+        )
 
-        // Reverse: Dto → Entity
-        assertThat(allContent).contains("fun Dto.toEntity()")
-        assertThat(allContent).contains("EntityMapper.stringToInt(this.id)")
+        // Reverse: Dto → Entity — reverse converter wired inside the constructor call
+        assertThat(allContent).contains(
+            "fun Dto.toEntity(): Entity = Entity(\n" +
+            "  id = EntityMapper.stringToInt(this.id),"
+        )
     }
 
     @Test
@@ -77,13 +81,17 @@ class ReverseSameNameConverterTest {
         val generated = TestKspRunner.compileAndReturnGenerated(source)
         val allContent = generated.joinToString("\n") { it.readText() }
 
-        // Forward: Entity → Dto
-        assertThat(allContent).contains("fun Entity.toDto()")
-        assertThat(allContent).contains("EntityMapper.intToString(this.id)")
+        // Forward: Entity → Dto — converter wired inside the constructor call
+        assertThat(allContent).contains(
+            "fun Entity.toDto(): Dto = Dto(\n" +
+            "  id = EntityMapper.intToString(this.id),"
+        )
 
-        // Reverse: Dto → Entity
-        assertThat(allContent).contains("fun Dto.toEntity()")
-        assertThat(allContent).contains("EntityMapper.stringToInt(this.id)")
+        // Reverse: Dto → Entity — reverse converter wired inside the constructor call
+        assertThat(allContent).contains(
+            "fun Dto.toEntity(): Entity = Entity(\n" +
+            "  id = EntityMapper.stringToInt(this.id),"
+        )
     }
 
     @Test

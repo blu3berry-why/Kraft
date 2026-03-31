@@ -4,6 +4,7 @@ import com.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolve
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.blu3berry.kraft.config.ConverterDirection
+import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
@@ -75,7 +76,7 @@ class ConfigDescriptorBuilder(
         fromDecl: KSClassDeclaration,
         toDecl: KSClassDeclaration,
         sourceProps: Map<String, PropertyInfo>,
-        converters: List<com.blu3berry.kraft.model.descriptor.ConverterDescriptor>,
+        converters: List<ConverterDescriptor>,
         nestedMappings: List<NestedMappingDescriptor>,
         ignoredProperties: Set<String>
     ): MappingContext {

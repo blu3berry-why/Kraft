@@ -198,7 +198,7 @@ When using `@MapReverse` and both classes share a property name with different t
 
 ## Combining All Features
 
-Here is an example using field renames, nested mappings, ignore rules, and a converter together.
+Here is an example using field renames, auto-detected nested mapping, ignore rules, and a converter together.
 
 ```kotlin
 import com.blu3berry.kraft.config.*
@@ -223,7 +223,6 @@ data class OrderDto(
     source = Order::class,
     target = OrderDto::class,
     fieldMappings = [FieldMapping(source = "orderId", target = "id")],
-    nestedMappings = [NestedMapping(source = Address::class, target = AddressDto::class)],
     ignoredMappings = [MapIgnoreField("internalNotes")]
 )
 object OrderMapper {

@@ -176,7 +176,7 @@ data class PersonSource(val name: String, val address: AddressSource?)
 data class PersonDto(val name: String, val address: AddressDto)  // ERROR: nullable source, non-null target
 ```
 
-This applies to both auto-detected nested mappings and explicit `@MapNested` annotations.
+This applies to all nested mappings, whether auto-detected or explicitly declared.
 
 ## Circular Dependencies
 
@@ -194,6 +194,6 @@ data class ContainerDto(val node: NodeDto)  // ERROR: Circular nested mapping (N
 
 The DFS-based resolver tracks visited type pairs and halts when it encounters a cycle.
 
-## Combining @MapNested with @MapField
+## Combining @MapNested with @MapField (deprecated)
 
-If both `@MapNested` and `@MapField` are present on the same property, `@MapNested` takes precedence. Kraft emits a warning but compiles successfully. Prefer using `@MapNested(sourceName = "...")` instead of combining both annotations.
+If both `@MapNested` and `@MapField` are present on the same property, `@MapNested` takes precedence. Kraft emits a warning but compiles successfully. Since `@MapNested` is deprecated, use `@MapField(counterPartName = "...")` alone — auto-detection handles the nested mapping.
