@@ -2,6 +2,7 @@ package com.blu3berry.kraft.model.descriptor
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import com.blu3berry.kraft.config.ConverterDirection
 import com.blu3berry.kraft.model.TypeInfo
 
 /**
@@ -17,6 +18,8 @@ import com.blu3berry.kraft.model.TypeInfo
  * @param targetPropertyName  Target property that receives the converter's return value.
  * @param sourceType          Type of the converter's input.
  * @param targetType          Type of the converter's output.
+ * @param resolvedDirection   The mapping direction this converter applies to; [ConverterDirection.AUTO]
+ *                            when the config has no `@MapReverse` (all converters serve the single direction).
  */
 data class ConverterDescriptor(
     val enclosingObject: KSClassDeclaration?,
@@ -24,7 +27,8 @@ data class ConverterDescriptor(
     val sourcePropertyName: String?,
     val targetPropertyName: String,
     val sourceType: TypeInfo,
-    val targetType: TypeInfo
+    val targetType: TypeInfo,
+    val resolvedDirection: ConverterDirection = ConverterDirection.AUTO
 ) {
     /** Simple name of the converter function. */
     val functionName: String

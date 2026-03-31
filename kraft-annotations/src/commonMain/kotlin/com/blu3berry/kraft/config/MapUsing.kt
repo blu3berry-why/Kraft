@@ -17,6 +17,11 @@ package com.blu3berry.kraft.config
  *               Omit (or leave blank) to pass the whole source object instead.
  * @param target The constructor parameter name on the **target** class that receives
  *               the converted value.
+ * @param direction Which mapping direction this converter applies to. Defaults to
+ *                  [ConverterDirection.AUTO] which infers the direction from the
+ *                  converter's parameter type. Use [ConverterDirection.FORWARD] or
+ *                  [ConverterDirection.REVERSE] to disambiguate when both classes
+ *                  share a property name with the same type.
  *
  * Examples:
  * ```
@@ -28,11 +33,19 @@ package com.blu3berry.kraft.config
  * // Whole-source: combine multiple fields
  * @MapUsing(target = "fullName")
  * fun User.toFullName(): String = "$firstName $lastName"
+ *
+ * // Explicit direction for same-named properties
+ * @MapUsing(source = "id", target = "id", direction = ConverterDirection.FORWARD)
+ * fun uuidToString(id: Uuid): String = id.toString()
+ *
+ * @MapUsing(source = "id", target = "id", direction = ConverterDirection.REVERSE)
+ * fun stringToUuid(id: String): Uuid = Uuid.parse(id)
  * ```
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.SOURCE)
 annotation class MapUsing(
     val source: String = "",
-    val target: String
+    val target: String,
+    val direction: ConverterDirection = ConverterDirection.AUTO
 )

@@ -3,6 +3,7 @@ package com.blu3berry.kraft.processor.descriptor
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSNode
+import com.blu3berry.kraft.config.ConverterDirection
 import com.blu3berry.kraft.model.MapperId
 import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
@@ -168,7 +169,9 @@ class ReverseDescriptorBuilder(
         val forwardConverterStrategies = forwardDescriptor.propertyMappings
             .filterIsInstance<PropertyMappingStrategy.ConverterFunction>()
 
-        if (forwardConverterStrategies.isEmpty()) return allConverters
+        if (forwardConverterStrategies.isEmpty()) {
+            return allConverters.filter { it.resolvedDirection != ConverterDirection.FORWARD }
+        }
 
         // Identify forward converter descriptors so we can exclude them from reverse resolution
         val forwardConverterDescriptors = forwardConverterStrategies.map { it.converter }.toSet()

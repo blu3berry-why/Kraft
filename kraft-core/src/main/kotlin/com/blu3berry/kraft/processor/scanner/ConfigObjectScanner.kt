@@ -12,6 +12,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.blu3berry.kraft.config.ConverterDirection
 import com.blu3berry.kraft.config.IgnoreSide
 import com.blu3berry.kraft.model.MapperId
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
@@ -234,6 +235,7 @@ class ConfigObjectScanner(
     /**
      * Extracts and validates converter functions from the configuration object.
      */
+    @Suppress("CyclomaticComplexMethod")
     private fun extractConverterFunctions(
         symbol: KSClassDeclaration,
         fromType: KSClassDeclaration,
@@ -241,42 +243,145 @@ class ConfigObjectScanner(
         hasReverse: Boolean = false
     ): List<ConverterDescriptor> {
         val converters = mutableListOf<ConverterDescriptor>()
-        val propertyPairs = mutableMapOf<String, KSFunctionDeclaration>()
 
-        // Get source and target properties for validation
+        // Get source and target properties for validation (separate maps per direction)
         val sourcePropertiesList = fromType.getDeclaredProperties().toList()
         val targetPropertiesList = toType.getDeclaredProperties().toList()
-        val sourceProperties = sourcePropertiesList.map { it.simpleName.asString() }.toSet()
-        val targetProperties = targetPropertiesList.map { it.simpleName.asString() }.toSet()
-        // When @MapReverse is present, converters may reference properties from either side
-        val validSourceProperties = if (hasReverse) sourceProperties + targetProperties else sourceProperties
-        val validTargetProperties = if (hasReverse) targetProperties + sourceProperties else targetProperties
-
-        // Create maps of property name to property declaration for type checking
-        // When @MapReverse is present, converters may reference properties from either side
-        val sourcePropertyMap = if (hasReverse)
-            (sourcePropertiesList + targetPropertiesList).associateBy { it.simpleName.asString() }
-        else
-            sourcePropertiesList.associateBy { it.simpleName.asString() }
-        val targetPropertyMap = if (hasReverse)
-            (targetPropertiesList + sourcePropertiesList).associateBy { it.simpleName.asString() }
-        else
-            targetPropertiesList.associateBy { it.simpleName.asString() }
+        val fwdSourceProperties = sourcePropertiesList.map { it.simpleName.asString() }.toSet()
+        val fwdTargetProperties = targetPropertiesList.map { it.simpleName.asString() }.toSet()
+        val fwdSourcePropertyMap = sourcePropertiesList.associateBy { it.simpleName.asString() }
+        val fwdTargetPropertyMap = targetPropertiesList.associateBy { it.simpleName.asString() }
 
         val converterFunctions = symbol.getDeclaredFunctions().filter { fn ->
             fn.annotations.any { it.isAnnotation(KraftKspConstants.FQ_MAP_USING) }
         }
 
-        for (fn in converterFunctions) {
-            val converter = validateAndCreateConverter(
-                fn, symbol, fromType, validSourceProperties, validTargetProperties,
-                sourcePropertyMap, targetPropertyMap, propertyPairs
-            ) ?: continue
+        if (!hasReverse) {
+            val propertyPairs = mutableMapOf<String, KSFunctionDeclaration>()
+            for (fn in converterFunctions) {
+                val parsed = parseConverterAnnotation(fn) ?: continue
+                if (!checkDuplicateTarget(parsed, fn, propertyPairs)) continue
+                val converter = validateAndCreateConverter(
+                    fn, symbol, fromType, fwdSourceProperties, fwdTargetProperties,
+                    fwdSourcePropertyMap, fwdTargetPropertyMap, parsed
+                ) ?: continue
+                converters.add(converter)
+            }
+            return converters
+        }
 
-            converters.add(converter)
+        // With @MapReverse: classify each converter as forward or reverse direction,
+        // then validate against the appropriate property maps with separate duplicate tracking.
+        val forwardPropertyPairs = mutableMapOf<String, KSFunctionDeclaration>()
+        val reversePropertyPairs = mutableMapOf<String, KSFunctionDeclaration>()
+        // Reverse direction swaps source ↔ target
+        val revSourcePropertyMap = targetPropertiesList.associateBy { it.simpleName.asString() }
+        val revTargetPropertyMap = sourcePropertiesList.associateBy { it.simpleName.asString() }
+
+        for (fn in converterFunctions) {
+            val parsed = parseConverterAnnotation(fn) ?: continue
+
+            val direction = resolveConverterDirection(
+                parsed, fn, fromType, fwdSourcePropertyMap, revSourcePropertyMap
+            )
+
+            val pairMap = if (direction == ConverterDirection.FORWARD) forwardPropertyPairs else reversePropertyPairs
+            if (!checkDuplicateTarget(parsed, fn, pairMap)) continue
+
+            val converter = when (direction) {
+                ConverterDirection.FORWARD, ConverterDirection.AUTO -> validateAndCreateConverter(
+                    fn, symbol, fromType, fwdSourceProperties, fwdTargetProperties,
+                    fwdSourcePropertyMap, fwdTargetPropertyMap, parsed
+                )
+                ConverterDirection.REVERSE -> validateAndCreateConverter(
+                    fn, symbol, toType, fwdTargetProperties, fwdSourceProperties,
+                    revSourcePropertyMap, revTargetPropertyMap, parsed
+                )
+            } ?: continue
+
+            converters.add(converter.copy(resolvedDirection = direction))
         }
 
         return converters
+    }
+
+    /**
+     * Determines the effective direction for a @MapUsing converter.
+     *
+     * If the annotation specifies an explicit [ConverterDirection.FORWARD] or [ConverterDirection.REVERSE],
+     * that value is returned. For [ConverterDirection.AUTO], the converter's parameter type is matched
+     * against the source property types of each direction to disambiguate.
+     */
+    private fun resolveConverterDirection(
+        parsed: ConverterAnnotationArgs,
+        fn: KSFunctionDeclaration,
+        forwardSourceClass: KSClassDeclaration,
+        forwardSourcePropertyMap: Map<String, KSPropertyDeclaration>,
+        reverseSourcePropertyMap: Map<String, KSPropertyDeclaration>
+    ): ConverterDirection {
+        if (parsed.direction != ConverterDirection.AUTO) return parsed.direction
+
+        // Get the parameter type safely for disambiguation
+        val paramType = if (fn.extensionReceiver != null) {
+            fn.extensionReceiver!!.resolve()
+        } else {
+            fn.parameters.firstOrNull()?.type?.resolve()
+        } ?: return ConverterDirection.FORWARD
+
+        // Whole-source mode: check if param matches forward source class
+        if (parsed.isWholeSource) {
+            return if (paramType.declaration.qualifiedName?.asString() ==
+                forwardSourceClass.qualifiedName?.asString()
+            ) ConverterDirection.FORWARD else ConverterDirection.REVERSE
+        }
+
+        // Property-source mode: check which direction's source property type matches the param
+        val sourcePropName = parsed.fromProp!!
+        val forwardProp = forwardSourcePropertyMap[sourcePropName]
+        val reverseProp = reverseSourcePropertyMap[sourcePropName]
+
+        // Property exists in only one direction — unambiguous
+        if (forwardProp != null && reverseProp == null) return ConverterDirection.FORWARD
+        if (forwardProp == null && reverseProp != null) return ConverterDirection.REVERSE
+        // Neither has it; default to forward — validation will report the error
+        if (forwardProp == null) return ConverterDirection.FORWARD
+
+        // Property exists in both directions — disambiguate by type matching
+        val forwardType = forwardProp.type.resolve()
+        if (typesMatch(paramType, forwardType)) return ConverterDirection.FORWARD
+
+        val reverseType = reverseProp!!.type.resolve()
+        if (typesMatch(paramType, reverseType)) return ConverterDirection.REVERSE
+
+        // Neither matches — default to forward; validation will report the error
+        return ConverterDirection.FORWARD
+    }
+
+    /**
+     * Checks that no other converter already targets the same property in the same direction.
+     * Returns true if the target is unique, false (with error logged) if a duplicate is found.
+     */
+    private fun checkDuplicateTarget(
+        parsed: ConverterAnnotationArgs,
+        fn: KSFunctionDeclaration,
+        propertyPairs: MutableMap<String, KSFunctionDeclaration>
+    ): Boolean {
+        val existingFn = propertyPairs[parsed.toProp]
+        if (existingFn != null) {
+            val sourceDesc = if (parsed.isWholeSource) "<whole source>" else parsed.fromProp
+            logger.error(
+                "Multiple @MapUsing converters target property " +
+                    "'${parsed.toProp}': already defined in " +
+                    "'${existingFn.simpleName.asString()}' " +
+                    "(source: $sourceDesc), then again in " +
+                    "'${fn.simpleName.asString()}'. " +
+                    "Only one converter per target property is allowed.",
+                fn
+            )
+            return false
+        }
+        propertyPairs[parsed.toProp] = fn
+        return true
     }
 
     @Suppress("LongParameterList", "ReturnCount")
@@ -288,11 +393,8 @@ class ConfigObjectScanner(
         targetProperties: Set<String>,
         sourcePropertyMap: Map<String, KSPropertyDeclaration>,
         targetPropertyMap: Map<String, KSPropertyDeclaration>,
-        propertyPairs: MutableMap<String, KSFunctionDeclaration>
+        parsed: ConverterAnnotationArgs
     ): ConverterDescriptor? {
-        val parsed = parseConverterAnnotation(fn, propertyPairs)
-            ?: return null
-
         if (!validatePropertyExists(
                 parsed.toProp, targetProperties, symbol, fn, "target"
             )
@@ -335,12 +437,12 @@ class ConfigObjectScanner(
     private data class ConverterAnnotationArgs(
         val fromProp: String?,
         val toProp: String,
-        val isWholeSource: Boolean
+        val isWholeSource: Boolean,
+        val direction: ConverterDirection
     )
 
     private fun parseConverterAnnotation(
-        fn: KSFunctionDeclaration,
-        propertyPairs: MutableMap<String, KSFunctionDeclaration>
+        fn: KSFunctionDeclaration
     ): ConverterAnnotationArgs? {
         val mapUsingAnn = fn.annotations.firstOrNull {
             it.isAnnotation(KraftKspConstants.FQ_MAP_USING)
@@ -369,23 +471,23 @@ class ConfigObjectScanner(
 
         val isWholeSource = fromProp.isNullOrBlank()
 
-        val existingFn = propertyPairs[toProp]
-        if (existingFn != null) {
-            val sourceDesc = if (isWholeSource) "<whole source>" else fromProp
+        val directionName = mapUsingAnn.getEnumArgOrNull(
+            name = KraftKspConstants.ARG_DIRECTION,
+            logger = logger,
+            symbol = fn,
+            annotationFqName = KraftKspConstants.FQ_MAP_USING
+        ) ?: ConverterDirection.AUTO.name
+
+        val direction = try {
+            ConverterDirection.valueOf(directionName)
+        } catch (_: IllegalArgumentException) {
             logger.error(
-                "Multiple @MapUsing converters target property " +
-                    "'$toProp': already defined in " +
-                    "'${existingFn.simpleName.asString()}' " +
-                    "(source: $sourceDesc), then again in " +
-                    "'${fn.simpleName.asString()}'. " +
-                    "Only one converter per target property is allowed.",
-                fn
+                "@MapUsing unknown direction '$directionName'", fn
             )
             return null
         }
-        propertyPairs[toProp] = fn
 
-        return ConverterAnnotationArgs(fromProp, toProp, isWholeSource)
+        return ConverterAnnotationArgs(fromProp, toProp, isWholeSource, direction)
     }
 
     @Suppress("LongParameterList")

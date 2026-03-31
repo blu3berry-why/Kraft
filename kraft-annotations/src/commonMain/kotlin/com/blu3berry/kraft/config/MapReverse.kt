@@ -32,6 +32,11 @@ package com.blu3berry.kraft.config
  * requires a corresponding reverse converter to be defined in the same config object.
  * A compile-time error is emitted when a reverse converter is missing.
  *
+ * When both source and target share a property name with different types, Kraft
+ * auto-detects converter direction by matching parameter types. Use
+ * [ConverterDirection.FORWARD] or [ConverterDirection.REVERSE] on `@MapUsing`
+ * to disambiguate when auto-detection is insufficient.
+ *
  * Nested child mappers are auto-reversed unless an explicit reverse mapping already
  * exists for the child pair.
  *
