@@ -32,7 +32,7 @@ import com.blu3berry.kraft.processor.util.getStringArgOrNull
 /**
  * Scans for configuration objects annotated with @MapConfig and extracts mapping information.
  */
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 class ConfigObjectScanner(
     private val resolver: Resolver,
     private val logger: KSPLogger
@@ -342,40 +342,47 @@ class ConfigObjectScanner(
     ): ConverterDirection {
         if (parsed.direction != ConverterDirection.AUTO) return parsed.direction
 
-        // Get the parameter type safely for disambiguation
         val paramType = if (fn.extensionReceiver != null) {
             fn.extensionReceiver!!.resolve()
         } else {
             fn.parameters.firstOrNull()?.type?.resolve()
         } ?: return ConverterDirection.FORWARD
 
-        // Whole-source mode: check if param matches forward source class
         if (parsed.isWholeSource) {
-            return if (paramType.declaration.qualifiedName?.asString() ==
+            val matchesForward = paramType.declaration.qualifiedName?.asString() ==
                 forwardSourceClass.qualifiedName?.asString()
-            ) ConverterDirection.FORWARD else ConverterDirection.REVERSE
+            return if (matchesForward) ConverterDirection.FORWARD else ConverterDirection.REVERSE
         }
 
-        // Property-source mode: check which direction's source property type matches the param
-        val sourcePropName = parsed.fromProp!!
+        return classifyPropertySourceDirection(
+            parsed.fromProp!!, paramType, forwardSourcePropertyMap, reverseSourcePropertyMap
+        )
+    }
+
+    /**
+     * Classifies a property-source converter's direction by matching the parameter type
+     * against each direction's source property type.
+     */
+    private fun classifyPropertySourceDirection(
+        sourcePropName: String,
+        paramType: KSType,
+        forwardSourcePropertyMap: Map<String, KSPropertyDeclaration>,
+        reverseSourcePropertyMap: Map<String, KSPropertyDeclaration>
+    ): ConverterDirection {
         val forwardProp = forwardSourcePropertyMap[sourcePropName]
         val reverseProp = reverseSourcePropertyMap[sourcePropName]
 
-        // Property exists in only one direction — unambiguous
-        if (forwardProp != null && reverseProp == null) return ConverterDirection.FORWARD
-        if (forwardProp == null && reverseProp != null) return ConverterDirection.REVERSE
-        // Neither has it; default to forward — validation will report the error
-        if (forwardProp == null) return ConverterDirection.FORWARD
+        // Property exists in only one direction, or neither (validation will error)
+        if (forwardProp == null || reverseProp == null) {
+            return if (reverseProp != null) ConverterDirection.REVERSE else ConverterDirection.FORWARD
+        }
 
-        // Property exists in both directions — disambiguate by type matching
-        val forwardType = forwardProp.type.resolve()
-        if (typesMatch(paramType, forwardType)) return ConverterDirection.FORWARD
-
-        val reverseType = reverseProp!!.type.resolve()
-        if (typesMatch(paramType, reverseType)) return ConverterDirection.REVERSE
-
-        // Neither matches — default to forward; validation will report the error
-        return ConverterDirection.FORWARD
+        // Both directions have the property — disambiguate by type matching
+        return when {
+            typesMatch(paramType, forwardProp.type.resolve()) -> ConverterDirection.FORWARD
+            typesMatch(paramType, reverseProp.type.resolve()) -> ConverterDirection.REVERSE
+            else -> ConverterDirection.FORWARD
+        }
     }
 
     /**

@@ -46,7 +46,10 @@ class ConfigDescriptorBuilder(
         }
 
         val ignoredProperties = buildIgnoredProperties(targetProps, toDecl.simpleName.asString())
-        val ctx = buildMappingContext(fromDecl, toDecl, sourceProps, forwardConverters, config.nestedMappings, ignoredProperties)
+        val ctx = buildMappingContext(
+            fromDecl, toDecl, sourceProps, forwardConverters,
+            config.nestedMappings, ignoredProperties
+        )
 
         val resolver = PropertyResolver()
         val mappings = resolveAllProperties(targetProps, resolver, ctx) ?: return null

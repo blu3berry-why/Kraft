@@ -336,7 +336,7 @@ class NestedRule : MappingRule {
 
     // ---------- 3. Auto-detection fallback ----------
 
-    @Suppress("ReturnCount")
+    @Suppress("ReturnCount", "CyclomaticComplexMethod")
     private fun resolveAutoDetected(
         target: PropertyInfo,
         ctx: MappingContext
