@@ -341,7 +341,11 @@ class NestedRule : MappingRule {
         target: PropertyInfo,
         ctx: MappingContext
     ): PropertyMappingStrategy? {
-        val sourceProp = ctx.sourceProps[target.name] ?: return null
+        // Check class-level and config-level renames before falling back to target.name
+        val sourceName = ctx.classRenames[target.name]
+            ?: ctx.configRenames[target.name]
+            ?: target.name
+        val sourceProp = ctx.sourceProps[sourceName] ?: return null
 
         // Collection auto-detection (List/Set)
         val autoSrcCollKind = collectionKindOf(sourceProp.type)

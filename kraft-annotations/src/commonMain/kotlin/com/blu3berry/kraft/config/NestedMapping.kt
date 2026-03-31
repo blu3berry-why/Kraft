@@ -24,6 +24,11 @@ import kotlin.reflect.KClass
  * object OrderMappingConfig
  * ```
  */
+@Deprecated(
+    message = "Auto-detection handles nested mapping automatically. " +
+        "Use FieldMapping for renamed properties.",
+    level = DeprecationLevel.WARNING
+)
 annotation class NestedMapping(
     val source: KClass<*>,
     val target: KClass<*>

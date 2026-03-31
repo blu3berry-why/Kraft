@@ -35,6 +35,11 @@ package com.blu3berry.kraft.mapping
  * )
  * ```
  */
+@Deprecated(
+    message = "Auto-detection handles nested mapping automatically. " +
+        "Use @MapField(counterPartName = \"...\") for renamed properties.",
+    level = DeprecationLevel.WARNING
+)
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.SOURCE)
 annotation class MapNested(

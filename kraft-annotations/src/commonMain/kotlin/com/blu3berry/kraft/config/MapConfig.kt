@@ -13,9 +13,9 @@ import kotlin.reflect.KClass
  * @param target The class to map **to**.
  * @param fieldMappings Explicit property renames: each [@FieldMapping][FieldMapping]
  *                      entry maps a source property name to a target property name.
- * @param nestedMappings Explicit nested-object mapper declarations: each
- *                       [@NestedMapping][NestedMapping] entry registers a mapper for
- *                       a source/target type pair used as a nested property.
+ * @param nestedMappings **Deprecated.** Nested mappings are now auto-detected.
+ *                       Use [FieldMapping] to rename properties; the nested child mapper
+ *                       is generated automatically when the types differ.
  * @param ignoredMappings Target constructor parameters to skip: each
  *                        [@MapIgnoreField][MapIgnoreField] entry names a parameter
  *                        that will be omitted from the generated constructor call
