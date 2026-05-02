@@ -57,6 +57,17 @@ class GlobalConverterScanner(
 
         val receiverType = fn.extensionReceiver!!.resolve()
         val returnType = fn.returnType?.resolve() ?: return
+
+        if (receiverType.arguments.isNotEmpty() || returnType.arguments.isNotEmpty()) {
+            logger.error(
+                "@KraftConverter on '${fn.simpleName.asString()}' uses a parameterized receiver " +
+                    "or return type. Generic converters (e.g. List<T> → Set<T>) are not yet supported; " +
+                    "register a converter for each concrete type pair, or use a per-property @MapUsing.",
+                fn
+            )
+            return
+        }
+
         val key = buildKey(receiverType, returnType) ?: return
 
         val existing = entries[key]

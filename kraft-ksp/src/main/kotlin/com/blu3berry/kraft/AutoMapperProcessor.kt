@@ -49,7 +49,8 @@ class AutoMapperProcessor(
         val configMappings = ConfigObjectScanner(resolver, logger).scan()
         val enumMappings = EnumMapScanner(resolver, logger).scan()
         val sameModuleConverters = GlobalConverterScanner(resolver, logger).scan()
-        val classpathConverters = ClasspathConverterScanner(resolver, logger).scan()
+        val classpathConverters = ClasspathConverterScanner(resolver, logger)
+            .scan(sameModuleKeys = sameModuleConverters.entries.keys)
         val mergedConverters = sameModuleConverters.mergeAsFallback(classpathConverters)
 
         DelegateRegistryGenerator(

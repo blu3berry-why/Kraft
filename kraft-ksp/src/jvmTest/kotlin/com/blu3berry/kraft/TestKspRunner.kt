@@ -23,20 +23,27 @@ data class TwoStageResult(
 object TestKspRunner {
 
     @OptIn(ExperimentalCompilerApi::class)
+    private fun prepareCompilation(
+        sources: List<SourceFile>,
+        kspOptions: Map<String, String>,
+        extraClasspath: List<File> = emptyList()
+    ): KotlinCompilation = KotlinCompilation().apply {
+        useKsp2()
+        kspWithCompilation = true
+        inheritClassPath = true
+        symbolProcessorProviders = listOf(AutoMapperProcessorProvider()).toMutableList()
+        this.sources = sources
+        verbose = false
+        if (extraClasspath.isNotEmpty()) classpaths = classpaths + extraClasspath
+        if (kspOptions.isNotEmpty()) kspProcessorOptions.putAll(kspOptions)
+    }
+
+    @OptIn(ExperimentalCompilerApi::class)
     fun compile(
         vararg sources: SourceFile,
         kspOptions: Map<String, String> = emptyMap()
-    ): JvmCompilationResult {
-        return KotlinCompilation().apply {
-            useKsp2()
-            kspWithCompilation = true
-            inheritClassPath = true
-            symbolProcessorProviders = listOf(AutoMapperProcessorProvider()).toMutableList()
-            this.sources = sources.toList()
-            verbose = false
-            if (kspOptions.isNotEmpty()) kspProcessorOptions.putAll(kspOptions)
-        }.compile()
-    }
+    ): JvmCompilationResult =
+        prepareCompilation(sources.toList(), kspOptions).compile()
 
     @OptIn(ExperimentalCompilerApi::class)
     fun compileAndReturnGenerated(
@@ -64,30 +71,17 @@ object TestKspRunner {
         upstreamKspOptions: Map<String, String> = emptyMap(),
         consumerKspOptions: Map<String, String> = emptyMap()
     ): TwoStageResult {
-        val upstream = KotlinCompilation().apply {
-            useKsp2()
-            kspWithCompilation = true
-            inheritClassPath = true
-            symbolProcessorProviders = listOf(AutoMapperProcessorProvider()).toMutableList()
-            sources = upstreamSources
-            verbose = false
-            if (upstreamKspOptions.isNotEmpty()) kspProcessorOptions.putAll(upstreamKspOptions)
-        }.compile()
+        val upstream = prepareCompilation(upstreamSources, upstreamKspOptions).compile()
 
         require(upstream.exitCode == KotlinCompilation.ExitCode.OK) {
             "Upstream compilation failed:\n${upstream.messages}"
         }
 
-        val consumer = KotlinCompilation().apply {
-            useKsp2()
-            kspWithCompilation = true
-            inheritClassPath = true
-            classpaths = classpaths + upstream.outputDirectory
-            symbolProcessorProviders = listOf(AutoMapperProcessorProvider()).toMutableList()
-            sources = consumerSources
-            verbose = false
-            if (consumerKspOptions.isNotEmpty()) kspProcessorOptions.putAll(consumerKspOptions)
-        }.compile()
+        val consumer = prepareCompilation(
+            sources = consumerSources,
+            kspOptions = consumerKspOptions,
+            extraClasspath = listOf(upstream.outputDirectory)
+        ).compile()
 
         return TwoStageResult(
             upstream = upstream,

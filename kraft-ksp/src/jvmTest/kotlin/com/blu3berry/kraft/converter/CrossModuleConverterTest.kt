@@ -74,7 +74,7 @@ class CrossModuleConverterTest {
     }
 
     @Test
-    fun `useGlobalConverters=false disables both same-module and classpath converters`() {
+    fun `useGlobalConverters=false disables same-module converter`() {
         val source = SourceFile.kotlin(
             "Models.kt",
             """
@@ -100,6 +100,46 @@ class CrossModuleConverterTest {
         // Same-module @KraftConverter would normally resolve this; with the flag off,
         // we expect the same type-mismatch error path that already covers the no-converter case.
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+    }
+
+    @Test
+    fun `useGlobalConverters=false disables classpath converter`() {
+        val upstream = SourceFile.kotlin(
+            "Converters.kt",
+            """
+            package upstream
+
+            @com.blu3berry.kraft.config.KraftConverter
+            fun Int.toLabel(): String = "n=" + this
+            """
+        )
+        val consumer = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package consumer
+
+            data class Src(val count: Int)
+            data class Dst(val count: String)
+
+            @com.blu3berry.kraft.config.MapConfig(
+                source = Src::class,
+                target = Dst::class,
+                useGlobalConverters = false
+            )
+            object SrcMapper
+            """
+        )
+
+        val result = TestKspRunner.compileWithUpstream(
+            upstreamSources = listOf(upstream),
+            consumerSources = listOf(consumer),
+            upstreamKspOptions = mapOf("kraft.moduleId" to "upstream"),
+            consumerKspOptions = mapOf("kraft.moduleId" to "consumer")
+        )
+
+        // Upstream compiles fine (it has no mapper, just the converter).
+        // Consumer must fail — the flag prevents it from picking up the classpath delegate.
+        assertThat(result.consumer.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
     }
 
     @Test

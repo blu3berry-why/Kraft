@@ -28,14 +28,14 @@ This project uses Kraft, a KSP-based compile-time mapper generator for Kotlin. W
 | Map target from source | `@MapTo(Target::class)` | On source class |
 | Rename property (config) | `FieldMapping(source = "src", target = "tgt")` | In @MapConfig.fieldMappings |
 | Rename property (class) | `@MapField(counterPartName = "srcProp")` | On target property |
-| Nested object mapping | Auto-detected when types differ | No annotation needed; use `FieldMapping` if renamed |
+| Nested object mapping | Auto-detected when same-named properties have differing types | No annotation needed; use `FieldMapping` / `@MapField` if renamed |
 | Ignore property (config) | `MapIgnoreField("prop")` | In @MapConfig.ignoredMappings |
 | Ignore property (class) | `@MapIgnore` | On target property (must have default) |
 | Reverse mapping | `@MapReverse` | On class with @MapFrom/@MapTo or on @MapConfig object |
 | Enum mapping | `@MapEnum(source = A::class, target = B::class)` | On config object |
 | Custom converter | `@MapUsing(source = "prop", target = "prop")` | On function in @MapConfig object |
 | Whole-source converter | `@MapUsing(target = "prop")` | On function in @MapConfig object (omit source) |
-| Converter direction | `@MapUsing(..., direction = ConverterDirection.FORWARD)` | On function when @MapReverse has same-name properties |
+| Converter direction | `@MapUsing(..., direction = ConverterDirection.FORWARD)` | Default is `ConverterDirection.AUTO`; set `FORWARD` / `REVERSE` only when AUTO can't disambiguate (e.g. `@MapReverse` with same-name, same-typed properties) or you need to force a direction |
 
 ### Decision Rules
 
@@ -44,7 +44,7 @@ This project uses Kraft, a KSP-based compile-time mapper generator for Kotlin. W
 - **Different property names**: Use `FieldMapping` in `@MapConfig`, or `@MapField` on the class.
 - **Nested objects**: Auto-detected when source and target have same-named properties with different types. Use `FieldMapping` or `@MapField` if the property is renamed.
 - **Complex transformations**: Use `@MapUsing` inside a `@MapConfig` object. Omit the `source` parameter to receive the whole source object.
-- **Need both directions**: Add `@MapReverse` to generate the inverse mapper. If both classes share a property name with different types, provide both forward and reverse `@MapUsing` converters -- Kraft auto-detects direction, or use `direction = ConverterDirection.FORWARD/REVERSE` to be explicit.
+- **Need both directions**: Add `@MapReverse` to generate the inverse mapper. Kraft auto-detects converter direction by matching the `@MapUsing` parameter type against each direction's source property type. Set `direction = ConverterDirection.FORWARD/REVERSE` only when that type-based inference is ambiguous (e.g. both directions have the same parameter type) or you need to force a direction explicitly.
 - **Enum-to-enum**: Use `@MapEnum` with auto-matching or explicit `fieldMappings`.
 - **Class-level annotations**: Use `@MapFrom` on the target class or `@MapTo` on the source class when you prefer annotating the data classes directly.
 
@@ -53,7 +53,7 @@ This project uses Kraft, a KSP-based compile-time mapper generator for Kotlin. W
 - Do NOT write manual mapping extension functions -- use Kraft annotations.
 - Do NOT use `@MapFrom` and `@MapTo` on the same class (compile-time error).
 - Do NOT forget default values on `@MapIgnore` properties (compile-time error).
-- Do NOT mix `@MapNested` with `@MapField` on the same property (`@MapNested` wins with a warning).
+- Do NOT use `@MapNested` in new code — it is deprecated; rely on auto-detection or use `@MapField` / `FieldMapping` for renamed nested pairs.
 
 ### Generated Code Location
 
@@ -202,7 +202,7 @@ object OrderMapper
 object OrderStatusMapping
 ```
 
-Kraft auto-matches the 9 same-named properties, handles nested objects and collections, maps the enum, and the one rename (`orderId` → `id`) is a single `FieldMapping`. When you add a new field to both classes, Kraft picks it up automatically — no mapper code to update. The generated code is produced at compile time, is type-safe, and stays in sync with your data classes.
+Kraft auto-matches most same-named properties, handles nested objects and collections, maps the enum, and the one rename (`orderId` → `id`) is a single `FieldMapping`. When you add a new field to both classes, Kraft picks it up automatically — no mapper code to update. The generated code is produced at compile time, is type-safe, and stays in sync with your data classes.
 
 ## Customizing the Skill
 

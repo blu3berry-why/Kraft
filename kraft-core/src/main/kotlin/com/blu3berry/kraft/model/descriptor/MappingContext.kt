@@ -17,7 +17,9 @@ import com.blu3berry.kraft.model.scan.MapNestedAnnotation
  *                             targetName → sourceName.
  * @param converters           `@MapUsing` converter descriptors from config objects.
  * @param globalConverters     Registry of `@KraftConverter` extension functions
- *                             discovered in the current compilation unit; consulted
+ *                             discovered across the project — same-module sources
+ *                             merged with `@KraftConverterDelegate` wrappers found
+ *                             on the compile classpath. Consulted by `MappingContext`
  *                             when a property pair has mismatched types and no
  *                             `@MapUsing` claim.
  * @param nestedMappings       Explicit `@NestedMapping` declarations from `@MapConfig`.
