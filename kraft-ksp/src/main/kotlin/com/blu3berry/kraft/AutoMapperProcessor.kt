@@ -17,6 +17,7 @@ import com.blu3berry.kraft.processor.descriptor.DescriptorBuilder
 import com.blu3berry.kraft.processor.scanner.ClassAnnotationScanner
 import com.blu3berry.kraft.processor.scanner.ConfigObjectScanner
 import com.blu3berry.kraft.processor.scanner.EnumMapScanner
+import com.blu3berry.kraft.processor.scanner.GlobalConverterScanner
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 import java.util.ServiceLoader
 
@@ -45,11 +46,13 @@ class AutoMapperProcessor(
         val classMappings = ClassAnnotationScanner(resolver, logger).scan()
         val configMappings = ConfigObjectScanner(resolver, logger).scan()
         val enumMappings = EnumMapScanner(resolver, logger).scan()
+        val globalConverters = GlobalConverterScanner(resolver, logger).scan()
 
         val descriptors = DescriptorBuilder(logger).build(
             classMappings = classMappings,
             configMappings = configMappings,
-            enumMappings = enumMappings
+            enumMappings = enumMappings,
+            globalConverters = globalConverters
         )
 
         val genConfig = GenerationConfig(

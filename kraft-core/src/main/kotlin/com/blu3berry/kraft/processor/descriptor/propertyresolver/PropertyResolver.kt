@@ -7,6 +7,7 @@ import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ClassOver
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConfigOverrideRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConverterRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.DirectMatchRule
+import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.GlobalConverterRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.IgnoreRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.NestedRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.RequiredFieldErrorRule
@@ -49,17 +50,24 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
          *                              before DirectMatchRule tries to copy the object directly
          *                              by name, which would produce a type-mismatch error.
          *
-         * 4. [ClassOverrideRule]     — annotation-level renames (@MapField); evaluated before
+         * 4. [GlobalConverterRule]   — same-module @KraftConverter lookup; runs before the rename
+         *                              and direct-match rules so a registered (src, tgt) converter
+         *                              can claim a mismatched-type pair before those rules emit a
+         *                              type-mismatch error. Returns null when types already match
+         *                              (rename/direct rules win) or no converter is registered
+         *                              (existing rules emit the error).
+         *
+         * 5. [ClassOverrideRule]     — annotation-level renames (@MapField); evaluated before
          *                              ConfigOverrideRule so annotation-level intent wins when
          *                              both sources declare an override for the same property.
          *
-         * 5. [ConfigOverrideRule]    — config-object-level renames; must precede DirectMatchRule
+         * 6. [ConfigOverrideRule]    — config-object-level renames; must precede DirectMatchRule
          *                              so explicitly remapped fields are not also matched by name.
          *
-         * 6. [DirectMatchRule]       — automatic name + type match; runs after all explicit rules
+         * 7. [DirectMatchRule]       — automatic name + type match; runs after all explicit rules
          *                              have had the opportunity to claim the property.
          *
-         * 7. [RequiredFieldErrorRule] — catch-all sentinel; MUST be last. Emits a KSP error for
+         * 8. [RequiredFieldErrorRule] — catch-all sentinel; MUST be last. Emits a KSP error for
          *                              any required (non-null, no default) property that no earlier
          *                              rule could resolve. Moving it earlier would silence valid
          *                              matches that appear after it in the list.
@@ -68,6 +76,7 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
                 ConverterRule(),
                 IgnoreRule(),
                 NestedRule(),
+                GlobalConverterRule(),
                 ClassOverrideRule(),
                 ConfigOverrideRule(),
                 DirectMatchRule(),
