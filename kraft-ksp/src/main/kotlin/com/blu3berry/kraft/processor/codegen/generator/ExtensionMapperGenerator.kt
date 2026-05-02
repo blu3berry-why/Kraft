@@ -3,12 +3,16 @@ package com.blu3berry.kraft.processor.codegen.generator
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
+import com.squareup.kotlinpoet.AnnotationSpec
+import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ksp.writeTo
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
 import com.blu3berry.kraft.model.descriptor.MappingSource
 import com.blu3berry.kraft.processor.codegen.GenerationConfig
+import com.blu3berry.kraft.processor.codegen.OptInMarker
+import com.blu3berry.kraft.processor.codegen.OptInMarkerCollector
 import com.blu3berry.kraft.processor.codegen.className
 import com.blu3berry.kraft.processor.codegen.MapperGenerator
 import com.blu3berry.kraft.processor.util.CodeGenUtils
@@ -52,6 +56,8 @@ class ExtensionMapperGenerator(
             .returns(toClass)
             .addCode("return %L\n", ctorCallBuilder.build(descriptor))
 
+        optInAnnotation(OptInMarkerCollector.collect(descriptor))?.let(funBuilder::addAnnotation)
+
         val file = FileSpec.builder(packageName, "$fileName.kt")
             .addFileComment(CodeGenUtils.generatedBanner())
             .addFunction(funBuilder.build())
@@ -64,5 +70,15 @@ class ExtensionMapperGenerator(
         )
         file.writeTo(codeGenerator = codeGenerator, dependencies = deps)
         logger.info("Generated extension mapper function: $packageName.$functionName")
+    }
+
+    @Suppress("SpreadOperator")
+    private fun optInAnnotation(markers: List<OptInMarker>): AnnotationSpec? {
+        if (markers.isEmpty()) return null
+        val format = markers.joinToString(", ") { "%T::class" }
+        val markerTypes = markers.map { ClassName(it.packageName, it.simpleName) }.toTypedArray()
+        return AnnotationSpec.builder(ClassName("kotlin", "OptIn"))
+            .addMember(format, *markerTypes)
+            .build()
     }
 }
