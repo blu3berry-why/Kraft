@@ -104,6 +104,10 @@ class ConfigObjectScanner(
         // Extract ignored mappings
         val ignoredMappings = extractIgnoredMappings(annotation, classDeclaration)
 
+        val useGlobalConverters = annotation.arguments
+            .firstOrNull { it.name?.asString() == KraftKspConstants.ARG_USE_GLOBAL_CONVERTERS }
+            ?.value as? Boolean ?: true
+
         return ConfigObjectScanResult(
             sourceType = fromType,
             targetType = toType,
@@ -112,7 +116,8 @@ class ConfigObjectScanner(
             ignoredMappings = ignoredMappings,
             converters = converters,
             nestedMappings = nestedMappings,
-            hasReverse = hasReverse
+            hasReverse = hasReverse,
+            useGlobalConverters = useGlobalConverters
         )
     }
 

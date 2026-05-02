@@ -91,7 +91,7 @@ class ConfigDescriptorBuilder(
             classRenames = emptyMap(),                         // config mode → no @MapField
             configRenames = config.fieldOverrides.associate { it.target to it.source },
             converters = converters,
-            globalConverters = globalConverters,
+            globalConverters = if (config.useGlobalConverters) globalConverters else GlobalConverterRegistry.EMPTY,
             nestedMappings = nestedMappings,
             ignoredProperties = ignoredProperties,
             sourceTypeName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),

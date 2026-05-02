@@ -2,6 +2,7 @@ package com.blu3berry.kraft.processor.util
 
 import com.blu3berry.kraft.config.FieldMapping
 import com.blu3berry.kraft.config.KraftConverter
+import com.blu3berry.kraft.config.KraftConverterDelegate
 import com.blu3berry.kraft.config.MapConfig
 import com.blu3berry.kraft.config.MapEnum
 import com.blu3berry.kraft.config.MapIgnoreField
@@ -27,6 +28,9 @@ object KraftKspConstants {
     const val ARG_NESTED_MAPPINGS  = "nestedMappings"
     const val ARG_IGNORED_MAPPINGS = "ignoredMappings"
     const val ARG_OBJECT           = "object"
+    const val ARG_USE_GLOBAL_CONVERTERS = "useGlobalConverters"
+
+    const val GENERATED_REGISTRY_PACKAGE = "kraft.generated.registry"
 
     // Annotation fully-qualified names
     val FQ_MAP_FROM         = MapFrom::class.qualifiedName!!
@@ -42,7 +46,9 @@ object KraftKspConstants {
     val FQ_MAP_ENUM         = MapEnum::class.qualifiedName!!
     val FQ_MAP_REVERSE      = MapReverse::class.qualifiedName!!
     val FQ_KRAFT_CONVERTER  = KraftConverter::class.qualifiedName!!
+    val FQ_KRAFT_CONVERTER_DELEGATE = KraftConverterDelegate::class.qualifiedName!!
 
     // Processor option keys
     const val OPTION_FUNCTION_NAME_FORMAT = "kraft.functionNameFormat"
+    const val OPTION_MODULE_ID            = "kraft.moduleId"
 }

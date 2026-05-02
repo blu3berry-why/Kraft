@@ -60,13 +60,14 @@ class ClassDescriptorBuilder(
         val nestedMappings = configObjects.flatMap { it.nestedMappings }
         val classNestedOverrides = extractClassNestedOverrides()
 
+        val configsAllowGlobal = configObjects.all { it.useGlobalConverters }
         val ctx = MappingContext(
             logger = logger,
             sourceProps = sourceProps,
             classRenames = classRenames,
             configRenames = configRenames,
             converters = converters,
-            globalConverters = globalConverters,
+            globalConverters = if (configsAllowGlobal) globalConverters else GlobalConverterRegistry.EMPTY,
             ignoredProperties = ignoredProperties,
             nestedMappings = nestedMappings,
             classNestedOverrides = classNestedOverrides,

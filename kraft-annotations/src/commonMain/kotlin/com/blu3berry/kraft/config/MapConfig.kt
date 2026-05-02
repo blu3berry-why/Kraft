@@ -20,6 +20,11 @@ import kotlin.reflect.KClass
  *                        [@MapIgnoreField][MapIgnoreField] entry names a parameter
  *                        that will be omitted from the generated constructor call
  *                        (the parameter must declare a default value).
+ * @param useGlobalConverters When `true` (the default) the generated mapper consults
+ *                        the same-module and classpath `@KraftConverter` registries
+ *                        to resolve mismatched property types. Set to `false` to
+ *                        force every type-mismatched property to be claimed by an
+ *                        explicit `@MapUsing` converter on this object.
  *
  * Example:
  * ```
@@ -40,4 +45,5 @@ annotation class MapConfig(
     val fieldMappings: Array<FieldMapping> = [],
     val nestedMappings: Array<NestedMapping> = [],
     val ignoredMappings: Array<MapIgnoreField> = [],
+    val useGlobalConverters: Boolean = true,
 )

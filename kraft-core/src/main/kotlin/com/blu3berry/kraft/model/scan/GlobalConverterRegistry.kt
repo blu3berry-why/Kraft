@@ -32,6 +32,21 @@ data class GlobalConverterRegistry(
 ) {
     fun lookup(key: ConverterTypeKey): KSFunctionDeclaration? = entries[key]
 
+    /**
+     * Returns a new registry with [other] merged in at lower priority — entries
+     * already present in `this` win. Used to fold classpath-discovered delegates
+     * underneath same-module `@KraftConverter` declarations so a local override
+     * silently shadows a classpath default.
+     */
+    fun mergeAsFallback(other: GlobalConverterRegistry): GlobalConverterRegistry {
+        if (other.entries.isEmpty()) return this
+        if (entries.isEmpty()) return other
+        val merged = LinkedHashMap<ConverterTypeKey, KSFunctionDeclaration>(entries.size + other.entries.size)
+        merged.putAll(other.entries)
+        merged.putAll(entries) // same-module overrides classpath
+        return GlobalConverterRegistry(merged)
+    }
+
     companion object {
         val EMPTY = GlobalConverterRegistry(emptyMap())
     }

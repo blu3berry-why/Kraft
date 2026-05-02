@@ -11,10 +11,12 @@ import com.blu3berry.kraft.processor.codegen.GenerationConfig
 import com.blu3berry.kraft.processor.codegen.GeneratorEnvironment
 import com.blu3berry.kraft.processor.codegen.MapperGenerator
 import com.blu3berry.kraft.processor.codegen.MapperGeneratorProvider
+import com.blu3berry.kraft.processor.codegen.generator.DelegateRegistryGenerator
 import com.blu3berry.kraft.processor.codegen.generator.EnumMapperGenerator
 import com.blu3berry.kraft.processor.codegen.generator.ExtensionMapperGenerator
 import com.blu3berry.kraft.processor.descriptor.DescriptorBuilder
 import com.blu3berry.kraft.processor.scanner.ClassAnnotationScanner
+import com.blu3berry.kraft.processor.scanner.ClasspathConverterScanner
 import com.blu3berry.kraft.processor.scanner.ConfigObjectScanner
 import com.blu3berry.kraft.processor.scanner.EnumMapScanner
 import com.blu3berry.kraft.processor.scanner.GlobalConverterScanner
@@ -46,13 +48,20 @@ class AutoMapperProcessor(
         val classMappings = ClassAnnotationScanner(resolver, logger).scan()
         val configMappings = ConfigObjectScanner(resolver, logger).scan()
         val enumMappings = EnumMapScanner(resolver, logger).scan()
-        val globalConverters = GlobalConverterScanner(resolver, logger).scan()
+        val sameModuleConverters = GlobalConverterScanner(resolver, logger).scan()
+        val classpathConverters = ClasspathConverterScanner(resolver, logger).scan()
+        val mergedConverters = sameModuleConverters.mergeAsFallback(classpathConverters)
+
+        DelegateRegistryGenerator(
+            logger = logger,
+            moduleIdOption = env.options[KraftKspConstants.OPTION_MODULE_ID]
+        ).generate(sameModuleConverters, codeGenerator)
 
         val descriptors = DescriptorBuilder(logger).build(
             classMappings = classMappings,
             configMappings = configMappings,
             enumMappings = enumMappings,
-            globalConverters = globalConverters
+            globalConverters = mergedConverters
         )
 
         val genConfig = GenerationConfig(

@@ -12,6 +12,14 @@ import com.tschuchort.compiletesting.useKsp2
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import java.io.File
 
+/** Two-stage result for [TestKspRunner.compileWithUpstream]. */
+@OptIn(ExperimentalCompilerApi::class)
+data class TwoStageResult(
+    val upstream: JvmCompilationResult,
+    val consumer: JvmCompilationResult,
+    val consumerGeneratedFiles: List<File>
+)
+
 object TestKspRunner {
 
     @OptIn(ExperimentalCompilerApi::class)
@@ -41,6 +49,51 @@ object TestKspRunner {
         }
 
         return result.sourcesGeneratedBySymbolProcessor.filter { it.extension == "kt" }.toList()
+    }
+
+    /**
+     * Runs two sequential compilations: an "upstream" module then a "consumer"
+     * module that links against the upstream's classes directory. Both run the
+     * Kraft KSP processor, so this exercises the real classpath-discovery flow
+     * for `@KraftConverter` delegates.
+     */
+    @OptIn(ExperimentalCompilerApi::class)
+    fun compileWithUpstream(
+        upstreamSources: List<SourceFile>,
+        consumerSources: List<SourceFile>,
+        upstreamKspOptions: Map<String, String> = emptyMap(),
+        consumerKspOptions: Map<String, String> = emptyMap()
+    ): TwoStageResult {
+        val upstream = KotlinCompilation().apply {
+            useKsp2()
+            kspWithCompilation = true
+            inheritClassPath = true
+            symbolProcessorProviders = listOf(AutoMapperProcessorProvider()).toMutableList()
+            sources = upstreamSources
+            verbose = false
+            if (upstreamKspOptions.isNotEmpty()) kspProcessorOptions.putAll(upstreamKspOptions)
+        }.compile()
+
+        require(upstream.exitCode == KotlinCompilation.ExitCode.OK) {
+            "Upstream compilation failed:\n${upstream.messages}"
+        }
+
+        val consumer = KotlinCompilation().apply {
+            useKsp2()
+            kspWithCompilation = true
+            inheritClassPath = true
+            classpaths = classpaths + upstream.outputDirectory
+            symbolProcessorProviders = listOf(AutoMapperProcessorProvider()).toMutableList()
+            sources = consumerSources
+            verbose = false
+            if (consumerKspOptions.isNotEmpty()) kspProcessorOptions.putAll(consumerKspOptions)
+        }.compile()
+
+        return TwoStageResult(
+            upstream = upstream,
+            consumer = consumer,
+            consumerGeneratedFiles = consumer.sourcesGeneratedBySymbolProcessor.filter { it.extension == "kt" }.toList()
+        )
     }
 }
 

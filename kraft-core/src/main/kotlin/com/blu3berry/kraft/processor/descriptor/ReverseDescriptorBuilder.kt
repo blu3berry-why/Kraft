@@ -105,13 +105,14 @@ class ReverseDescriptorBuilder(
             )
         } else emptySet()
 
+        val configsAllowGlobal = configObjects.all { it.useGlobalConverters }
         return MappingContext(
             logger = logger,
             sourceProps = newSourceProps,
             classRenames = extractInvertedClassRenames(),
             configRenames = extractInvertedConfigRenames(),
             converters = reverseConverters,
-            globalConverters = globalConverters,
+            globalConverters = if (configsAllowGlobal) globalConverters else GlobalConverterRegistry.EMPTY,
             nestedMappings = reverseNestedMappings,
             ignoredProperties = ignoredProperties,
             sourceTypeName = newSourceTypeName,
