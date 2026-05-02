@@ -28,6 +28,7 @@ val dto = user.toUserDto()
 - **Collections** — `List<T>` and `Set<T>` with nested element mapping
 - **Enum mapping** — `@MapEnum` with auto-matching and custom entry pairs
 - **Custom converters** — `@MapUsing` for property-source or whole-source transformations
+- **Global converters** — `@KraftConverter` on a top-level extension is auto-discovered across the module and the classpath, with `@OptIn` markers propagated onto the generated mapper
 - **Reverse mapping** — `@MapReverse` generates the inverse mapper automatically
 - **Ignore rules** — `@MapIgnore` and `@MapIgnoreField` with directional control
 - **Configuration objects** — `@MapConfig` for mapping without modifying data classes
@@ -88,6 +89,7 @@ dependencies {
 | `@MapNested` | ~~Deprecated~~ — auto-detected | On property in `@MapFrom`/`@MapTo` class |
 | `@MapIgnore` | Skip a property | On property (must have default value) |
 | `@MapUsing` | Custom converter function | On function in `@MapConfig` object |
+| `@KraftConverter` | Globally discoverable converter | On top-level extension function |
 | `@MapEnum` | Enum-to-enum mapping | On object |
 | `@MapReverse` | Generate inverse mapper | On class or `@MapConfig` object |
 | `@FieldMapping` | Config-level rename | In `@MapConfig.fieldMappings` |

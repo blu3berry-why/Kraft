@@ -15,6 +15,7 @@ Kraft is a KSP-based annotation processor that generates type-safe extension fun
 - **Collections** — `List<T>` and `Set<T>` with nested element mapping
 - **Enum mapping** — `@MapEnum` with auto-matching and custom entry pairs
 - **Custom converters** — `@MapUsing` for property-source or whole-source transformations
+- **Global converters** — `@KraftConverter` on a top-level extension is auto-discovered across the module and the classpath, with `@OptIn` markers propagated onto the generated mapper
 - **Reverse mapping** — `@MapReverse` generates the inverse mapper automatically
 - **Ignore rules** — `@MapIgnore` and `@MapIgnoreField` with directional control
 - **Plugin SPI** — implement `MapperGeneratorProvider` to plug in your own code generator

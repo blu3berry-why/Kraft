@@ -183,6 +183,24 @@ public fun Src.toDst(): Dst = Dst(
 
 When using `@MapReverse` and both classes share a property name with different types, use the `direction` parameter to specify which direction each converter applies to. Kraft auto-detects direction by default, but you can be explicit with `ConverterDirection.FORWARD` or `ConverterDirection.REVERSE`. See [Custom Converters -- Direction Parameter](custom-converters.md#direction-parameter) for details.
 
+### Disabling global converters per config
+
+By default, every `@MapConfig` consults the [global `@KraftConverter` registry](custom-converters.md#global-converters) when a property pair has mismatched types. Set `useGlobalConverters = false` to force this config to use only its own `@MapUsing` declarations:
+
+```kotlin
+@MapConfig(
+    source = User::class,
+    target = UserDto::class,
+    useGlobalConverters = false
+)
+object UserMapper {
+    @MapUsing(source = "id", target = "id")
+    fun explicit(id: Uuid): String = id.toString()
+}
+```
+
+Class-level `@MapFrom` / `@MapTo` mappings are gated through any attached `@MapConfig`, so opting out on the config also opts out the class-level mapper.
+
 ## Combining All Features
 
 Here is an example using field renames, auto-detected nested mapping, ignore rules, and a converter together.
