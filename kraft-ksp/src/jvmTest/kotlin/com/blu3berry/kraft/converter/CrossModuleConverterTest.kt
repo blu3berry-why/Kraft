@@ -103,6 +103,29 @@ class CrossModuleConverterTest {
     }
 
     @Test
+    fun `delegate carries @OptIn from the original converter`() {
+        val source = SourceFile.kotlin(
+            "Converters.kt",
+            """
+            package converters
+
+            @RequiresOptIn(level = RequiresOptIn.Level.WARNING)
+            annotation class ExperimentalThing
+
+            @com.blu3berry.kraft.config.KraftConverter
+            @OptIn(ExperimentalThing::class)
+            fun Int.toLabel(): String = "n=" + this
+            """
+        )
+
+        val generated = TestKspRunner.compileAndReturnGenerated(source)
+        val registry = generated.first { it.name.startsWith("Converters_") }
+        val text = registry.readText()
+
+        assertThat(text).contains("@OptIn(ExperimentalThing::class)")
+    }
+
+    @Test
     fun `same-module @KraftConverter shadows classpath delegate silently`() {
         val upstream = SourceFile.kotlin(
             "Converters.kt",

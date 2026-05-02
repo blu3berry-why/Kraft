@@ -60,6 +60,18 @@ object OptInMarkerCollector {
         return markers.values.toList()
     }
 
+    /**
+     * Collects opt-in markers from each [KSAnnotated] in [symbols], in iteration order.
+     * Used by callers — like [com.blu3berry.kraft.processor.codegen.generator] — that
+     * need to assemble markers for a single declaration (e.g. a generated delegate
+     * function) without going through a full [MapperDescriptor].
+     */
+    fun collectFromAnnotated(symbols: Iterable<KSAnnotated>): List<OptInMarker> {
+        val markers = linkedMapOf<String, OptInMarker>()
+        symbols.forEach { collectFrom(it, markers) }
+        return markers.values.toList()
+    }
+
     private fun collectFrom(symbol: KSAnnotated, sink: MutableMap<String, OptInMarker>) {
         for (annotation in symbol.annotations) {
             val annotationType = annotation.annotationType.resolve().declaration as? KSClassDeclaration

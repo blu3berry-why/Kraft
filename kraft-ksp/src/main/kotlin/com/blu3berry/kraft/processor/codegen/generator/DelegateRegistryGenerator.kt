@@ -3,7 +3,10 @@ package com.blu3berry.kraft.processor.codegen.generator
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
+import com.google.devtools.ksp.symbol.KSAnnotated
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import com.google.devtools.ksp.symbol.KSType
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
@@ -14,6 +17,8 @@ import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.ksp.toTypeName
 import com.squareup.kotlinpoet.ksp.writeTo
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
+import com.blu3berry.kraft.processor.codegen.OptInMarker
+import com.blu3berry.kraft.processor.codegen.OptInMarkerCollector
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 
 /**
@@ -63,20 +68,45 @@ class DelegateRegistryGenerator(
     }
 
     private fun buildDelegate(original: KSFunctionDeclaration, index: Int): FunSpec {
-        val receiverType: TypeName = original.extensionReceiver!!.resolve().toTypeName()
-        val returnType: TypeName = original.returnType!!.resolve().toTypeName()
+        val receiverKsType = original.extensionReceiver!!.resolve()
+        val returnKsType = original.returnType!!.resolve()
+        val receiverType: TypeName = receiverKsType.toTypeName()
+        val returnType: TypeName = returnKsType.toTypeName()
 
         val originalMember = MemberName(original.packageName.asString(), original.simpleName.asString())
         val delegateAnnotation = AnnotationSpec.builder(
             ClassName("com.blu3berry.kraft.config", "KraftConverterDelegate")
         ).build()
 
-        return FunSpec.builder(delegateName(original, index))
+        val builder = FunSpec.builder(delegateName(original, index))
             .addModifiers(KModifier.PUBLIC)
             .addAnnotation(delegateAnnotation)
             .receiver(receiverType)
             .returns(returnType)
             .addStatement("return %M()", originalMember)
+
+        optInAnnotation(collectMarkers(original, receiverKsType, returnKsType))?.let(builder::addAnnotation)
+        return builder.build()
+    }
+
+    private fun collectMarkers(
+        original: KSFunctionDeclaration,
+        receiverType: KSType,
+        returnType: KSType
+    ): List<OptInMarker> {
+        val targets = mutableListOf<KSAnnotated>(original)
+        (receiverType.declaration as? KSClassDeclaration)?.let(targets::add)
+        (returnType.declaration as? KSClassDeclaration)?.let(targets::add)
+        return OptInMarkerCollector.collectFromAnnotated(targets)
+    }
+
+    @Suppress("SpreadOperator")
+    private fun optInAnnotation(markers: List<OptInMarker>): AnnotationSpec? {
+        if (markers.isEmpty()) return null
+        val format = markers.joinToString(", ") { "%T::class" }
+        val markerTypes = markers.map { ClassName(it.packageName, it.simpleName) }.toTypedArray()
+        return AnnotationSpec.builder(ClassName("kotlin", "OptIn"))
+            .addMember(format, *markerTypes)
             .build()
     }
 
