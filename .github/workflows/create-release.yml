@@ -37,15 +37,22 @@ jobs:
             --format='%(refname:short)' 'refs/tags/[0-9]*' \
             | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
             | head -n1)
+          # GitHub squash-merges put each PR's individual commit messages in
+          # the squash commit body, while the subject defaults to the PR title
+          # (which can be the branch name when the merger forgets to normalise
+          # it). Reading only `--oneline` therefore misses `feat:` markers
+          # buried in the body and produces a patch bump for what is really a
+          # minor release. Read subject + body so the bump tracks the actual
+          # change category regardless of squash-title hygiene.
           if [ -n "$LAST_TAG" ]; then
-            COMMITS=$(git log "${LAST_TAG}..HEAD" --oneline)
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:'%s%n%b')
           else
-            COMMITS=$(git log --oneline)
+            COMMITS=$(git log --pretty=format:'%s%n%b')
           fi
 
-          if echo "$COMMITS" | grep -qE ' [a-z]+(\([^)]+\))?!:| BREAKING CHANGE'; then
+          if echo "$COMMITS" | grep -qE '^\* [a-z]+(\([^)]+\))?!:|^[a-z]+(\([^)]+\))?!:|BREAKING CHANGE'; then
             NEXT="$((MAJOR+1)).0.0${SUFFIX}"
-          elif echo "$COMMITS" | grep -qE ' feat(\([^)]+\))?:'; then
+          elif echo "$COMMITS" | grep -qE '^\* feat(\([^)]+\))?:|^feat(\([^)]+\))?:'; then
             NEXT="${MAJOR}.$((MINOR+1)).0${SUFFIX}"
           else
             NEXT="${MAJOR}.${MINOR}.$((PATCH+1))${SUFFIX}"
