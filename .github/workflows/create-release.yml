@@ -29,10 +29,14 @@ jobs:
           # Release tags live on release-branch (not on main), so picking the
           # latest tag by ancestor reachability returns nothing here and the
           # bump would be driven by the full history. Pick the most recent
-          # tag globally by version sort instead.
+          # stable release tag globally by version sort instead. Restrict to
+          # bare MAJOR.MINOR.PATCH so leftover experimental tags (v*, -RC*,
+          # -Alpha*, -test*) don't sort on top and pull in years of history.
           git fetch --tags --force --quiet
-          LAST_TAG=$(git for-each-ref --sort=-v:refname --count=1 \
-            --format='%(refname:short)' refs/tags)
+          LAST_TAG=$(git for-each-ref --sort=-v:refname \
+            --format='%(refname:short)' 'refs/tags/[0-9]*' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+            | head -n1)
           if [ -n "$LAST_TAG" ]; then
             COMMITS=$(git log "${LAST_TAG}..HEAD" --oneline)
           else
@@ -79,11 +83,15 @@ jobs:
           # are not ancestors of main. `git describe HEAD^` therefore returns
           # nothing on a fresh release/<v> branch off main, which previously
           # caused the range to collapse to "HEAD^" and dump the entire
-          # repository history into the PR body. Pick the most recent tag by
-          # version sort across all refs instead.
+          # repository history into the PR body. Pick the most recent stable
+          # release tag globally; restrict to bare MAJOR.MINOR.PATCH so old
+          # experimental tags (v*, -RC*, -Alpha*, -test*) don't sort on top
+          # and re-surface years of fixes.
           git fetch --tags --force --quiet
-          LAST_TAG=$(git for-each-ref --sort=-v:refname --count=1 \
-            --format='%(refname:short)' refs/tags)
+          LAST_TAG=$(git for-each-ref --sort=-v:refname \
+            --format='%(refname:short)' 'refs/tags/[0-9]*' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+            | head -n1)
           if [ -n "$LAST_TAG" ]; then
             RANGE="${LAST_TAG}..HEAD^"
           else
