@@ -105,8 +105,24 @@ jobs:
             RANGE="HEAD^"
           fi
 
-          FEATS=$(git log $RANGE --pretty="format:- %s" | grep -E '^- feat' || true)
-          FIXES=$(git log $RANGE --pretty="format:- %s" | grep -E '^- fix' || true)
+          # Read subject + body (same reason as the version-compute step):
+          # GitHub squash-merges hide individual feat/fix messages inside the
+          # squash body, so reading only subjects produces a changelog that
+          # lists "fix-reverse-and-nested-mapping-update-docs (#49)" instead
+          # of the actual feats and fixes the PR contained. Extract both the
+          # subject form (`feat: ...`) and the squash-body bullet form
+          # (`* feat: ...`), normalise to a `- ` bullet, and dedupe while
+          # preserving order so duplicate bullets across reused PR branches
+          # don't multiply.
+          ALL=$(git log $RANGE --pretty=format:'%s%n%b')
+          FEATS=$(echo "$ALL" \
+            | grep -E '^\* feat(\([^)]+\))?:|^feat(\([^)]+\))?:' \
+            | sed -E 's/^\*[[:space:]]*//; s/^/- /' \
+            | awk '!seen[$0]++' || true)
+          FIXES=$(echo "$ALL" \
+            | grep -E '^\* fix(\([^)]+\))?:|^fix(\([^)]+\))?:' \
+            | sed -E 's/^\*[[:space:]]*//; s/^/- /' \
+            | awk '!seen[$0]++' || true)
 
           {
             echo "## Release ${VERSION}"
