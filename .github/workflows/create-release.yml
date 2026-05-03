@@ -26,7 +26,13 @@ jobs:
           MINOR=$(echo "$NUMERIC" | cut -d. -f2)
           PATCH=$(echo "$NUMERIC" | cut -d. -f3)
 
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          # Release tags live on release-branch (not on main), so picking the
+          # latest tag by ancestor reachability returns nothing here and the
+          # bump would be driven by the full history. Pick the most recent
+          # tag globally by version sort instead.
+          git fetch --tags --force --quiet
+          LAST_TAG=$(git for-each-ref --sort=-v:refname --count=1 \
+            --format='%(refname:short)' refs/tags)
           if [ -n "$LAST_TAG" ]; then
             COMMITS=$(git log "${LAST_TAG}..HEAD" --oneline)
           else
@@ -69,7 +75,15 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.next }}"
           CURRENT="${{ steps.version.outputs.current }}"
-          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          # Release tags are created on release-branch by publish.yml, so they
+          # are not ancestors of main. `git describe HEAD^` therefore returns
+          # nothing on a fresh release/<v> branch off main, which previously
+          # caused the range to collapse to "HEAD^" and dump the entire
+          # repository history into the PR body. Pick the most recent tag by
+          # version sort across all refs instead.
+          git fetch --tags --force --quiet
+          LAST_TAG=$(git for-each-ref --sort=-v:refname --count=1 \
+            --format='%(refname:short)' refs/tags)
           if [ -n "$LAST_TAG" ]; then
             RANGE="${LAST_TAG}..HEAD^"
           else
