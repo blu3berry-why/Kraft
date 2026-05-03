@@ -8,6 +8,7 @@ import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Nullability
 import com.google.devtools.ksp.validate
+import com.blu3berry.kraft.model.scan.ConverterEntry
 import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.util.KraftKspConstants
@@ -40,7 +41,7 @@ class GlobalConverterScanner(
 
         if (symbols.isEmpty()) return GlobalConverterRegistry.EMPTY
 
-        val entries = mutableMapOf<ConverterTypeKey, KSFunctionDeclaration>()
+        val entries = mutableMapOf<ConverterTypeKey, ConverterEntry>()
 
         for (fn in symbols) {
             registerIfValid(fn, entries)
@@ -51,7 +52,7 @@ class GlobalConverterScanner(
 
     private fun registerIfValid(
         fn: KSFunctionDeclaration,
-        entries: MutableMap<ConverterTypeKey, KSFunctionDeclaration>
+        entries: MutableMap<ConverterTypeKey, ConverterEntry>
     ) {
         if (!validateFunction(fn)) return
 
@@ -72,10 +73,14 @@ class GlobalConverterScanner(
 
         val existing = entries[key]
         if (existing != null) {
-            reportAmbiguity(key, existing, fn)
+            // Same-module @KraftConverter scan only registers Real entries; an
+            // existing Synthetic (from @MapEnum) cannot land here yet, so the
+            // cast is safe — but be explicit to keep the ambiguity reporter's
+            // signature focused.
+            if (existing is ConverterEntry.Real) reportAmbiguity(key, existing.function, fn)
             return
         }
-        entries[key] = fn
+        entries[key] = ConverterEntry.Real(fn)
     }
 
     private fun reportAmbiguity(

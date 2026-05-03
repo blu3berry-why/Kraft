@@ -589,6 +589,9 @@ class ConfigObjectScanner(
         return ConverterDescriptor(
             enclosingObject = symbol,
             function = fn,
+            callPackageName = fn.packageName.asString(),
+            callFunctionName = fn.simpleName.asString(),
+            isExtension = fn.extensionReceiver != null,
             sourcePropertyName = null,
             targetPropertyName = toProp,
             sourceType = sourceClass.toTypeInfo(sourceClassType),
@@ -640,6 +643,9 @@ class ConfigObjectScanner(
         return ConverterDescriptor(
             enclosingObject = symbol,
             function = fn,
+            callPackageName = fn.packageName.asString(),
+            callFunctionName = fn.simpleName.asString(),
+            isExtension = fn.extensionReceiver != null,
             sourcePropertyName = fromProp,
             targetPropertyName = toProp,
             sourceType = paramTypeDecl.toTypeInfo(paramType),

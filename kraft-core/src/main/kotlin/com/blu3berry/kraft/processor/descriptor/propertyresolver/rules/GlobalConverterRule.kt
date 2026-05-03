@@ -7,6 +7,7 @@ import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.descriptor.ConverterSource
 import com.blu3berry.kraft.model.descriptor.MappingContext
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
+import com.blu3berry.kraft.model.scan.ConverterEntry
 import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
 
@@ -32,12 +33,26 @@ class GlobalConverterRule : MappingRule {
     ): PropertyMappingStrategy? {
         if (ctx.globalConverters.entries.isEmpty()) return null
         val match = findGlobalMatch(target, ctx) ?: return null
+        val (function, isExtension) = when (val entry = match.converter) {
+            // Real entries (hand-written @KraftConverter / classpath delegate)
+            // expose their KSP declaration; the call is an extension iff that
+            // declaration is one.
+            is ConverterEntry.Real -> entry.function to (entry.function.extensionReceiver != null)
+            // Synthetic entries (currently @MapEnum-derived enum mappers) are
+            // always emitted as extension functions on the source type, so we
+            // can fix isExtension = true and leave function = null since the
+            // declaration doesn't exist yet.
+            is ConverterEntry.Synthetic -> null to true
+        }
         return PropertyMappingStrategy.ConverterFunction(
             targetProperty = target,
             source = ConverterSource.Property(match.source),
             converter = ConverterDescriptor(
                 enclosingObject = null,
-                function = match.converter,
+                function = function,
+                callPackageName = match.converter.packageName,
+                callFunctionName = match.converter.simpleName,
+                isExtension = isExtension,
                 sourcePropertyName = match.effectiveSourceName,
                 targetPropertyName = target.name,
                 sourceType = match.source.type,
@@ -60,8 +75,8 @@ class GlobalConverterRule : MappingRule {
         val source = ctx.sourceProps[effectiveSourceName] ?: return null
         if (source.type.ksType == target.type.ksType) return null
         val key = buildLookupKey(source, target) ?: return null
-        val converterFn = ctx.globalConverters.lookup(key) ?: return null
-        return GlobalMatch(effectiveSourceName, source, converterFn)
+        val entry = ctx.globalConverters.lookup(key) ?: return null
+        return GlobalMatch(effectiveSourceName, source, entry)
     }
 
     /**
@@ -83,7 +98,7 @@ class GlobalConverterRule : MappingRule {
     private data class GlobalMatch(
         val effectiveSourceName: String,
         val source: PropertyInfo,
-        val converter: com.google.devtools.ksp.symbol.KSFunctionDeclaration
+        val converter: ConverterEntry
     )
 
     private fun KSType.nullableFlag(): Boolean? = when (nullability) {

@@ -62,7 +62,7 @@ class EnumMapperGenerator(
         val funSpec = buildEnumMapperFunction(desc)
 
         // 5) Compose file path + incremental dependency
-        val pkg = "${desc.sourceType.className.packageName}.generated"
+        val pkg = generatedPackage(desc)
         val fileName = CodeGenUtils.buildFileName(
             desc.sourceType.className.simpleName,
             desc.targetType.className.simpleName,
@@ -139,9 +139,7 @@ class EnumMapperGenerator(
         val fromClass = desc.sourceType.className
         val toClass = desc.targetType.className
 
-        val funName = config.functionNameFor(
-            desc.sourceType.simpleName, desc.targetType.simpleName
-        )
+        val funName = generatedFunctionName(desc, config)
 
         val builder = FunSpec.builder(funName)
             .receiver(fromClass)
@@ -174,4 +172,18 @@ class EnumMapperGenerator(
             .filter { it.classKind == ClassKind.ENUM_ENTRY }
             .map { it.simpleName.asString() }
             .toList()
+
+    companion object {
+        /**
+         * Package the generated enum mapper extension lands in. Centralised so the
+         * synthetic registry entry (in [enumMappingsToConverterEntries]) and the
+         * codegen agree on the FQN.
+         */
+        fun generatedPackage(desc: EnumMappingDescriptor): String =
+            "${desc.sourceType.className.packageName}.generated"
+
+        /** Simple name of the generated enum mapper function. */
+        fun generatedFunctionName(desc: EnumMappingDescriptor, config: GenerationConfig): String =
+            config.functionNameFor(desc.sourceType.simpleName, desc.targetType.simpleName)
+    }
 }
