@@ -93,16 +93,26 @@ class ClasspathConverterScanner(
     }
 
     private fun buildKey(sourceType: KSType, targetType: KSType): ConverterTypeKey? {
-        val sourceDecl = sourceType.declaration as? KSClassDeclaration ?: return null
-        val targetDecl = targetType.declaration as? KSClassDeclaration ?: return null
-        val sourceFq = sourceDecl.qualifiedName?.asString() ?: return null
-        val targetFq = targetDecl.qualifiedName?.asString() ?: return null
-        return ConverterTypeKey(
-            sourceFqName = sourceFq,
-            sourceNullable = sourceType.nullability == Nullability.NULLABLE,
-            targetFqName = targetFq,
-            targetNullable = targetType.nullability == Nullability.NULLABLE
-        )
+        val (sFq, sNull) = sourceType.fqAndNullable() ?: return null
+        val (tFq, tNull) = targetType.fqAndNullable() ?: return null
+        return ConverterTypeKey(sFq, sNull, tFq, tNull)
+    }
+
+    /**
+     * Returns the qualified name + nullability flag for [this], or `null` when the
+     * type cannot be represented as a converter key. PLATFORM-typed declarations
+     * should never appear here (the upstream scanner rejects them) but be defensive
+     * anyway so an unexpected delegate doesn't silently alias into a NOT_NULL key.
+     */
+    private fun KSType.fqAndNullable(): Pair<String, Boolean>? {
+        val decl = declaration as? KSClassDeclaration ?: return null
+        val fq = decl.qualifiedName?.asString() ?: return null
+        val nullable = when (nullability) {
+            Nullability.NULLABLE -> true
+            Nullability.NOT_NULL -> false
+            Nullability.PLATFORM -> return null
+        }
+        return fq to nullable
     }
 
     private fun reportClasspathAmbiguity(

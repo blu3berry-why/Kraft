@@ -40,7 +40,8 @@ class AutoMapperProcessor(
             KraftKspConstants.FQ_MAP_FROM,
             KraftKspConstants.FQ_MAP_TO,
             KraftKspConstants.FQ_MAP_CONFIG,
-            KraftKspConstants.FQ_MAP_ENUM
+            KraftKspConstants.FQ_MAP_ENUM,
+            KraftKspConstants.FQ_KRAFT_CONVERTER
         ).flatMap { fq ->
             resolver.getSymbolsWithAnnotation(fq).filter { !it.validate() }
         }

@@ -118,11 +118,9 @@ The rule is consistent: `counterPartName` always points to the other side.
 
 Field renames work alongside nested mapping, converters, and ignore rules. A renamed property can also be a nested object or have a converter applied to it.
 
-### With @MapNested (deprecated)
+### Migration note: replacing @MapNested
 
-`@MapNested` is deprecated — auto-detection now handles nested mapping for same-named properties, and renamed nested pairs should be declared with `@MapField` / `FieldMapping`. The interaction below is documented only for legacy code that still has `@MapNested` on a property.
-
-If both `@MapField` and `@MapNested` are present on the same property, `@MapNested` takes precedence and Kraft emits a compile-time warning. The recommended migration is to remove `@MapNested` and rely on `@MapField` (or auto-detection when names match).
+`@MapNested` is deprecated. Auto-detection now handles nested mapping for same-named properties, and renamed nested pairs should be declared with `@MapField` (or `FieldMapping` inside `@MapConfig`). To migrate, remove `@MapNested` from the property and let auto-detection cover the matching-name case, or add `@MapField(counterPartName = "...")` for the renamed case:
 
 ```kotlin
 @MapFrom(PersonSource::class)
