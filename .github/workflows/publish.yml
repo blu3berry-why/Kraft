@@ -65,35 +65,13 @@ jobs:
           done
           echo "All credential properties verified in gradle.properties."
 
-      # GitHub Packages refuses to overwrite an already-published version with a
-      # 409 Conflict. That happens whenever a previous publish run got partway
-      # through (e.g. one of the KMP target jobs failed) — every subsequent
-      # retry of the same version then fails on the artifacts that did make it.
-      # Capture the output so the verification step below can downgrade a 409
-      # into a warning while still failing on any other error.
       - name: Publish all modules to GitHub Packages
-        id: gh_packages
-        continue-on-error: true
         run: |
-          set -o pipefail
           ./gradlew \
             :kraft-core:publish \
             :kraft-ksp:publish \
             :kraft-annotations:publish \
-            --no-configuration-cache 2>&1 | tee /tmp/gh-packages-publish.log
-
-      - name: Verify GitHub Packages outcome
-        run: |
-          if [ "${{ steps.gh_packages.outcome }}" = "success" ]; then
-            echo "GitHub Packages publish succeeded."
-            exit 0
-          fi
-          if grep -q "Received status code 409 from server: Conflict" /tmp/gh-packages-publish.log; then
-            echo "::warning::Version already published to GitHub Packages — treating as success. Bump kraft.version if you intended a fresh release."
-            exit 0
-          fi
-          echo "::error::GitHub Packages publish failed for a reason other than a 409 conflict; check the previous step's output."
-          exit 1
+            --no-configuration-cache
 
       - name: Publish all modules to Central Portal
         run: |
