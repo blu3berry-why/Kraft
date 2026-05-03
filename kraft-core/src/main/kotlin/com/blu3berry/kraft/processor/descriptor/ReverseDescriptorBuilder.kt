@@ -12,6 +12,7 @@ import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 import com.blu3berry.kraft.model.descriptor.MappingContext
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
+import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolver
 import com.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
 import com.blu3berry.kraft.processor.util.missingPrimaryConstructor
@@ -27,7 +28,8 @@ class ReverseDescriptorBuilder(
     private val logger: KSPLogger,
     private val forwardDescriptor: MapperDescriptor,
     private val configObjects: List<ConfigObjectScanResult>,
-    private val errorNode: KSNode
+    private val errorNode: KSNode,
+    private val globalConverters: GlobalConverterRegistry = GlobalConverterRegistry.EMPTY
 ) {
 
     fun build(): MapperDescriptor? {
@@ -103,12 +105,14 @@ class ReverseDescriptorBuilder(
             )
         } else emptySet()
 
+        val configsAllowGlobal = configObjects.all { it.useGlobalConverters }
         return MappingContext(
             logger = logger,
             sourceProps = newSourceProps,
             classRenames = extractInvertedClassRenames(),
             configRenames = extractInvertedConfigRenames(),
             converters = reverseConverters,
+            globalConverters = if (configsAllowGlobal) globalConverters else GlobalConverterRegistry.EMPTY,
             nestedMappings = reverseNestedMappings,
             ignoredProperties = ignoredProperties,
             sourceTypeName = newSourceTypeName,

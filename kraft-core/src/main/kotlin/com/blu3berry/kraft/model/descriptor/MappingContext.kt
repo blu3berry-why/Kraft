@@ -2,6 +2,7 @@ package com.blu3berry.kraft.model.descriptor
 
 import com.google.devtools.ksp.processing.KSPLogger
 import com.blu3berry.kraft.model.PropertyInfo
+import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.model.scan.MapNestedAnnotation
 
 /**
@@ -15,6 +16,12 @@ import com.blu3berry.kraft.model.scan.MapNestedAnnotation
  * @param configRenames        Renames from `@MapConfig.fieldOverrides`:
  *                             targetName → sourceName.
  * @param converters           `@MapUsing` converter descriptors from config objects.
+ * @param globalConverters     Registry of `@KraftConverter` extension functions
+ *                             discovered across the project — same-module sources
+ *                             merged with `@KraftConverterDelegate` wrappers found
+ *                             on the compile classpath. Consulted by `MappingContext`
+ *                             when a property pair has mismatched types and no
+ *                             `@MapUsing` claim.
  * @param nestedMappings       Explicit `@NestedMapping` declarations from `@MapConfig`.
  * @param classNestedOverrides Per-property `@MapNested` annotations, keyed by target
  *                             property name. Never contains [MapNestedAnnotation.NotAnnotated] entries.
@@ -27,6 +34,7 @@ data class MappingContext(
     val classRenames: Map<String, String>,
     val configRenames: Map<String, String>,
     val converters: List<ConverterDescriptor>,
+    val globalConverters: GlobalConverterRegistry = GlobalConverterRegistry.EMPTY,
     val nestedMappings: List<NestedMappingDescriptor> = emptyList(),
     val ignoredProperties: Set<String> = emptySet(),
     val classNestedOverrides: Map<String, MapNestedAnnotation> = emptyMap(),

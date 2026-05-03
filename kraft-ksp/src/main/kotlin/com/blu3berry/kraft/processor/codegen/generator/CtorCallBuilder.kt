@@ -2,6 +2,7 @@ package com.blu3berry.kraft.processor.codegen.generator
 
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.MemberName
 import com.blu3berry.kraft.model.descriptor.CollectionKind
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.descriptor.ConverterSource
@@ -123,14 +124,14 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
             }
             converter.isExtension -> {
                 block.add(
-                    "%N = this.%N.%N()",
-                    targetName, sourceName, converter.functionName
+                    "%N = this.%N.%M()",
+                    targetName, sourceName, topLevelMemberName(converter)
                 )
             }
             else -> {
                 block.add(
-                    "%N = %N(this.%N)",
-                    targetName, converter.functionName, sourceName
+                    "%N = %M(this.%N)",
+                    targetName, topLevelMemberName(converter), sourceName
                 )
             }
         }
@@ -158,10 +159,10 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
                 )
             }
             converter.isExtension -> {
-                block.add("%N = this.%N()", targetName, converter.functionName)
+                block.add("%N = this.%M()", targetName, topLevelMemberName(converter))
             }
             else -> {
-                block.add("%N = %N(this)", targetName, converter.functionName)
+                block.add("%N = %M(this)", targetName, topLevelMemberName(converter))
             }
         }
     }
@@ -217,5 +218,10 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
     private fun enclosingClassName(converter: ConverterDescriptor): ClassName {
         val obj = converter.enclosingObject!!
         return ClassName(obj.packageName.asString(), obj.simpleName.asString())
+    }
+
+    private fun topLevelMemberName(converter: ConverterDescriptor): MemberName {
+        val fn = converter.function
+        return MemberName(fn.packageName.asString(), fn.simpleName.asString())
     }
 }

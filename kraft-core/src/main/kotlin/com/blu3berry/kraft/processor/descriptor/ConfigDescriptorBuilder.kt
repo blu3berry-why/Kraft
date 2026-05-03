@@ -6,6 +6,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.blu3berry.kraft.config.ConverterDirection
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
+import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
 import com.blu3berry.kraft.model.MapperId
@@ -21,7 +22,8 @@ import com.blu3berry.kraft.processor.util.missingPrimaryConstructor
 class ConfigDescriptorBuilder(
     private val logger: KSPLogger,
     private val config: ConfigObjectScanResult,
-    private val enumMappings: List<EnumMappingDescriptor>
+    private val enumMappings: List<EnumMappingDescriptor>,
+    private val globalConverters: GlobalConverterRegistry = GlobalConverterRegistry.EMPTY
 ) {
 
     fun build(): MapperDescriptor? {
@@ -89,6 +91,7 @@ class ConfigDescriptorBuilder(
             classRenames = emptyMap(),                         // config mode → no @MapField
             configRenames = config.fieldOverrides.associate { it.target to it.source },
             converters = converters,
+            globalConverters = if (config.useGlobalConverters) globalConverters else GlobalConverterRegistry.EMPTY,
             nestedMappings = nestedMappings,
             ignoredProperties = ignoredProperties,
             sourceTypeName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),

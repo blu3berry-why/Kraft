@@ -96,3 +96,39 @@ ksp {
 ```
 
 The option applies globally to all mappers processed by that KSP invocation.
+
+## kraft.moduleId
+
+Disambiguates the generated `@KraftConverterDelegate` registry file when multiple modules contribute `@KraftConverter` functions to the same compile classpath. See [Custom Converters — Global Converters](custom-converters.md#global-converters) for the full feature.
+
+### Default
+
+Unset. Kraft falls back to a deterministic content hash of the module's converter FQN list. The hash is unique per converter set, but two unrelated modules that happen to declare the same converter signatures would still collide. Setting an explicit module ID is recommended for any project with more than one converter-producing module.
+
+### Configuration
+
+Set the option in each producing module's `build.gradle.kts`:
+
+```kotlin
+// upstream/build.gradle.kts
+ksp {
+    arg("kraft.moduleId", "upstream")
+}
+```
+
+```kotlin
+// consumer/build.gradle.kts
+ksp {
+    arg("kraft.moduleId", "consumer")
+}
+```
+
+The value is sanitized into a Kotlin file-name suffix, so any non-alphanumeric character is replaced with `_`. The Gradle project path (e.g. `:feature:auth`) is a good source of values.
+
+### When you do **not** need this option
+
+- Single-module projects.
+- Projects where exactly one module declares `@KraftConverter` functions.
+- Projects that consume converters from a published library but do not declare any of their own.
+
+In those cases the default hash is sufficient.

@@ -13,6 +13,7 @@ import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.model.scan.ClassMappingScanResult
 import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import com.blu3berry.kraft.model.scan.FieldOverride
+import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.model.scan.MapNestedAnnotation
 import com.blu3berry.kraft.model.toTypeInfo
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolver
@@ -23,7 +24,8 @@ class ClassDescriptorBuilder(
     private val logger: KSPLogger,
     private val mapping: ClassMappingScanResult,
     private val configObjects: List<ConfigObjectScanResult>,
-    private val enumMappings: List<EnumMappingDescriptor>
+    private val enumMappings: List<EnumMappingDescriptor>,
+    private val globalConverters: GlobalConverterRegistry = GlobalConverterRegistry.EMPTY
 ) {
 
     fun build(): MapperDescriptor? {
@@ -58,12 +60,14 @@ class ClassDescriptorBuilder(
         val nestedMappings = configObjects.flatMap { it.nestedMappings }
         val classNestedOverrides = extractClassNestedOverrides()
 
+        val configsAllowGlobal = configObjects.all { it.useGlobalConverters }
         val ctx = MappingContext(
             logger = logger,
             sourceProps = sourceProps,
             classRenames = classRenames,
             configRenames = configRenames,
             converters = converters,
+            globalConverters = if (configsAllowGlobal) globalConverters else GlobalConverterRegistry.EMPTY,
             ignoredProperties = ignoredProperties,
             nestedMappings = nestedMappings,
             classNestedOverrides = classNestedOverrides,

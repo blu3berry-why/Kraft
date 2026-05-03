@@ -17,6 +17,8 @@ import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
  * @param converters       Converter functions from `@MapUsing`-annotated functions.
  * @param nestedMappings   Explicit nested mappings from `@NestedMapping` declarations.
  * @param hasReverse       Whether `@MapReverse` is also present on the config object.
+ * @param useGlobalConverters Whether the generated mapper should consult the
+ *                         `@KraftConverter` registry; mirrors the annotation flag.
  */
 data class ConfigObjectScanResult(
     val sourceType: KSClassDeclaration,
@@ -27,4 +29,5 @@ data class ConfigObjectScanResult(
     val converters: List<ConverterDescriptor>,
     val nestedMappings: List<NestedMappingDescriptor> = emptyList(),
     val hasReverse: Boolean = false,
+    val useGlobalConverters: Boolean = true,
 )

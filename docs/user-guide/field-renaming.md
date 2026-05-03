@@ -1,6 +1,8 @@
 # Field Renaming
 
-When source and target properties have different names, Kraft provides two ways to declare the mapping: `FieldMapping` (in `@MapConfig`) and `@MapField` (on properties in annotated classes).
+When source and target properties have different names, Kraft provides two ways to declare the mapping: `FieldMapping` (in `@MapConfig`) and `@MapField` (on properties in annotated classes). These are the recommended approaches for new code.
+
+> **Note:** `@MapNested` is **deprecated** — nested data classes are auto-detected when their types differ, and renamed nested pairs should use `@MapField` / `FieldMapping`. The `@MapNested` examples later on this page are kept for reference only and should not be used in new code.
 
 ## FieldMapping (in @MapConfig)
 
@@ -116,21 +118,20 @@ The rule is consistent: `counterPartName` always points to the other side.
 
 Field renames work alongside nested mapping, converters, and ignore rules. A renamed property can also be a nested object or have a converter applied to it.
 
-### With @MapNested
+### With @MapNested (deprecated)
 
-If both `@MapField` and `@MapNested` are present on the same property, `@MapNested` takes precedence. Kraft emits a compile-time warning in this case:
+`@MapNested` is deprecated — auto-detection now handles nested mapping for same-named properties, and renamed nested pairs should be declared with `@MapField` / `FieldMapping`. The interaction below is documented only for legacy code that still has `@MapNested` on a property.
+
+If both `@MapField` and `@MapNested` are present on the same property, `@MapNested` takes precedence and Kraft emits a compile-time warning. The recommended migration is to remove `@MapNested` and rely on `@MapField` (or auto-detection when names match).
 
 ```kotlin
 @MapFrom(PersonSource::class)
 data class PersonDto(
     val name: String,
-    @MapNested(sourceName = "homeAddress")
-    @MapField(counterPartName = "homeAddress")  // redundant -- @MapNested wins
+    @MapField(counterPartName = "homeAddress")
     val address: AddressDto
 )
 ```
-
-This compiles successfully but produces a warning: `@MapNested takes precedence`. Prefer using only `@MapNested` when nested mapping is required.
 
 ## Error Cases
 

@@ -104,6 +104,10 @@ class ConfigObjectScanner(
         // Extract ignored mappings
         val ignoredMappings = extractIgnoredMappings(annotation, classDeclaration)
 
+        val useGlobalConverters = annotation.arguments
+            .firstOrNull { it.name?.asString() == KraftKspConstants.ARG_USE_GLOBAL_CONVERTERS }
+            ?.value as? Boolean ?: true
+
         return ConfigObjectScanResult(
             sourceType = fromType,
             targetType = toType,
@@ -112,7 +116,8 @@ class ConfigObjectScanner(
             ignoredMappings = ignoredMappings,
             converters = converters,
             nestedMappings = nestedMappings,
-            hasReverse = hasReverse
+            hasReverse = hasReverse,
+            useGlobalConverters = useGlobalConverters
         )
     }
 
@@ -256,13 +261,13 @@ class ConfigObjectScanner(
             val converters = mutableListOf<ConverterDescriptor>()
             val propertyPairs = mutableMapOf<String, KSFunctionDeclaration>()
             for (fn in converterFunctions) {
-                val parsed = parseConverterAnnotation(fn) ?: continue
-                if (!checkDuplicateTarget(parsed, fn, propertyPairs)) continue
-                val converter = validateAndCreateConverter(
-                    fn, symbol, fromType, fwdSourceProperties, fwdTargetProperties,
-                    fwdSourcePropertyMap, fwdTargetPropertyMap, parsed
-                ) ?: continue
-                converters.add(converter)
+                val converter = buildForwardOnlyConverter(
+                    fn, symbol, fromType,
+                    fwdSourceProperties, fwdTargetProperties,
+                    fwdSourcePropertyMap, fwdTargetPropertyMap,
+                    propertyPairs
+                )
+                if (converter != null) converters.add(converter)
             }
             return converters
         }
@@ -272,6 +277,35 @@ class ConfigObjectScanner(
             fwdSourceProperties, fwdTargetProperties,
             fwdSourcePropertyMap, fwdTargetPropertyMap,
             targetPropertiesList, sourcePropertiesList
+        )
+    }
+
+    @Suppress("LongParameterList")
+    private fun buildForwardOnlyConverter(
+        fn: KSFunctionDeclaration,
+        symbol: KSClassDeclaration,
+        fromType: KSClassDeclaration,
+        fwdSourceProperties: Set<String>,
+        fwdTargetProperties: Set<String>,
+        fwdSourcePropertyMap: Map<String, KSPropertyDeclaration>,
+        fwdTargetPropertyMap: Map<String, KSPropertyDeclaration>,
+        propertyPairs: MutableMap<String, KSFunctionDeclaration>
+    ): ConverterDescriptor? {
+        val parsed = parseConverterAnnotation(fn) ?: return null
+        if (parsed.direction == ConverterDirection.REVERSE) {
+            logger.error(
+                "@MapUsing(direction = REVERSE) on '${fn.simpleName.asString()}' " +
+                    "in '${symbol.simpleName.asString()}' has no effect: the enclosing " +
+                    "@MapConfig is not annotated with @MapReverse, so only forward " +
+                    "converters are generated. Remove the direction or add @MapReverse.",
+                fn
+            )
+            return null
+        }
+        if (!checkDuplicateTarget(parsed, fn, propertyPairs)) return null
+        return validateAndCreateConverter(
+            fn, symbol, fromType, fwdSourceProperties, fwdTargetProperties,
+            fwdSourcePropertyMap, fwdTargetPropertyMap, parsed
         )
     }
 

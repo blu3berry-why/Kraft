@@ -1,6 +1,11 @@
 # Custom Converters
 
-Use `@MapUsing` inside a `@MapConfig`-annotated object to provide custom conversion logic for individual target properties. Kraft calls your function during code generation and wires the result into the generated constructor call.
+Kraft supports two ways to register a value-type converter:
+
+- **`@MapUsing`** — declared inside a `@MapConfig` object, scoped to that single mapper. Use this when the conversion is specific to one source-target pair, when you need access to the whole source object, or when you want to override a globally-registered converter for one mapping.
+- **`@KraftConverter`** — a top-level extension function discoverable across the whole module (and across modules via the classpath). Use this for value-type conversions that recur in many mappers (`Uuid` ↔ `String`, `Instant` ↔ `Long`, primitive widening), so you don't have to copy a `@MapUsing` block into every config.
+
+`@MapUsing` always wins over `@KraftConverter` when both target the same property. See [Global Converters](#global-converters) at the end of this page for the full discovery and resolution rules.
 
 *See also: [Configuration Objects](configuration-objects.md) for a full overview of `@MapConfig`-based mapping.*
 
@@ -202,3 +207,94 @@ See [Reverse Mapping -- Converters in Reverse](reverse-mapping.md#converters-in-
 | Two `@MapUsing` functions targeting the same property in the same direction | Compile-time error ("Multiple") |
 | Whole-source function parameter type does not match the source class | Compile-time error ("source class") |
 | Explicit `direction` mismatches the converter's types | Compile-time error ("mismatch") |
+
+## Global Converters
+
+`@KraftConverter` registers a top-level extension function as a globally discoverable converter. When a generated mapper finds two properties whose types differ but whose `(sourceType → targetType)` pair matches a registered converter, the converter is invoked automatically — no per-`@MapConfig` `@MapUsing` is needed.
+
+### Declaring a converter
+
+The annotated function must be a top-level extension; the receiver is the source type, the return is the target type. No value parameters are allowed.
+
+```kotlin
+package com.example.util
+
+import com.blu3berry.kraft.config.KraftConverter
+import kotlin.uuid.Uuid
+
+@OptIn(ExperimentalUuidApi::class)
+@KraftConverter
+fun Uuid.toStringValue(): String = toString()
+
+@OptIn(ExperimentalUuidApi::class)
+@KraftConverter
+fun String.toUuidValue(): Uuid = Uuid.parse(this)
+```
+
+Any mapper in the same module — and any mapper in a downstream module that depends on this one — can now translate between `Uuid` and `String` automatically:
+
+```kotlin
+data class User(val id: Uuid, val name: String)
+data class UserDto(val id: String, val name: String)
+
+@MapConfig(source = User::class, target = UserDto::class)
+object UserMapper
+
+// Generated:
+// public fun User.toUserDto(): UserDto = UserDto(
+//   id = this.id.toStringValue(),
+//   name = this.name,
+// )
+```
+
+### Resolution order
+
+For each target property, Kraft walks the resolver chain in this order:
+
+1. `@MapUsing` on the `@MapConfig` object (explicit local override).
+2. Same-module `@KraftConverter` extension functions.
+3. Classpath `@KraftConverter` extensions discovered from upstream modules.
+4. The existing type-mismatch error path when no converter applies.
+
+Because `@MapUsing` runs first, you can always override a globally-registered converter for one specific mapping without removing the global declaration.
+
+### Cross-module discovery
+
+When KSP processes a module that contains `@KraftConverter` functions, it generates a small wrapper file at `kraft.generated.registry.Converters_<moduleId>.kt`. Each wrapper is annotated with `@KraftConverterDelegate` and trampolines to your original function. Consuming compilations enumerate that package via KSP's classpath index and merge the discovered converters into their lookup table — no full classpath scan, no service-loader files.
+
+You generally do not need to think about the delegate file. Two things to know:
+
+- The wrapper is generated automatically; do not write `@KraftConverterDelegate` yourself.
+- If multiple modules contribute converters that all end up on the same compile classpath, set the [`kraft.moduleId`](ksp-options.md#kraft-moduleid) processor option in each producing module so the delegate file names do not collide.
+
+### Disabling for a single config
+
+Set `useGlobalConverters = false` on `@MapConfig` to skip both the same-module and classpath registries for that one mapper. Type-mismatched properties then have to be claimed by an explicit `@MapUsing`.
+
+```kotlin
+@MapConfig(
+    source = User::class,
+    target = UserDto::class,
+    useGlobalConverters = false
+)
+object UserMapper {
+    @MapUsing(source = "id", target = "id")
+    fun explicitConvert(id: Uuid): String = id.toString()
+}
+```
+
+The default is `true`. Class-level `@MapFrom` / `@MapTo` mappings always use global converters unless an attached `@MapConfig` opts out.
+
+### Ambiguity
+
+Two `@KraftConverter` functions registering the same `(sourceType, targetType)` pair within one module produce a KSP error pointing at both candidates. The same applies across the classpath: if two upstream modules register the same pair and you don't shadow it locally, KSP errors out and asks you to resolve the conflict by adding a same-module `@KraftConverter` or a per-property `@MapUsing`.
+
+### Opt-in propagation
+
+When the source class, target class, `@MapConfig` object, `@MapUsing` function, or any invoked `@KraftConverter` carries an `@OptIn(...)` or an `@RequiresOptIn`-meta-annotated marker, Kraft copies a deduplicated `@OptIn(...)` onto the generated mapper function. This keeps experimental APIs like `kotlin.uuid.Uuid` from forcing every consumer of the generated mapper to add an opt-in at the call site.
+
+### Restrictions and caveats
+
+- Only top-level extension functions are accepted; member functions and free-standing functions with a value parameter are rejected at compile time.
+- Lookup matches the source/target qualified names *and* nullability exactly. `Uuid → String` does not auto-lift to `Uuid? → String?`; declare the nullable variant separately if you need it.
+- Kraft does not ship a built-in primitives or stdlib converter set yet. Each module that needs `Int → Long`, `Uuid → String`, etc. must declare the converters itself.

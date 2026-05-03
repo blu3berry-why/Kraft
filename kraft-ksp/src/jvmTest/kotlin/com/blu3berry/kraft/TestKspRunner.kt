@@ -12,23 +12,38 @@ import com.tschuchort.compiletesting.useKsp2
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import java.io.File
 
+/** Two-stage result for [TestKspRunner.compileWithUpstream]. */
+@OptIn(ExperimentalCompilerApi::class)
+data class TwoStageResult(
+    val upstream: JvmCompilationResult,
+    val consumer: JvmCompilationResult,
+    val consumerGeneratedFiles: List<File>
+)
+
 object TestKspRunner {
+
+    @OptIn(ExperimentalCompilerApi::class)
+    private fun prepareCompilation(
+        sources: List<SourceFile>,
+        kspOptions: Map<String, String>,
+        extraClasspath: List<File> = emptyList()
+    ): KotlinCompilation = KotlinCompilation().apply {
+        useKsp2()
+        kspWithCompilation = true
+        inheritClassPath = true
+        symbolProcessorProviders = listOf(AutoMapperProcessorProvider()).toMutableList()
+        this.sources = sources
+        verbose = false
+        if (extraClasspath.isNotEmpty()) classpaths = classpaths + extraClasspath
+        if (kspOptions.isNotEmpty()) kspProcessorOptions.putAll(kspOptions)
+    }
 
     @OptIn(ExperimentalCompilerApi::class)
     fun compile(
         vararg sources: SourceFile,
         kspOptions: Map<String, String> = emptyMap()
-    ): JvmCompilationResult {
-        return KotlinCompilation().apply {
-            useKsp2()
-            kspWithCompilation = true
-            inheritClassPath = true
-            symbolProcessorProviders = listOf(AutoMapperProcessorProvider()).toMutableList()
-            this.sources = sources.toList()
-            verbose = false
-            if (kspOptions.isNotEmpty()) kspProcessorOptions.putAll(kspOptions)
-        }.compile()
-    }
+    ): JvmCompilationResult =
+        prepareCompilation(sources.toList(), kspOptions).compile()
 
     @OptIn(ExperimentalCompilerApi::class)
     fun compileAndReturnGenerated(
@@ -41,6 +56,38 @@ object TestKspRunner {
         }
 
         return result.sourcesGeneratedBySymbolProcessor.filter { it.extension == "kt" }.toList()
+    }
+
+    /**
+     * Runs two sequential compilations: an "upstream" module then a "consumer"
+     * module that links against the upstream's classes directory. Both run the
+     * Kraft KSP processor, so this exercises the real classpath-discovery flow
+     * for `@KraftConverter` delegates.
+     */
+    @OptIn(ExperimentalCompilerApi::class)
+    fun compileWithUpstream(
+        upstreamSources: List<SourceFile>,
+        consumerSources: List<SourceFile>,
+        upstreamKspOptions: Map<String, String> = emptyMap(),
+        consumerKspOptions: Map<String, String> = emptyMap()
+    ): TwoStageResult {
+        val upstream = prepareCompilation(upstreamSources, upstreamKspOptions).compile()
+
+        require(upstream.exitCode == KotlinCompilation.ExitCode.OK) {
+            "Upstream compilation failed:\n${upstream.messages}"
+        }
+
+        val consumer = prepareCompilation(
+            sources = consumerSources,
+            kspOptions = consumerKspOptions,
+            extraClasspath = listOf(upstream.outputDirectory)
+        ).compile()
+
+        return TwoStageResult(
+            upstream = upstream,
+            consumer = consumer,
+            consumerGeneratedFiles = consumer.sourcesGeneratedBySymbolProcessor.filter { it.extension == "kt" }.toList()
+        )
     }
 }
 
