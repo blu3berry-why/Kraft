@@ -97,6 +97,8 @@ class OptInPropagationTest {
         assertThat(text).contains("MarkerC::class")
         // Each marker appears exactly once.
         assertThat("MarkerA::class".toRegex().findAll(text).count()).isEqualTo(1)
+        assertThat("MarkerB::class".toRegex().findAll(text).count()).isEqualTo(1)
+        assertThat("MarkerC::class".toRegex().findAll(text).count()).isEqualTo(1)
     }
 
     @Test

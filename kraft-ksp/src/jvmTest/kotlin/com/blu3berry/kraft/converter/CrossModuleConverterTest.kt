@@ -66,11 +66,13 @@ class CrossModuleConverterTest {
         require(result.consumer.exitCode == KotlinCompilation.ExitCode.OK) {
             "Consumer failed:\n${result.consumer.messages}"
         }
-        val mapper = result.consumerGeneratedFiles.first { it.name.contains("Src") }
+        val mapper = result.consumerGeneratedFiles.single { "ToDstMapper" in it.name }
         val text = mapper.readText()
-        assertThat(text).contains("count = this.count.")
-        // The delegate lives in kraft.generated.registry; the import points there.
-        assertThat(text).contains("import kraft.generated.registry.")
+        // The mapper must invoke the upstream delegate by its generated FQN so a
+        // looser substring (e.g. "count = this.count.") can't pass while still
+        // pointing at, say, a same-module fallback.
+        assertThat(text).contains("count = this.count.toLabel__kraft_delegate_0()")
+        assertThat(text).contains("import kraft.generated.registry.toLabel__kraft_delegate_0")
     }
 
     @Test
@@ -98,8 +100,10 @@ class CrossModuleConverterTest {
         val result = TestKspRunner.compile(source)
 
         // Same-module @KraftConverter would normally resolve this; with the flag off,
-        // we expect the same type-mismatch error path that already covers the no-converter case.
+        // we expect the same RequiredFieldErrorRule diagnostic that fires when no
+        // converter matches a mismatched-type pair.
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("Required property 'count'")
     }
 
     @Test
@@ -138,8 +142,10 @@ class CrossModuleConverterTest {
         )
 
         // Upstream compiles fine (it has no mapper, just the converter).
-        // Consumer must fail — the flag prevents it from picking up the classpath delegate.
+        // Consumer must fail with the same missing-converter diagnostic; the flag
+        // prevents it from picking up the classpath delegate.
         assertThat(result.consumer.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.consumer.messages).contains("Required property 'count'")
     }
 
     @Test

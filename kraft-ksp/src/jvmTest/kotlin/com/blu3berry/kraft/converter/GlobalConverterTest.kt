@@ -144,6 +144,7 @@ class GlobalConverterTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("Required property 'count'")
     }
 
     @Test
