@@ -6,7 +6,8 @@ package com.blu3berry.kraft.config
  * Place this annotation on a class annotated with
  * [@MapFrom][com.blu3berry.kraft.mapping.MapFrom] /
  * [@MapTo][com.blu3berry.kraft.mapping.MapTo], or on an object annotated with
- * [@MapConfig][MapConfig], to generate the inverse extension function automatically.
+ * [@MapConfig][MapConfig] or [@MapEnum][MapEnum], to generate the inverse
+ * extension function automatically.
  *
  * **Example — class-level:**
  * ```kotlin
@@ -40,8 +41,16 @@ package com.blu3berry.kraft.config
  * Nested child mappers are auto-reversed unless an explicit reverse mapping already
  * exists for the child pair.
  *
- * `@MapReverse` without a mapping annotation (`@MapFrom`, `@MapTo`, or `@MapConfig`)
- * on the same declaration is a compile-time error.
+ * **Reverse for `@MapEnum`:** explicit `FieldMapping` entries are inverted
+ * (`source` ↔ `target`); the same auto-by-same-name fallback that `@MapEnum` uses
+ * for the forward direction fills in the rest. Reverse-source entries with no
+ * inverse produce a compile-time error — for example, when two forward sources
+ * map to the same target, the reverse cannot disambiguate without a per-direction
+ * configuration. Resolve by removing the conflicting forward mapping or moving to
+ * two separate `@MapEnum` declarations.
+ *
+ * `@MapReverse` without a mapping annotation (`@MapFrom`, `@MapTo`, `@MapConfig`,
+ * or `@MapEnum`) on the same declaration is a compile-time error.
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)

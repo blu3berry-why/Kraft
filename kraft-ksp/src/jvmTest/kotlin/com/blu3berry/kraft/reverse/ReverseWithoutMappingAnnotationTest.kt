@@ -24,7 +24,8 @@ class ReverseWithoutMappingAnnotationTest {
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         assertThat(result.messages).contains("@MapReverse")
-        assertThat(result.messages).contains("@MapFrom or @MapTo")
+        assertThat(result.messages).contains("@MapFrom")
+        assertThat(result.messages).contains("@MapTo")
     }
 
     @Test

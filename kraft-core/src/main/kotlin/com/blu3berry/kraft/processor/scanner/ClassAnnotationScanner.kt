@@ -109,12 +109,15 @@ class ClassAnnotationScanner(
             .filter { it.classKind == ClassKind.CLASS }
             .toSet()
 
-        val orphaned = classesWithReverse -
-            classesWithMapFrom - classesWithMapTo
+        // @MapEnum on a class (rather than the typical object) is also a
+        // valid host for @MapReverse — EnumMapScanner consumes it and emits
+        // the inverse enum mapper.
+        val orphaned = (classesWithReverse - classesWithMapFrom - classesWithMapTo)
+            .filter { it.findAnnotation(KraftKspConstants.FQ_MAP_ENUM) == null }
         orphaned.forEach { decl ->
             logger.error(
                 "@MapReverse on '${decl.simpleName.asString()}' " +
-                    "requires @MapFrom or @MapTo on the same class.",
+                    "requires @MapFrom, @MapTo, or @MapEnum on the same class.",
                 decl
             )
         }

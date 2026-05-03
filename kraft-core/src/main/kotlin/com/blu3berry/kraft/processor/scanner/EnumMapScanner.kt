@@ -45,35 +45,71 @@ class EnumMapScanner(
                     return@forEach
                 }
 
-                buildDescriptor(symbol)?.let(results::add)
+                results += buildDescriptors(symbol)
             }
 
         return results
     }
 
     /**
-     * Build a descriptor for a single @MapEnum annotated class/object.
+     * Build descriptors for a single `@MapEnum`-annotated class/object —
+     * the forward direction always, plus the reverse direction when
+     * `@MapReverse` is on the same declaration.
      *
-     * @param decl The class declaration annotated with @MapEnum
-     * @return An EnumMappingDescriptor if the mapping is valid, null otherwise
+     * For the reverse, explicit `FieldMapping` entries are inverted
+     * (`source` ↔ `target`) and the same auto-by-same-name logic that the
+     * forward uses fills in the rest. Uncovered reverse-source entries
+     * produce a compile-time error, mirroring the forward.
      */
-    private fun buildDescriptor(
+    private fun buildDescriptors(
         decl: KSClassDeclaration
-    ): EnumMappingDescriptor? {
+    ): List<EnumMappingDescriptor> {
         val annotation = decl.findAnnotation(
             KraftKspConstants.FQ_MAP_ENUM
-        ) ?: return null
+        ) ?: return emptyList()
 
-        val enumPair = resolveEnumPair(annotation, decl) ?: return null
+        val enumPair = resolveEnumPair(annotation, decl) ?: return emptyList()
 
-        val allMappings = buildAllMappings(
-            annotation, enumPair, decl
-        ) ?: return null
+        val fromEntries = getEnumEntries(enumPair.fromDecl)
+        val toEntries = getEnumEntries(enumPair.toDecl)
 
-        return EnumMappingDescriptor(
+        val customMappings = extractCustomMappings(
+            annotation, fromEntries, toEntries, decl
+        )
+
+        val forwardEntries = buildAllMappings(
+            enumPair, fromEntries, toEntries, customMappings, decl
+        ) ?: return emptyList()
+
+        val forward = EnumMappingDescriptor(
             sourceType = TypeInfo.fromKSType(enumPair.sourceKSType),
             targetType = TypeInfo.fromKSType(enumPair.targetKSType),
-            entries = allMappings,
+            entries = forwardEntries,
+        )
+
+        val reverse = buildReverseDescriptor(
+            decl, enumPair, fromEntries, toEntries, customMappings
+        )
+        return listOfNotNull(forward, reverse)
+    }
+
+    private fun buildReverseDescriptor(
+        decl: KSClassDeclaration,
+        enumPair: EnumPair,
+        fromEntries: List<String>,
+        toEntries: List<String>,
+        customMappings: List<EnumEntryMapping>
+    ): EnumMappingDescriptor? {
+        if (decl.findAnnotation(KraftKspConstants.FQ_MAP_REVERSE) == null) return null
+        val reverseCustom = customMappings
+            .map { EnumEntryMapping(source = it.target, target = it.source) }
+        val reverseEntries = buildAllMappings(
+            enumPair.swapped(), toEntries, fromEntries, reverseCustom, decl
+        ) ?: return null
+        return EnumMappingDescriptor(
+            sourceType = TypeInfo.fromKSType(enumPair.targetKSType),
+            targetType = TypeInfo.fromKSType(enumPair.sourceKSType),
+            entries = reverseEntries,
         )
     }
 
@@ -82,7 +118,14 @@ class EnumMapScanner(
         val targetKSType: com.google.devtools.ksp.symbol.KSType,
         val fromDecl: KSClassDeclaration,
         val toDecl: KSClassDeclaration
-    )
+    ) {
+        fun swapped(): EnumPair = EnumPair(
+            sourceKSType = targetKSType,
+            targetKSType = sourceKSType,
+            fromDecl = toDecl,
+            toDecl = fromDecl
+        )
+    }
 
     @Suppress("ReturnCount")
     private fun resolveEnumPair(
@@ -126,17 +169,14 @@ class EnumMapScanner(
     }
 
     private fun buildAllMappings(
-        annotation: KSAnnotation,
         enumPair: EnumPair,
+        fromEntries: List<String>,
+        toEntries: List<String>,
+        customMappings: List<EnumEntryMapping>,
         decl: KSClassDeclaration
     ): List<EnumEntryMapping>? {
-        val fromEntries = getEnumEntries(enumPair.fromDecl)
-        val toEntries = getEnumEntries(enumPair.toDecl)
         val toEntriesSet = toEntries.toSet()
 
-        val customMappings = extractCustomMappings(
-            annotation, fromEntries, toEntries, decl
-        )
         val duplicateSources = customMappings.groupBy { it.source }
             .filter { it.value.size > 1 }
             .keys
