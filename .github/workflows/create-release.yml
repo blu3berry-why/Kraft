@@ -114,13 +114,17 @@ jobs:
           # (`* feat: ...`), normalise to a `- ` bullet, and dedupe while
           # preserving order so duplicate bullets across reused PR branches
           # don't multiply.
+          # `!?` after the optional scope catches breaking-change forms
+          # (`feat!:`, `feat(scope)!:`, `fix!:`, `fix(scope)!:`); without
+          # it, a breaking feature would trigger a major bump on line 53
+          # but be silently dropped from the changelog rendered here.
           ALL=$(git log $RANGE --pretty=format:'%s%n%b')
           FEATS=$(echo "$ALL" \
-            | grep -E '^\* feat(\([^)]+\))?:|^feat(\([^)]+\))?:' \
+            | grep -E '^\* feat(\([^)]+\))?!?:|^feat(\([^)]+\))?!?:' \
             | sed -E 's/^\*[[:space:]]*//; s/^/- /' \
             | awk '!seen[$0]++' || true)
           FIXES=$(echo "$ALL" \
-            | grep -E '^\* fix(\([^)]+\))?:|^fix(\([^)]+\))?:' \
+            | grep -E '^\* fix(\([^)]+\))?!?:|^fix(\([^)]+\))?!?:' \
             | sed -E 's/^\*[[:space:]]*//; s/^/- /' \
             | awk '!seen[$0]++' || true)
 
