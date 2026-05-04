@@ -85,6 +85,7 @@ class EnumMapScanner(
             sourceType = TypeInfo.fromKSType(enumPair.sourceKSType),
             targetType = TypeInfo.fromKSType(enumPair.targetKSType),
             entries = forwardEntries,
+            declaration = decl,
         )
 
         val reverse = buildReverseDescriptor(
@@ -110,6 +111,7 @@ class EnumMapScanner(
             sourceType = TypeInfo.fromKSType(enumPair.targetKSType),
             targetType = TypeInfo.fromKSType(enumPair.sourceKSType),
             entries = reverseEntries,
+            declaration = decl,
         )
     }
 

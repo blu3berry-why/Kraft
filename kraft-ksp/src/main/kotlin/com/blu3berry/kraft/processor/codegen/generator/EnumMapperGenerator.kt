@@ -44,6 +44,12 @@ class EnumMapperGenerator(
         descriptors.forEach(::generateOne)
     }
 
+    override fun generatedPackage(descriptor: EnumMappingDescriptor): String =
+        defaultGeneratedPackage(descriptor)
+
+    override fun generatedFunctionName(descriptor: EnumMappingDescriptor): String =
+        config.functionNameFor(descriptor.sourceType.simpleName, descriptor.targetType.simpleName)
+
     private fun generateOne(desc: EnumMappingDescriptor) {
         val fromDecl = desc.sourceType.declaration
         val toDecl = desc.targetType.declaration
@@ -62,7 +68,7 @@ class EnumMapperGenerator(
         val funSpec = buildEnumMapperFunction(desc)
 
         // 5) Compose file path + incremental dependency
-        val pkg = "${desc.sourceType.className.packageName}.generated"
+        val pkg = generatedPackage(desc)
         val fileName = CodeGenUtils.buildFileName(
             desc.sourceType.className.simpleName,
             desc.targetType.className.simpleName,
@@ -74,7 +80,14 @@ class EnumMapperGenerator(
             .addFunction(funSpec)
             .build()
 
-        val sourceFiles = listOfNotNull(fromDecl.containingFile, toDecl.containingFile)
+        // The @MapEnum-annotated declaration is included so editing the
+        // annotation arguments / fieldMappings invalidates this file even when
+        // neither enum source/target type was touched.
+        val sourceFiles = listOfNotNull(
+            fromDecl.containingFile,
+            toDecl.containingFile,
+            desc.declaration?.containingFile,
+        ).distinct()
         if (sourceFiles.isEmpty()) return
         @Suppress("SpreadOperator")
         val deps = Dependencies(false, *sourceFiles.toTypedArray())
@@ -139,9 +152,7 @@ class EnumMapperGenerator(
         val fromClass = desc.sourceType.className
         val toClass = desc.targetType.className
 
-        val funName = config.functionNameFor(
-            desc.sourceType.simpleName, desc.targetType.simpleName
-        )
+        val funName = generatedFunctionName(desc)
 
         val builder = FunSpec.builder(funName)
             .receiver(fromClass)
@@ -174,4 +185,15 @@ class EnumMapperGenerator(
             .filter { it.classKind == ClassKind.ENUM_ENTRY }
             .map { it.simpleName.asString() }
             .toList()
+
+    companion object {
+        /**
+         * Default `generatedPackage` derivation, kept on the companion so
+         * subclasses or alternative SPI implementations can delegate to it
+         * without instantiating an [EnumMapperGenerator]. Returns the source
+         * type's package suffixed with `.generated`.
+         */
+        fun defaultGeneratedPackage(desc: EnumMappingDescriptor): String =
+            "${desc.sourceType.className.packageName}.generated"
+    }
 }

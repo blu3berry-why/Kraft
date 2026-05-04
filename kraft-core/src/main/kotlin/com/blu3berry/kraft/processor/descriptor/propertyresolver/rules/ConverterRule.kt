@@ -18,7 +18,7 @@ class ConverterRule : MappingRule {
         if (matching.size > 1) {
             ctx.logger.error(
                 "Multiple @MapUsing converters target property '${target.name}' — only one is allowed. " +
-                "Found: ${matching.map { it.function.simpleName.asString() }}",
+                "Found: ${matching.map { it.functionName }}",
                 target.declaration
             )
             return null
@@ -33,7 +33,7 @@ class ConverterRule : MappingRule {
                 ctx.logger.error(
                     "Unknown source property '$name' in @MapUsing. " +
                     "Available: ${ctx.sourceProps.keys}",
-                    converter.function
+                    converter.function ?: target.declaration
                 )
                 return null
             }

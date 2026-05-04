@@ -52,10 +52,14 @@ object OptInMarkerCollector {
             is MappingSource.ConfigObject -> collectFrom(src.configObject, markers)
             is MappingSource.ClassAnnotation -> collectFrom(src.annotatedClass, markers)
         }
-        descriptor.converters.forEach { collectFrom(it.function, markers) }
+        // Synthetic converters (e.g. @MapEnum-generated mappers) have no source
+        // declaration to walk for opt-in markers; their generated body has no
+        // experimental dependencies of its own, and the source/target types are
+        // already covered by the explicit collectFrom calls above.
+        descriptor.converters.forEach { conv -> conv.function?.let { collectFrom(it, markers) } }
         descriptor.propertyMappings
             .filterIsInstance<PropertyMappingStrategy.ConverterFunction>()
-            .forEach { collectFrom(it.converter.function, markers) }
+            .forEach { strat -> strat.converter.function?.let { collectFrom(it, markers) } }
 
         return markers.values.toList()
     }

@@ -9,6 +9,7 @@ import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Nullability
 import com.google.devtools.ksp.symbol.Origin
+import com.blu3berry.kraft.model.scan.ConverterEntry
 import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.util.KraftKspConstants
@@ -52,7 +53,7 @@ class ClasspathConverterScanner(
 
         if (delegates.isEmpty()) return GlobalConverterRegistry.EMPTY
 
-        val entries = mutableMapOf<ConverterTypeKey, KSFunctionDeclaration>()
+        val entries = mutableMapOf<ConverterTypeKey, ConverterEntry>()
         for (fn in delegates) {
             registerDelegate(fn, entries, sameModuleKeys)
         }
@@ -65,7 +66,7 @@ class ClasspathConverterScanner(
 
     private fun registerDelegate(
         fn: KSFunctionDeclaration,
-        entries: MutableMap<ConverterTypeKey, KSFunctionDeclaration>,
+        entries: MutableMap<ConverterTypeKey, ConverterEntry>,
         sameModuleKeys: Set<ConverterTypeKey>
     ) {
         val key = resolveDelegateKey(fn) ?: return
@@ -77,9 +78,11 @@ class ClasspathConverterScanner(
 
         val existing = entries[key]
         if (existing != null) {
-            reportClasspathAmbiguity(key, existing, fn)
+            // Classpath delegates are always discovered as KSFunctionDeclaration,
+            // so existing must be Real here; report against the underlying function.
+            if (existing is ConverterEntry.Real) reportClasspathAmbiguity(key, existing.function, fn)
         } else {
-            entries[key] = fn
+            entries[key] = ConverterEntry.Real(fn)
         }
     }
 

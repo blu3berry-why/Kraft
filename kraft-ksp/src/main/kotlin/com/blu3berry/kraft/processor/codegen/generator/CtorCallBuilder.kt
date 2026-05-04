@@ -220,8 +220,6 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
         return ClassName(obj.packageName.asString(), obj.simpleName.asString())
     }
 
-    private fun topLevelMemberName(converter: ConverterDescriptor): MemberName {
-        val fn = converter.function
-        return MemberName(fn.packageName.asString(), fn.simpleName.asString())
-    }
+    private fun topLevelMemberName(converter: ConverterDescriptor): MemberName =
+        MemberName(converter.callPackageName, converter.callFunctionName)
 }
