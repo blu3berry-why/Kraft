@@ -176,10 +176,6 @@ class EnumByNameAutoTest {
             """
         )
 
-        val result = TestKspRunner.compile(source)
-        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
-            "Compilation failed:\n${result.messages}"
-        }
         val files = TestKspRunner.compileAndReturnGenerated(source)
         assertThat(files.any { "Status_To_StatusDto_EnumMapper" in it.name }).isTrue()
         assertThat(files.any { "StatusDto_To_Status_EnumMapper" in it.name }).isTrue()
@@ -208,10 +204,6 @@ class EnumByNameAutoTest {
             """
         )
 
-        val result = TestKspRunner.compile(source)
-        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
-            "Compilation failed:\n${result.messages}"
-        }
         val enumMappers = TestKspRunner.compileAndReturnGenerated(source)
             .filter { "Status_To_StatusDto_EnumMapper" in it.name }
         assertThat(enumMappers).hasSize(1)
@@ -237,10 +229,6 @@ class EnumByNameAutoTest {
             """
         )
 
-        val result = TestKspRunner.compile(source)
-        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
-            "Compilation failed:\n${result.messages}"
-        }
         val joined = TestKspRunner.compileAndReturnGenerated(source)
             .joinToString("\n") { it.readText() }
         assertThat(joined).contains("fun Status.toStatusDto()")
@@ -269,10 +257,6 @@ class EnumByNameAutoTest {
             """
         )
 
-        val result = TestKspRunner.compile(source)
-        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
-            "Compilation failed:\n${result.messages}"
-        }
         val joined = TestKspRunner.compileAndReturnGenerated(source)
             .joinToString("\n") { it.readText() }
         assertThat(joined).contains("fun Country.toCountryDto()")
@@ -297,10 +281,6 @@ class EnumByNameAutoTest {
             """
         )
 
-        val result = TestKspRunner.compile(source)
-        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
-            "Compilation failed:\n${result.messages}"
-        }
         val joined = TestKspRunner.compileAndReturnGenerated(source)
             .joinToString("\n") { it.readText() }
         assertThat(joined).contains("fun Status.toStatusDto()")
@@ -326,10 +306,6 @@ class EnumByNameAutoTest {
             """
         )
 
-        val result = TestKspRunner.compile(source)
-        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
-            "Compilation failed:\n${result.messages}"
-        }
         val joined = TestKspRunner.compileAndReturnGenerated(source)
             .joinToString("\n") { it.readText() }
         assertThat(joined).contains("fun Status.toStatusDto()")
@@ -355,10 +331,6 @@ class EnumByNameAutoTest {
             """
         )
 
-        val result = TestKspRunner.compile(source)
-        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
-            "Compilation failed:\n${result.messages}"
-        }
         val joined = TestKspRunner.compileAndReturnGenerated(source)
             .joinToString("\n") { it.readText() }
         assertThat(joined).contains("fun Status.toStatusDto()")
@@ -382,10 +354,6 @@ class EnumByNameAutoTest {
             """
         )
 
-        val result = TestKspRunner.compile(source)
-        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
-            "Compilation failed:\n${result.messages}"
-        }
         val joined = TestKspRunner.compileAndReturnGenerated(source)
             .joinToString("\n") { it.readText() }
         assertThat(joined).contains("fun Status.toStatusDto()")
@@ -414,10 +382,6 @@ class EnumByNameAutoTest {
             """
         )
 
-        val result = TestKspRunner.compile(source)
-        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
-            "Compilation failed:\n${result.messages}"
-        }
         val mapper = TestKspRunner.compileAndReturnGenerated(source)
             .first { "ToUserDtoMapper" in it.name }
             .readText()

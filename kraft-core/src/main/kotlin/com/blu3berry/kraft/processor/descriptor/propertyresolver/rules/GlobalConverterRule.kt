@@ -141,7 +141,14 @@ class GlobalConverterRule : MappingRule {
 
         val elementKey = buildElementKey(srcElement, tgtElement) ?: return null
         val elementEntry = ctx.globalConverters.lookup(elementKey) ?: return null
-        if (!isExtensionEligible(elementEntry)) return null
+        // Only synthetic entries (auto-derived enum mappers) follow the
+        // `to${target}` naming template that NestedMapper rendering assumes.
+        // A Real @KraftConverter extension can be named anything (e.g.
+        // `Foo.intoBar()`); routing it through NestedMapper would drop the
+        // user's callable identity and emit a call to a non-existent
+        // `it.toBar()` function. Fall through and let the rest of the
+        // resolver chain (or a future Real-aware collection rule) handle it.
+        if (elementEntry !is ConverterEntry.Synthetic) return null
 
         return PropertyMappingStrategy.NestedMapper(
             targetProperty = target,
@@ -167,18 +174,6 @@ class GlobalConverterRule : MappingRule {
             targetFqName = tgtElement.qualifiedName,
             targetNullable = tgtNullable
         )
-    }
-
-    /**
-     * Returns `true` when [entry] is a synthetic enum mapper or a Real extension function —
-     * both can be invoked as `it.toXxx()` inside a `.map { }` lambda.
-     * Non-extension Real converters (e.g. `Converter.convert(it)`) are not eligible
-     * because [CtorCallBuilder][com.blu3berry.kraft.processor.codegen.generator.CtorCallBuilder]
-     * renders `NestedMapper` as a plain extension call.
-     */
-    private fun isExtensionEligible(entry: ConverterEntry): Boolean = when (entry) {
-        is ConverterEntry.Synthetic -> true
-        is ConverterEntry.Real -> entry.function.extensionReceiver != null
     }
 
     /**
