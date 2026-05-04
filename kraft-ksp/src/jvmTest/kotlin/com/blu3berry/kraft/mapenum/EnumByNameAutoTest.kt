@@ -176,6 +176,10 @@ class EnumByNameAutoTest {
             """
         )
 
+        val result = TestKspRunner.compile(source)
+        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
+            "Compilation failed:\n${result.messages}"
+        }
         val files = TestKspRunner.compileAndReturnGenerated(source)
         assertThat(files.any { "Status_To_StatusDto_EnumMapper" in it.name }).isTrue()
         assertThat(files.any { "StatusDto_To_Status_EnumMapper" in it.name }).isTrue()
