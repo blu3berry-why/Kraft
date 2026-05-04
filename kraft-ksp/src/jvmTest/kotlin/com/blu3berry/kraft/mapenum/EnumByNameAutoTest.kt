@@ -1,6 +1,7 @@
 package com.blu3berry.kraft.mapenum
 
 import com.google.common.truth.Truth.assertThat
+import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import com.blu3berry.kraft.TestKspRunner
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
@@ -40,5 +41,28 @@ class EnumByNameAutoTest {
         assertThat(parent).contains("status = this.status.toStatusDto()")
         assertThat(enumMapper).contains("Status.ACTIVE -> StatusDto.ACTIVE")
         assertThat(enumMapper).contains("Status.INACTIVE -> StatusDto.INACTIVE")
+    }
+
+    @Test
+    fun `same-module enums with a source entry missing in target produce the existing type-mismatch error`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            enum class Status { ACTIVE, BLOCKED }
+            enum class StatusDto { ACTIVE, BANNED }
+
+            data class Src(val status: Status)
+            data class Dst(val status: StatusDto)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+            object SrcMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+        assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("Type mismatch for property 'status'")
     }
 }
