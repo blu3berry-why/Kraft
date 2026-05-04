@@ -12,6 +12,7 @@ import com.blu3berry.kraft.model.scan.ClassMappingScanResult
 import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.util.collectPropertyTypeRefs
+import com.blu3berry.kraft.processor.util.enumEntryNames
 
 /**
  * Walks every parent `@MapConfig` / `@MapTo` mapping pair and synthesizes an
@@ -144,10 +145,4 @@ class AutoEnumMappingDeriver(
         )
     }
 
-    private fun KSClassDeclaration.enumEntryNames(): List<String> =
-        declarations
-            .filterIsInstance<KSClassDeclaration>()
-            .filter { it.classKind == ClassKind.ENUM_ENTRY }
-            .map { it.simpleName.asString() }
-            .toList()
 }
