@@ -118,4 +118,42 @@ class EnumByNameAutoTest {
             .filter { "Status_To_StatusDto_EnumMapper" in it.name }
         assertThat(files).hasSize(1)
     }
+
+    @Test
+    fun `cross-module enum pair does not auto-derive`() {
+        val upstream = SourceFile.kotlin(
+            "Upstream.kt",
+            """
+            package upstream
+
+            enum class Status { ACTIVE, INACTIVE }
+            """
+        )
+        val consumer = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package consumer
+
+            enum class StatusDto { ACTIVE, INACTIVE }
+
+            data class Src(val status: upstream.Status)
+            data class Dst(val status: StatusDto)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+            object SrcMapper
+            """
+        )
+
+        val result = TestKspRunner.compileWithUpstream(
+            upstreamSources = listOf(upstream),
+            consumerSources = listOf(consumer),
+            upstreamKspOptions = mapOf("kraft.moduleId" to "upstream"),
+            consumerKspOptions = mapOf("kraft.moduleId" to "consumer"),
+        )
+        // Cross-module: deriver requires both enums to be in the current
+        // module. The user must publish an upstream @MapEnum if they want
+        // the cross-module path to work; absent that, this is a hard error.
+        assertThat(result.consumer.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.consumer.messages).contains("Type mismatch for property 'status'")
+    }
 }
