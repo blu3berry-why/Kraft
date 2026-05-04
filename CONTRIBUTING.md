@@ -173,7 +173,7 @@ Kraft uses [release-please](https://github.com/googleapis/release-please) for au
 1. Merge PRs with conventional commit messages to `main`
 2. Run the "Create Release" workflow (manual dispatch) — computes next version from commit history
 3. Review and merge the generated release PR to `release-branch`
-4. The publish workflow auto-triggers, publishing to GitHub Packages
+4. The publish workflow auto-triggers, publishing to Maven Central
 5. A GitHub Release is created with auto-generated changelog
 
 Version is stored in `gradle.properties` as `kraft.version` and shared across all modules.
