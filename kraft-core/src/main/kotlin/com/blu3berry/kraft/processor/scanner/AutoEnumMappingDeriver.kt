@@ -1,6 +1,5 @@
 package com.blu3berry.kraft.processor.scanner
 
-import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
@@ -29,9 +28,7 @@ import com.blu3berry.kraft.processor.util.enumEntryNames
  * Output is keyed by `(sourceFqName, targetFqName)` so two parent mappers
  * referencing the same enum pair don't produce duplicate descriptors.
  */
-class AutoEnumMappingDeriver(
-    private val logger: KSPLogger,
-) {
+class AutoEnumMappingDeriver {
     fun derive(
         classMappings: List<ClassMappingScanResult>,
         configMappings: List<ConfigObjectScanResult>,
@@ -101,43 +98,15 @@ class AutoEnumMappingDeriver(
         covered: Set<Pair<String, String>>,
         already: Map<Pair<String, String>, EnumMappingDescriptor>,
     ): EnumMappingDescriptor? {
-        // Auto-derivation only handles non-nullable enum property pairs.
-        // Nullable property types require the user to declare @MapEnum
-        // explicitly so the nullable-key shape is intentional. Platform
-        // types are likewise out of scope (the same rule the rest of the
-        // pipeline applies).
-        if (sourceType.nullability != Nullability.NOT_NULL) return null
-        if (targetType.nullability != Nullability.NOT_NULL) return null
+        val candidate = validateEnumPair(sourceType, targetType, covered, already) ?: return null
+        val sourceEntries = candidate.sourceDecl.enumEntryNames()
+        val targetEntries = candidate.targetDecl.enumEntryNames().toSet()
+        if (sourceEntries.any { it !in targetEntries }) return null
 
-        val sourceDecl = sourceType.declaration as? KSClassDeclaration ?: return null
-        val targetDecl = targetType.declaration as? KSClassDeclaration ?: return null
-        if (sourceDecl.classKind != ClassKind.ENUM_CLASS) return null
-        if (targetDecl.classKind != ClassKind.ENUM_CLASS) return null
-        if (sourceDecl.qualifiedName?.asString() == targetDecl.qualifiedName?.asString()) return null
-
-        // Scope to the same module: KSP returns null containingFile for
-        // declarations that live on the compile classpath. We only auto-derive
-        // when both enums are in the current source set.
-        if (sourceDecl.containingFile == null || targetDecl.containingFile == null) return null
-
-        val sourceFq = sourceDecl.qualifiedName?.asString() ?: return null
-        val targetFq = targetDecl.qualifiedName?.asString() ?: return null
-        val pairKey = sourceFq to targetFq
-        if (pairKey in covered) return null
-        if (pairKey in already.keys) return null
-
-        val sourceEntries = sourceDecl.enumEntryNames()
-        val targetEntries = targetDecl.enumEntryNames().toSet()
-        val unmappable = sourceEntries.filterNot { it in targetEntries }
-        if (unmappable.isNotEmpty()) return null
-
-        val sourceTypeInfo = TypeInfo.fromKSType(sourceType)
-        val targetTypeInfo = TypeInfo.fromKSType(targetType)
-        val entries = sourceEntries.map { EnumEntryMapping(source = it, target = it) }
         return EnumMappingDescriptor(
-            sourceType = sourceTypeInfo,
-            targetType = targetTypeInfo,
-            entries = entries,
+            sourceType = TypeInfo.fromKSType(sourceType),
+            targetType = TypeInfo.fromKSType(targetType),
+            entries = sourceEntries.map { EnumEntryMapping(source = it, target = it) },
             // No KSClassDeclaration to anchor diagnostics at — derived
             // descriptors are synthetic. The enum source/target files
             // themselves still appear in originatingFiles via TypeInfo.
@@ -145,4 +114,53 @@ class AutoEnumMappingDeriver(
         )
     }
 
+    private data class EnumPairCandidate(
+        val sourceDecl: KSClassDeclaration,
+        val targetDecl: KSClassDeclaration,
+    )
+
+    /**
+     * Validates that [sourceType] and [targetType] form an auto-derivable enum
+     * pair: both non-nullable, both same-module enum classes with distinct
+     * qualified names, and not already covered by a user-declared `@MapEnum`
+     * or hand-written `@KraftConverter`. Returns the resolved declarations on
+     * success, `null` on any failed gate. Each gate's purpose is described
+     * inline; collapsing them makes the validator denser but matches the
+     * project's other multi-gate scanners (see [EnumMapScanner]).
+     */
+    @Suppress("ReturnCount")
+    private fun validateEnumPair(
+        sourceType: KSType,
+        targetType: KSType,
+        covered: Set<Pair<String, String>>,
+        already: Map<Pair<String, String>, EnumMappingDescriptor>,
+    ): EnumPairCandidate? {
+        // Auto-derivation only handles non-nullable enum property pairs.
+        // Nullable / platform property types require the user to declare
+        // @MapEnum explicitly so the nullable-key shape is intentional.
+        if (sourceType.nullability != Nullability.NOT_NULL) return null
+        if (targetType.nullability != Nullability.NOT_NULL) return null
+
+        val sourceDecl = sourceType.declaration as? KSClassDeclaration ?: return null
+        val targetDecl = targetType.declaration as? KSClassDeclaration ?: return null
+        if (!sourceDecl.isLocalEnum() || !targetDecl.isLocalEnum()) return null
+
+        val sourceFq = sourceDecl.qualifiedName?.asString() ?: return null
+        val targetFq = targetDecl.qualifiedName?.asString() ?: return null
+        if (sourceFq == targetFq) return null
+
+        val pairKey = sourceFq to targetFq
+        if (pairKey in covered || pairKey in already.keys) return null
+
+        return EnumPairCandidate(sourceDecl, targetDecl)
+    }
+
+    /**
+     * `true` when [this] is an enum class declared in the current module.
+     * KSP returns `null` for [KSClassDeclaration.containingFile] on classpath
+     * declarations, so the file check scopes auto-derivation to the source
+     * set under processing.
+     */
+    private fun KSClassDeclaration.isLocalEnum(): Boolean =
+        classKind == ClassKind.ENUM_CLASS && containingFile != null
 }

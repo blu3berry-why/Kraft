@@ -53,17 +53,12 @@ class AutoMapperProcessor(
         val configMappings = ConfigObjectScanner(resolver, logger).scan()
         val declaredEnumMappings = EnumMapScanner(resolver, logger).scan()
         val handWrittenConverters = GlobalConverterScanner(resolver, logger).scan()
-
-        // Derive @MapEnum-equivalent descriptors for property-level enum→enum
-        // pairs that auto-pair by name. Appended to the user-declared list so
-        // the rest of the pipeline treats them identically.
-        val derivedEnumMappings = AutoEnumMappingDeriver(logger).derive(
+        val enumMappings = declaredEnumMappings + AutoEnumMappingDeriver().derive(
             classMappings = classMappings,
             configMappings = configMappings,
             existingEnumMappings = declaredEnumMappings,
             sameModuleConverters = handWrittenConverters,
         )
-        val enumMappings = declaredEnumMappings + derivedEnumMappings
 
         val genConfig = GenerationConfig(
             functionNameTemplate = env.options[KraftKspConstants.OPTION_FUNCTION_NAME_FORMAT]
@@ -81,11 +76,7 @@ class AutoMapperProcessor(
         // call coordinates from the SAME SPI instance that performs the
         // codegen — a custom EnumMapperGeneratorSpi can change the generated
         // package/name and the trampolines must follow.
-        val enumGenerator = if (enumMappings.isNotEmpty()) {
-            loadEnumGenerator(generatorEnv)
-        } else {
-            null
-        }
+        val enumGenerator = if (enumMappings.isNotEmpty()) loadEnumGenerator(generatorEnv) else null
 
         // Auto-resolve @MapEnum mappers as global converters: each enum
         // descriptor becomes a synthetic registry entry, merged with the
