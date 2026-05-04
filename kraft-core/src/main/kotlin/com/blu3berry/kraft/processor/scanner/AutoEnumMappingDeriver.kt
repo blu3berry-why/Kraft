@@ -11,6 +11,8 @@ import com.blu3berry.kraft.model.scan.ClassMappingScanResult
 import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.util.collectPropertyTypeRefs
+import com.blu3berry.kraft.processor.util.collectionKindOf
+import com.blu3berry.kraft.processor.util.elementTypeInfo
 import com.blu3berry.kraft.processor.util.enumEntryNames
 import com.blu3berry.kraft.processor.util.isMappableClass
 
@@ -93,16 +95,43 @@ class AutoEnumMappingDeriver {
         targetType: KSType,
         worklist: ArrayDeque<ClassPair>,
     ) {
-        val srcDecl = sourceType.declaration as? KSClassDeclaration ?: return
-        val tgtDecl = targetType.declaration as? KSClassDeclaration ?: return
+        val (resolvedSource, resolvedTarget) = resolveRecursableTypes(sourceType, targetType) ?: return
+        val srcDecl = resolvedSource.declaration as? KSClassDeclaration ?: return
+        val tgtDecl = resolvedTarget.declaration as? KSClassDeclaration ?: return
         val srcFq = srcDecl.qualifiedName?.asString() ?: return
         val tgtFq = tgtDecl.qualifiedName?.asString() ?: return
         if (srcFq == tgtFq) return
-        val srcInfo = TypeInfo.fromKSType(sourceType)
-        val tgtInfo = TypeInfo.fromKSType(targetType)
+        val srcInfo = TypeInfo.fromKSType(resolvedSource)
+        val tgtInfo = TypeInfo.fromKSType(resolvedTarget)
         if (!isMappableClass(srcInfo) || !isMappableClass(tgtInfo)) return
         if (srcDecl.containingFile == null || tgtDecl.containingFile == null) return
         worklist.addLast(ClassPair(srcDecl, tgtDecl))
+    }
+
+    /**
+     * Returns the pair of types the deriver should treat as the candidates for
+     * recursion. When [sourceType] and [targetType] are the same kind of
+     * single-element collection wrapper (`List`/`List` or `Set`/`Set`), peels
+     * them to their element types so the mappability gate runs against the
+     * elements (e.g. `Set<User>` → `User`). Returns `null` when one side is a
+     * collection and the other isn't, or when the kinds differ — neither
+     * `NestedRule` nor the deriver auto-maps mismatched wrappers. For
+     * non-collection inputs returns the inputs unchanged.
+     */
+    @Suppress("ReturnCount")
+    private fun resolveRecursableTypes(
+        sourceType: KSType,
+        targetType: KSType,
+    ): Pair<KSType, KSType>? {
+        val srcInfo = TypeInfo.fromKSType(sourceType)
+        val tgtInfo = TypeInfo.fromKSType(targetType)
+        val srcKind = collectionKindOf(srcInfo)
+        val tgtKind = collectionKindOf(tgtInfo)
+        if (srcKind == null && tgtKind == null) return sourceType to targetType
+        if (srcKind != tgtKind) return null
+        val srcElement = elementTypeInfo(srcInfo) ?: return null
+        val tgtElement = elementTypeInfo(tgtInfo) ?: return null
+        return srcElement.ksType to tgtElement.ksType
     }
 
     private fun ClassPair.fqKey(): Pair<String, String>? {
