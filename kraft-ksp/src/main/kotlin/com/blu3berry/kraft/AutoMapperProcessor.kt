@@ -17,6 +17,7 @@ import com.blu3berry.kraft.processor.codegen.generator.ExtensionMapperGenerator
 import com.blu3berry.kraft.processor.codegen.generator.enumMappingsToConverterEntries
 import com.blu3berry.kraft.processor.codegen.generator.mergeWithEnumAmbiguityCheck
 import com.blu3berry.kraft.processor.descriptor.DescriptorBuilder
+import com.blu3berry.kraft.processor.scanner.AutoEnumMappingDeriver
 import com.blu3berry.kraft.processor.scanner.ClassAnnotationScanner
 import com.blu3berry.kraft.processor.scanner.ClasspathConverterScanner
 import com.blu3berry.kraft.processor.scanner.ConfigObjectScanner
@@ -50,8 +51,19 @@ class AutoMapperProcessor(
 
         val classMappings = ClassAnnotationScanner(resolver, logger).scan()
         val configMappings = ConfigObjectScanner(resolver, logger).scan()
-        val enumMappings = EnumMapScanner(resolver, logger).scan()
+        val declaredEnumMappings = EnumMapScanner(resolver, logger).scan()
         val handWrittenConverters = GlobalConverterScanner(resolver, logger).scan()
+
+        // Derive @MapEnum-equivalent descriptors for property-level enum→enum
+        // pairs that auto-pair by name. Appended to the user-declared list so
+        // the rest of the pipeline treats them identically.
+        val derivedEnumMappings = AutoEnumMappingDeriver(logger).derive(
+            classMappings = classMappings,
+            configMappings = configMappings,
+            existingEnumMappings = declaredEnumMappings,
+            sameModuleConverters = handWrittenConverters,
+        )
+        val enumMappings = declaredEnumMappings + derivedEnumMappings
 
         val genConfig = GenerationConfig(
             functionNameTemplate = env.options[KraftKspConstants.OPTION_FUNCTION_NAME_FORMAT]
