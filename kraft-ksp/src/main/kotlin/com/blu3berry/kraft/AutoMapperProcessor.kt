@@ -82,7 +82,7 @@ class AutoMapperProcessor(
         // and keeps the Real entry, so processing continues with at most one
         // entry per pair).
         val syntheticEnumConverters = enumGenerator
-            ?.let { enumMappingsToConverterEntries(enumMappings, it) }
+            ?.let { enumMappingsToConverterEntries(enumMappings, it, logger) }
             .orEmpty()
         val sameModuleConverters = mergeWithEnumAmbiguityCheck(
             handWrittenConverters, syntheticEnumConverters, logger

@@ -77,6 +77,32 @@ class EnumAutoResolveTest {
     }
 
     @Test
+    fun `two @MapEnum declarations registering the same source-target pair is a compile-time error`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            enum class Status { ACTIVE, INACTIVE }
+            enum class StatusDto { ACTIVE, INACTIVE }
+
+            @com.blu3berry.kraft.config.MapEnum(source = Status::class, target = StatusDto::class)
+            object FirstMapping
+
+            @com.blu3berry.kraft.config.MapEnum(source = Status::class, target = StatusDto::class)
+            object SecondMapping
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("Ambiguous @MapEnum")
+        assertThat(result.messages).contains("models.Status")
+        assertThat(result.messages).contains("models.StatusDto")
+    }
+
+    @Test
     fun `consumer module picks up upstream @MapEnum via classpath delegate`() {
         val upstream = SourceFile.kotlin(
             "EnumMapping.kt",

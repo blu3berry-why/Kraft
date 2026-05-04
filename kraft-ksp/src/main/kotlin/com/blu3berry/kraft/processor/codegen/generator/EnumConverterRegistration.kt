@@ -21,23 +21,32 @@ import com.blu3berry.kraft.processor.codegen.EnumMapperGeneratorSpi
  * that performs the codegen guarantees the two sides can't drift, even when
  * a custom [EnumMapperGeneratorSpi] is loaded via `ServiceLoader`.
  *
+ * Two `@MapEnum` declarations that register the same `(source, target)` pair
+ * are reported via [logger] as a compile-time ambiguity (anchored at the
+ * second declaration, with the first declaration's location surfaced in the
+ * message) and the duplicate is dropped from the result so processing can
+ * continue with at most one synthetic entry per pair.
+ *
  * Pairs that can't be represented as a [ConverterTypeKey] (e.g. PLATFORM-typed
  * declarations without nullness metadata) are silently skipped — the caller's
  * existing rules already reject those at the `@MapEnum` site.
  */
 fun enumMappingsToConverterEntries(
     descriptors: List<EnumMappingDescriptor>,
-    enumGenerator: EnumMapperGeneratorSpi
+    enumGenerator: EnumMapperGeneratorSpi,
+    logger: KSPLogger,
 ): Map<ConverterTypeKey, ConverterEntry.Synthetic> {
     if (descriptors.isEmpty()) return emptyMap()
     val out = LinkedHashMap<ConverterTypeKey, ConverterEntry.Synthetic>(descriptors.size)
+    val seen = HashMap<ConverterTypeKey, EnumMappingDescriptor>(descriptors.size)
     for (desc in descriptors) {
         val key = buildKey(desc) ?: continue
-        // Two @MapEnum declarations registering the same (source, target) pair
-        // would already have been caught by EnumMapScanner (each pair has a
-        // single forward + optional reverse descriptor). The reverse descriptor
-        // is keyed in the opposite direction, so it doesn't collide here.
-        if (key in out) continue
+        val previous = seen[key]
+        if (previous != null) {
+            reportDuplicateEnumMapping(key, previous, desc, logger)
+            continue
+        }
+        seen[key] = desc
         out[key] = ConverterEntry.Synthetic(
             packageName = enumGenerator.generatedPackage(desc),
             simpleName = enumGenerator.generatedFunctionName(desc),
@@ -50,11 +59,30 @@ fun enumMappingsToConverterEntries(
             originatingFiles = listOfNotNull(
                 desc.sourceType.declaration.containingFile,
                 desc.targetType.declaration.containingFile,
-                desc.declarationFile,
+                desc.declaration?.containingFile,
             ).distinct()
         )
     }
     return out
+}
+
+private fun reportDuplicateEnumMapping(
+    key: ConverterTypeKey,
+    first: EnumMappingDescriptor,
+    duplicate: EnumMappingDescriptor,
+    logger: KSPLogger,
+) {
+    val source = "${key.sourceFqName}${if (key.sourceNullable) "?" else ""}"
+    val target = "${key.targetFqName}${if (key.targetNullable) "?" else ""}"
+    val firstLocation = first.declaration?.qualifiedName?.asString()
+        ?: first.declaration?.simpleName?.asString()
+        ?: "<unknown>"
+    logger.error(
+        "Ambiguous @MapEnum: ($source → $target) is registered by more than one " +
+            "@MapEnum declaration. First seen at '$firstLocation'. " +
+            "Remove one of the @MapEnum declarations or change one of the source/target pairs.",
+        duplicate.declaration
+    )
 }
 
 /**

@@ -86,7 +86,7 @@ class EnumMapperGenerator(
         val sourceFiles = listOfNotNull(
             fromDecl.containingFile,
             toDecl.containingFile,
-            desc.declarationFile,
+            desc.declaration?.containingFile,
         ).distinct()
         if (sourceFiles.isEmpty()) return
         @Suppress("SpreadOperator")
