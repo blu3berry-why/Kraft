@@ -11,6 +11,7 @@ import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import com.blu3berry.kraft.model.TypeInfo
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 import com.blu3berry.kraft.processor.util.annotationTargetError
+import com.blu3berry.kraft.processor.util.enumEntryNames
 import com.blu3berry.kraft.processor.util.findAnnotation
 import com.blu3berry.kraft.processor.util.getKClassArgOrNull
 import com.blu3berry.kraft.processor.util.unmappedEnumEntries
@@ -70,8 +71,8 @@ class EnumMapScanner(
 
         val enumPair = resolveEnumPair(annotation, decl) ?: return emptyList()
 
-        val fromEntries = getEnumEntries(enumPair.fromDecl)
-        val toEntries = getEnumEntries(enumPair.toDecl)
+        val fromEntries = enumPair.fromDecl.enumEntryNames()
+        val toEntries = enumPair.toDecl.enumEntryNames()
 
         val customMappings = extractCustomMappings(
             annotation, fromEntries, toEntries, decl
@@ -312,16 +313,4 @@ class EnumMapScanner(
         return EnumEntryMapping(source = from, target = to)
     }
 
-    /**
-     * Extract enum entries using proper KSP approach.
-     *
-     * @param decl The enum class declaration
-     * @return A list of enum entry names
-     */
-    private fun getEnumEntries(decl: KSClassDeclaration): List<String> =
-        decl.declarations
-            .filterIsInstance<KSClassDeclaration>()
-            .filter { it.classKind == ClassKind.ENUM_ENTRY }
-            .map { it.simpleName.asString() }
-            .toList()
 }

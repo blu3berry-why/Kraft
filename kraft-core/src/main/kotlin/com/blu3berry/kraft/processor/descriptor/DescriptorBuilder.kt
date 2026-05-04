@@ -27,8 +27,18 @@ class DescriptorBuilder(
         buildClassDescriptors(classMappings, configMappings, enumMappings, globalConverters, builtDescriptors)
         buildConfigDescriptors(configMappings, classMappings, enumMappings, globalConverters, builtDescriptors)
         buildReverseDescriptors(classMappings, configMappings, globalConverters, builtDescriptors)
-        resolveImplicitDependencies(builtDescriptors, configMappings, globalConverters)
-        validateNestedDependencies(builtDescriptors)
+        // Enum-backed nested IDs (e.g. Status → StatusDto from List<Status>/List<StatusDto>
+        // collection-element pairs) are covered by EnumMappingDescriptor, not MapperDescriptor.
+        // Exclude them from implicit dependency resolution (so no class mapper is built for
+        // enum types, which would produce a duplicate conflicting overload) and from the
+        // missing-nested-dependency validation.
+        val enumBackedIds = enumMappings.mapNotNullTo(HashSet()) { desc ->
+            val src = desc.sourceType.declaration.qualifiedName?.asString() ?: return@mapNotNullTo null
+            val tgt = desc.targetType.declaration.qualifiedName?.asString() ?: return@mapNotNullTo null
+            MapperId(src, tgt)
+        }
+        resolveImplicitDependencies(builtDescriptors, configMappings, globalConverters, enumBackedIds)
+        validateNestedDependencies(builtDescriptors, enumBackedIds)
 
         return builtDescriptors.values.toList()
     }
@@ -185,13 +195,17 @@ class DescriptorBuilder(
     private fun resolveImplicitDependencies(
         builtDescriptors: MutableMap<MapperId, MapperDescriptor>,
         configMappings: List<ConfigObjectScanResult>,
-        globalConverters: GlobalConverterRegistry
+        globalConverters: GlobalConverterRegistry,
+        enumBackedIds: Set<MapperId> = emptySet(),
     ) {
         val inProgress = mutableSetOf<MapperId>()
         for (descriptor in builtDescriptors.values.toList()) {
             descriptor.propertyMappings
                 .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
-                .filter { it.nestedMappingDescriptor.nestedMapperId !in builtDescriptors }
+                .filter {
+                    val id = it.nestedMappingDescriptor.nestedMapperId
+                    id !in builtDescriptors && id !in enumBackedIds
+                }
                 .forEach { strategy ->
                     resolveImplicit(
                         source = strategy.nestedMappingDescriptor.sourceType.declaration,
@@ -200,7 +214,8 @@ class DescriptorBuilder(
                         builtDescriptors = builtDescriptors,
                         inProgress = inProgress,
                         configMappings = configMappings,
-                        globalConverters = globalConverters
+                        globalConverters = globalConverters,
+                        enumBackedIds = enumBackedIds,
                     )
                 }
         }
@@ -214,7 +229,8 @@ class DescriptorBuilder(
         builtDescriptors: MutableMap<MapperId, MapperDescriptor>,
         inProgress: MutableSet<MapperId>,
         configMappings: List<ConfigObjectScanResult>,
-        globalConverters: GlobalConverterRegistry
+        globalConverters: GlobalConverterRegistry,
+        enumBackedIds: Set<MapperId> = emptySet(),
     ) {
         val id = MapperId(
             sourceQualifiedName = source.qualifiedName?.asString() ?: source.simpleName.asString(),
@@ -232,7 +248,10 @@ class DescriptorBuilder(
             return
         }
 
-        recurseIntoDependencies(descriptor, id, path, builtDescriptors, inProgress, configMappings, globalConverters)
+        recurseIntoDependencies(
+            descriptor, id, path, builtDescriptors, inProgress,
+            configMappings, globalConverters, enumBackedIds,
+        )
 
         inProgress -= id              // unmark GRAY
         builtDescriptors[id] = descriptor // mark BLACK
@@ -246,10 +265,12 @@ class DescriptorBuilder(
         builtDescriptors: MutableMap<MapperId, MapperDescriptor>,
         inProgress: MutableSet<MapperId>,
         configMappings: List<ConfigObjectScanResult>,
-        globalConverters: GlobalConverterRegistry
+        globalConverters: GlobalConverterRegistry,
+        enumBackedIds: Set<MapperId> = emptySet(),
     ) {
         descriptor.propertyMappings
             .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
+            .filter { it.nestedMappingDescriptor.nestedMapperId !in enumBackedIds }
             .forEach { strategy ->
                 resolveImplicit(
                     source = strategy.nestedMappingDescriptor.sourceType.declaration,
@@ -258,7 +279,8 @@ class DescriptorBuilder(
                     builtDescriptors = builtDescriptors,
                     inProgress = inProgress,
                     configMappings = configMappings,
-                    globalConverters = globalConverters
+                    globalConverters = globalConverters,
+                    enumBackedIds = enumBackedIds,
                 )
             }
     }
@@ -302,10 +324,13 @@ class DescriptorBuilder(
     // 4) Final validation pass
     // ---------------------------
 
-    private fun validateNestedDependencies(builtDescriptors: Map<MapperId, MapperDescriptor>) {
+    private fun validateNestedDependencies(
+        builtDescriptors: Map<MapperId, MapperDescriptor>,
+        enumBackedIds: Set<MapperId> = emptySet(),
+    ) {
         for (descriptor in builtDescriptors.values) {
             descriptor.nestedDependencies
-                .filter { it !in builtDescriptors }
+                .filter { it !in builtDescriptors && it !in enumBackedIds }
                 .forEach { depId ->
                     logger.error(
                         "Nested mapper for $depId could not be built; " +

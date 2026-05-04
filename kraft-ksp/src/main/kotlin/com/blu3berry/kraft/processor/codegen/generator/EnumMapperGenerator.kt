@@ -13,6 +13,7 @@ import com.blu3berry.kraft.processor.codegen.EnumMapperGeneratorSpi
 import com.blu3berry.kraft.processor.codegen.GenerationConfig
 import com.blu3berry.kraft.processor.codegen.className
 import com.blu3berry.kraft.processor.util.CodeGenUtils
+import com.blu3berry.kraft.processor.util.enumEntryNames
 
 /**
  * Generates enum -> enum mapper functions based on EnumMappingDescriptor.
@@ -58,8 +59,8 @@ class EnumMapperGenerator(
         if (!validateEnums(fromDecl, toDecl)) return
 
         // 2) Extract real enum entries
-        val fromEntries = getEnumEntries(fromDecl).toSet()
-        val toEntries = getEnumEntries(toDecl).toSet()
+        val fromEntries = fromDecl.enumEntryNames().toSet()
+        val toEntries = toDecl.enumEntryNames().toSet()
 
         // 3) Validate descriptors
         if (!validateDescriptor(desc, fromEntries, toEntries)) return
@@ -174,17 +175,6 @@ class EnumMapperGenerator(
         return builder.build()
     }
 
-
-    // -------------------------------------------------------------------------
-    // ENUM ENTRY RESOLUTION
-    // -------------------------------------------------------------------------
-
-    private fun getEnumEntries(decl: KSClassDeclaration): List<String> =
-        decl.declarations
-            .filterIsInstance<KSClassDeclaration>()
-            .filter { it.classKind == ClassKind.ENUM_ENTRY }
-            .map { it.simpleName.asString() }
-            .toList()
 
     companion object {
         /**

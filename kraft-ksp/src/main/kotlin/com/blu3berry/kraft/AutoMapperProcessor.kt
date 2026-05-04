@@ -17,6 +17,7 @@ import com.blu3berry.kraft.processor.codegen.generator.ExtensionMapperGenerator
 import com.blu3berry.kraft.processor.codegen.generator.enumMappingsToConverterEntries
 import com.blu3berry.kraft.processor.codegen.generator.mergeWithEnumAmbiguityCheck
 import com.blu3berry.kraft.processor.descriptor.DescriptorBuilder
+import com.blu3berry.kraft.processor.scanner.AutoEnumMappingDeriver
 import com.blu3berry.kraft.processor.scanner.ClassAnnotationScanner
 import com.blu3berry.kraft.processor.scanner.ClasspathConverterScanner
 import com.blu3berry.kraft.processor.scanner.ConfigObjectScanner
@@ -50,8 +51,14 @@ class AutoMapperProcessor(
 
         val classMappings = ClassAnnotationScanner(resolver, logger).scan()
         val configMappings = ConfigObjectScanner(resolver, logger).scan()
-        val enumMappings = EnumMapScanner(resolver, logger).scan()
+        val declaredEnumMappings = EnumMapScanner(resolver, logger).scan()
         val handWrittenConverters = GlobalConverterScanner(resolver, logger).scan()
+        val enumMappings = declaredEnumMappings + AutoEnumMappingDeriver().derive(
+            classMappings = classMappings,
+            configMappings = configMappings,
+            existingEnumMappings = declaredEnumMappings,
+            sameModuleConverters = handWrittenConverters,
+        )
 
         val genConfig = GenerationConfig(
             functionNameTemplate = env.options[KraftKspConstants.OPTION_FUNCTION_NAME_FORMAT]
@@ -69,11 +76,7 @@ class AutoMapperProcessor(
         // call coordinates from the SAME SPI instance that performs the
         // codegen — a custom EnumMapperGeneratorSpi can change the generated
         // package/name and the trampolines must follow.
-        val enumGenerator = if (enumMappings.isNotEmpty()) {
-            loadEnumGenerator(generatorEnv)
-        } else {
-            null
-        }
+        val enumGenerator = if (enumMappings.isNotEmpty()) loadEnumGenerator(generatorEnv) else null
 
         // Auto-resolve @MapEnum mappers as global converters: each enum
         // descriptor becomes a synthetic registry entry, merged with the

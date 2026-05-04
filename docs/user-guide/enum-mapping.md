@@ -19,6 +19,31 @@ Parameters:
 | `target` | The enum class to map to |
 | `fieldMappings` | Array of `FieldMapping` for entries with different names (default: empty) |
 
+## When you do NOT need `@MapEnum`
+
+Kraft auto-generates an enum mapper at compile time when **all** of these
+hold:
+
+- The source and target enum types are both declared in the **current
+  module** (i.e. KSP is processing both files this round).
+- The pair is **reachable** from at least one declared `@MapConfig` /
+  `@MapTo` parent — directly as a property type, transitively through any
+  nested data-class properties, or through `List<…>` / `Set<…>` element
+  positions. Intermediate data classes do NOT need their own `@MapConfig`.
+- Both property occurrences are **non-nullable** (`Status`, not `Status?`).
+- Every source-enum entry has a same-named target-enum entry. Extra
+  entries on the target are fine.
+
+When all four conditions hold the parent mapper compiles without any
+`@MapEnum` declaration, and the auto-derived mapper is also published as a
+`@KraftConverterDelegate` so downstream modules can import it. If the
+parent has `@MapReverse`, both directions auto-derive when the by-name
+pairing also succeeds in reverse.
+
+If any of the conditions does not hold (cross-module pair, mismatched
+entry names, nullable properties, custom `fieldMappings`), declare
+`@MapEnum` explicitly — Kraft will not silently guess.
+
 ## Auto-Mapping
 
 When all entries share the same name on both sides, no `fieldMappings` are needed. Kraft matches entries by name automatically.
