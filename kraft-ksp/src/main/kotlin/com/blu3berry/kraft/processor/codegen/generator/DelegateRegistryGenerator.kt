@@ -18,6 +18,7 @@ import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.ksp.toTypeName
 import com.squareup.kotlinpoet.ksp.writeTo
 import com.blu3berry.kraft.model.scan.ConverterEntry
+import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.codegen.OptInMarker
 import com.blu3berry.kraft.processor.codegen.OptInMarkerCollector
@@ -48,7 +49,16 @@ class DelegateRegistryGenerator(
     fun generate(registry: GlobalConverterRegistry, codeGenerator: CodeGenerator) {
         if (registry.entries.isEmpty()) return
 
-        val converters = registry.entries.values.toList()
+        // Sort by ConverterTypeKey so the delegate index — which is part of
+        // the generated function name — is reproducible across runs. Map
+        // iteration order otherwise tracks scan order, which depends on
+        // KSP's symbol enumeration and is not guaranteed stable across
+        // rebuilds; an unstable index would shift FQNs that downstream
+        // modules import via @KraftConverterDelegate.
+        val converters = registry.entries
+            .toSortedMap(converterKeyComparator)
+            .values
+            .toList()
         val moduleSuffix = moduleIdOption?.let(::sanitize)
             ?: contentHash(converters)
         val fileName = "Converters_$moduleSuffix"
@@ -163,6 +173,13 @@ class DelegateRegistryGenerator(
 
     private fun sanitize(raw: String): String =
         raw.replace(Regex("[^A-Za-z0-9_]"), "_").ifBlank { "module" }
+
+    private val converterKeyComparator: Comparator<ConverterTypeKey> = compareBy(
+        { it.sourceFqName },
+        { it.sourceNullable },
+        { it.targetFqName },
+        { it.targetNullable },
+    )
 
     private fun contentHash(converters: List<ConverterEntry>): String {
         val sortedFqs = converters

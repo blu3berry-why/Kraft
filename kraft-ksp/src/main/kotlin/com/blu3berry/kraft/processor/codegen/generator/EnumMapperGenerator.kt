@@ -44,6 +44,12 @@ class EnumMapperGenerator(
         descriptors.forEach(::generateOne)
     }
 
+    override fun generatedPackage(descriptor: EnumMappingDescriptor): String =
+        defaultGeneratedPackage(descriptor)
+
+    override fun generatedFunctionName(descriptor: EnumMappingDescriptor): String =
+        config.functionNameFor(descriptor.sourceType.simpleName, descriptor.targetType.simpleName)
+
     private fun generateOne(desc: EnumMappingDescriptor) {
         val fromDecl = desc.sourceType.declaration
         val toDecl = desc.targetType.declaration
@@ -74,7 +80,14 @@ class EnumMapperGenerator(
             .addFunction(funSpec)
             .build()
 
-        val sourceFiles = listOfNotNull(fromDecl.containingFile, toDecl.containingFile)
+        // The @MapEnum-annotated declaration is included so editing the
+        // annotation arguments / fieldMappings invalidates this file even when
+        // neither enum source/target type was touched.
+        val sourceFiles = listOfNotNull(
+            fromDecl.containingFile,
+            toDecl.containingFile,
+            desc.declarationFile,
+        ).distinct()
         if (sourceFiles.isEmpty()) return
         @Suppress("SpreadOperator")
         val deps = Dependencies(false, *sourceFiles.toTypedArray())
@@ -139,7 +152,7 @@ class EnumMapperGenerator(
         val fromClass = desc.sourceType.className
         val toClass = desc.targetType.className
 
-        val funName = generatedFunctionName(desc, config)
+        val funName = generatedFunctionName(desc)
 
         val builder = FunSpec.builder(funName)
             .receiver(fromClass)
@@ -175,15 +188,12 @@ class EnumMapperGenerator(
 
     companion object {
         /**
-         * Package the generated enum mapper extension lands in. Centralised so the
-         * synthetic registry entry (in [enumMappingsToConverterEntries]) and the
-         * codegen agree on the FQN.
+         * Default `generatedPackage` derivation, kept on the companion so
+         * subclasses or alternative SPI implementations can delegate to it
+         * without instantiating an [EnumMapperGenerator]. Returns the source
+         * type's package suffixed with `.generated`.
          */
-        fun generatedPackage(desc: EnumMappingDescriptor): String =
+        fun defaultGeneratedPackage(desc: EnumMappingDescriptor): String =
             "${desc.sourceType.className.packageName}.generated"
-
-        /** Simple name of the generated enum mapper function. */
-        fun generatedFunctionName(desc: EnumMappingDescriptor, config: GenerationConfig): String =
-            config.functionNameFor(desc.sourceType.simpleName, desc.targetType.simpleName)
     }
 }

@@ -74,6 +74,7 @@ class EnumMapScanner(
             sourceType = TypeInfo.fromKSType(enumPair.sourceKSType),
             targetType = TypeInfo.fromKSType(enumPair.targetKSType),
             entries = allMappings,
+            declarationFile = decl.containingFile,
         )
     }
 

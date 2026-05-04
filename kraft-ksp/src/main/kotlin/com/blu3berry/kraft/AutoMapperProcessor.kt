@@ -58,13 +58,32 @@ class AutoMapperProcessor(
                 ?: "to\${target}"
         )
 
+        val generatorEnv = GeneratorEnvironment(
+            logger = logger,
+            options = env.options,
+            config = genConfig
+        )
+
+        // The enum generator is loaded eagerly (when there are @MapEnum
+        // descriptors) so the synthetic-converter registry below derives its
+        // call coordinates from the SAME SPI instance that performs the
+        // codegen — a custom EnumMapperGeneratorSpi can change the generated
+        // package/name and the trampolines must follow.
+        val enumGenerator = if (enumMappings.isNotEmpty()) {
+            loadEnumGenerator(generatorEnv)
+        } else {
+            null
+        }
+
         // Auto-resolve @MapEnum mappers as global converters: each enum
         // descriptor becomes a synthetic registry entry, merged with the
         // hand-written @KraftConverter entries for this module. Same pair
         // declared via both → compile-time ambiguity (the merge reports it
         // and keeps the Real entry, so processing continues with at most one
         // entry per pair).
-        val syntheticEnumConverters = enumMappingsToConverterEntries(enumMappings, genConfig)
+        val syntheticEnumConverters = enumGenerator
+            ?.let { enumMappingsToConverterEntries(enumMappings, it) }
+            .orEmpty()
         val sameModuleConverters = mergeWithEnumAmbiguityCheck(
             handWrittenConverters, syntheticEnumConverters, logger
         )
@@ -85,16 +104,7 @@ class AutoMapperProcessor(
             globalConverters = mergedConverters
         )
 
-        val generatorEnv = GeneratorEnvironment(
-            logger = logger,
-            options = env.options,
-            config = genConfig
-        )
-
-        if (enumMappings.isNotEmpty()) {
-            val enumGenerator = loadEnumGenerator(generatorEnv)
-            enumGenerator.generate(enumMappings, codeGenerator)
-        }
+        enumGenerator?.generate(enumMappings, codeGenerator)
 
         val generator = loadMapperGenerator(generatorEnv)
         for (descriptor in descriptors) {

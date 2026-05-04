@@ -6,7 +6,7 @@ import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import com.blu3berry.kraft.model.scan.ConverterEntry
 import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
-import com.blu3berry.kraft.processor.codegen.GenerationConfig
+import com.blu3berry.kraft.processor.codegen.EnumMapperGeneratorSpi
 
 /**
  * Builds the synthetic-converter index for `@MapEnum`-derived mappers — one
@@ -16,10 +16,10 @@ import com.blu3berry.kraft.processor.codegen.GenerationConfig
  * boilerplate, and so [DelegateRegistryGenerator] can re-export each enum
  * mapper as a `@KraftConverterDelegate` for cross-module discovery.
  *
- * Same naming convention as [EnumMapperGenerator]: package and function name
- * are derived via [EnumMapperGenerator.generatedPackage] and
- * [EnumMapperGenerator.generatedFunctionName] so the registered call
- * coordinates always match the actual generated extension.
+ * Naming is delegated to [enumGenerator] so the registered call coordinates
+ * always match the actual generated extension — passing the same SPI instance
+ * that performs the codegen guarantees the two sides can't drift, even when
+ * a custom [EnumMapperGeneratorSpi] is loaded via `ServiceLoader`.
  *
  * Pairs that can't be represented as a [ConverterTypeKey] (e.g. PLATFORM-typed
  * declarations without nullness metadata) are silently skipped — the caller's
@@ -27,7 +27,7 @@ import com.blu3berry.kraft.processor.codegen.GenerationConfig
  */
 fun enumMappingsToConverterEntries(
     descriptors: List<EnumMappingDescriptor>,
-    config: GenerationConfig
+    enumGenerator: EnumMapperGeneratorSpi
 ): Map<ConverterTypeKey, ConverterEntry.Synthetic> {
     if (descriptors.isEmpty()) return emptyMap()
     val out = LinkedHashMap<ConverterTypeKey, ConverterEntry.Synthetic>(descriptors.size)
@@ -39,14 +39,19 @@ fun enumMappingsToConverterEntries(
         // is keyed in the opposite direction, so it doesn't collide here.
         if (key in out) continue
         out[key] = ConverterEntry.Synthetic(
-            packageName = EnumMapperGenerator.generatedPackage(desc),
-            simpleName = EnumMapperGenerator.generatedFunctionName(desc, config),
+            packageName = enumGenerator.generatedPackage(desc),
+            simpleName = enumGenerator.generatedFunctionName(desc),
             sourceTypeInfo = desc.sourceType,
             targetTypeInfo = desc.targetType,
+            // The @MapEnum declaration file is included alongside the source
+            // and target enum files so editing the annotation arguments
+            // (fieldMappings, source/target swaps) invalidates the synthetic
+            // registry consumer even when neither enum was touched.
             originatingFiles = listOfNotNull(
                 desc.sourceType.declaration.containingFile,
-                desc.targetType.declaration.containingFile
-            )
+                desc.targetType.declaration.containingFile,
+                desc.declarationFile,
+            ).distinct()
         )
     }
     return out
