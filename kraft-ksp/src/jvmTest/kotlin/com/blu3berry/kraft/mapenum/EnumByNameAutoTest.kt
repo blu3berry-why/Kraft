@@ -218,6 +218,95 @@ class EnumByNameAutoTest {
     }
 
     @Test
+    fun `depth-2 nested data class auto-derives without explicit inner @MapConfig`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            enum class Status { ACTIVE, INACTIVE }
+            enum class StatusDto { ACTIVE, INACTIVE }
+
+            data class User(val status: Status, val name: String)
+            data class UserDto(val status: StatusDto, val name: String)
+            data class Store(val user: User)
+            data class StoreDto(val user: UserDto)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Store::class, target = StoreDto::class)
+            object StoreMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
+            "Compilation failed:\n${result.messages}"
+        }
+        val joined = TestKspRunner.compileAndReturnGenerated(source)
+            .joinToString("\n") { it.readText() }
+        assertThat(joined).contains("fun Status.toStatusDto()")
+        assertThat(joined).contains("status = this.status.toStatusDto()")
+    }
+
+    @Test
+    fun `depth-3 nested auto-derives without intermediate @MapConfigs`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            enum class Country { US, UK }
+            enum class CountryDto { US, UK }
+
+            data class Address(val country: Country)
+            data class AddressDto(val country: CountryDto)
+            data class User(val address: Address)
+            data class UserDto(val address: AddressDto)
+            data class Store(val user: User)
+            data class StoreDto(val user: UserDto)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Store::class, target = StoreDto::class)
+            object StoreMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
+            "Compilation failed:\n${result.messages}"
+        }
+        val joined = TestKspRunner.compileAndReturnGenerated(source)
+            .joinToString("\n") { it.readText() }
+        assertThat(joined).contains("fun Country.toCountryDto()")
+        assertThat(joined).contains("country = this.country.toCountryDto()")
+    }
+
+    @Test
+    fun `cycle through self-referencing nested type terminates and auto-derives`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            enum class Status { ACTIVE, INACTIVE }
+            enum class StatusDto { ACTIVE, INACTIVE }
+
+            data class Node(val parent: Node?, val status: Status)
+            data class NodeDto(val parent: NodeDto?, val status: StatusDto)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Node::class, target = NodeDto::class)
+            object NodeMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
+            "Compilation failed:\n${result.messages}"
+        }
+        val joined = TestKspRunner.compileAndReturnGenerated(source)
+            .joinToString("\n") { it.readText() }
+        assertThat(joined).contains("fun Status.toStatusDto()")
+    }
+
+    @Test
     fun `nested property enum mismatch auto-derives when an inner @MapConfig also exists`() {
         val source = SourceFile.kotlin(
             "Models.kt",

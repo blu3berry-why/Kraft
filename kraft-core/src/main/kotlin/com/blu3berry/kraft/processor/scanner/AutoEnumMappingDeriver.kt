@@ -12,6 +12,7 @@ import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.util.collectPropertyTypeRefs
 import com.blu3berry.kraft.processor.util.enumEntryNames
+import com.blu3berry.kraft.processor.util.isMappableClass
 
 /**
  * Walks every parent `@MapConfig` / `@MapTo` mapping pair and synthesizes an
@@ -35,23 +36,19 @@ class AutoEnumMappingDeriver {
         existingEnumMappings: List<EnumMappingDescriptor>,
         sameModuleConverters: GlobalConverterRegistry,
     ): List<EnumMappingDescriptor> {
-        val pairs = collectParentClassPairs(classMappings, configMappings)
-        if (pairs.isEmpty()) return emptyList()
+        val seeds = collectParentClassPairs(classMappings, configMappings)
+        if (seeds.isEmpty()) return emptyList()
 
         val covered = coveredPairs(existingEnumMappings, sameModuleConverters)
         val out = LinkedHashMap<Pair<String, String>, EnumMappingDescriptor>()
+        val visited = HashSet<Pair<String, String>>()
+        val worklist = ArrayDeque<ClassPair>().apply { addAll(seeds) }
 
-        for ((source, target) in pairs) {
-            val targetProps = target.collectPropertyTypeRefs()
-            val sourceProps = source.collectPropertyTypeRefs()
-            for ((propName, targetProp) in targetProps) {
-                val sourceProp = sourceProps[propName] ?: continue
-                val descriptor = tryDeriveEnumDescriptor(
-                    sourceProp, targetProp, covered, out
-                ) ?: continue
-                val key = descriptor.sourceType.qualifiedName to descriptor.targetType.qualifiedName
-                out.putIfAbsent(key, descriptor)
-            }
+        while (worklist.isNotEmpty()) {
+            val pair = worklist.removeFirst()
+            val key = pair.fqKey() ?: continue
+            if (!visited.add(key)) continue
+            walkProperties(pair, covered, worklist, out)
         }
         return out.values.toList()
     }
@@ -73,6 +70,49 @@ class AutoEnumMappingDeriver {
         }
         return pairs
     }
+
+    private fun walkProperties(
+        pair: ClassPair,
+        covered: Set<Pair<String, String>>,
+        worklist: ArrayDeque<ClassPair>,
+        out: MutableMap<Pair<String, String>, EnumMappingDescriptor>,
+    ) {
+        val sourceProps = pair.source.collectPropertyTypeRefs()
+        val targetProps = pair.target.collectPropertyTypeRefs()
+        for ((propName, targetProp) in targetProps) {
+            val sourceProp = sourceProps[propName] ?: continue
+            tryDeriveEnumDescriptor(sourceProp, targetProp, covered, out)
+                ?.also { out.putIfAbsent(it.fqKey(), it) }
+            enqueueIfNestedClassPair(sourceProp, targetProp, worklist)
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun enqueueIfNestedClassPair(
+        sourceType: KSType,
+        targetType: KSType,
+        worklist: ArrayDeque<ClassPair>,
+    ) {
+        val srcDecl = sourceType.declaration as? KSClassDeclaration ?: return
+        val tgtDecl = targetType.declaration as? KSClassDeclaration ?: return
+        val srcFq = srcDecl.qualifiedName?.asString() ?: return
+        val tgtFq = tgtDecl.qualifiedName?.asString() ?: return
+        if (srcFq == tgtFq) return
+        val srcInfo = TypeInfo.fromKSType(sourceType)
+        val tgtInfo = TypeInfo.fromKSType(targetType)
+        if (!isMappableClass(srcInfo) || !isMappableClass(tgtInfo)) return
+        if (srcDecl.containingFile == null || tgtDecl.containingFile == null) return
+        worklist.addLast(ClassPair(srcDecl, tgtDecl))
+    }
+
+    private fun ClassPair.fqKey(): Pair<String, String>? {
+        val s = source.qualifiedName?.asString() ?: return null
+        val t = target.qualifiedName?.asString() ?: return null
+        return s to t
+    }
+
+    private fun EnumMappingDescriptor.fqKey(): Pair<String, String> =
+        sourceType.qualifiedName to targetType.qualifiedName
 
     private fun coveredPairs(
         existingEnumMappings: List<EnumMappingDescriptor>,
