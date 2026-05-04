@@ -1,8 +1,5 @@
 package com.blu3berry.kraft.processor.descriptor.propertyresolver.rules
 
-import com.google.devtools.ksp.symbol.ClassKind
-import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.Modifier
 import com.blu3berry.kraft.model.scan.MapNestedAnnotation
 import com.blu3berry.kraft.model.descriptor.MappingContext
 import com.blu3berry.kraft.model.MapperId
@@ -14,6 +11,9 @@ import com.blu3berry.kraft.model.TypeInfo
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
 import com.blu3berry.kraft.processor.util.ambiguousNestedDescriptors
 import com.blu3berry.kraft.processor.util.ambiguousNestedSourceProperty
+import com.blu3berry.kraft.processor.util.collectionKindOf
+import com.blu3berry.kraft.processor.util.elementTypeInfo
+import com.blu3berry.kraft.processor.util.isMappableClass
 import com.blu3berry.kraft.processor.util.nestedMappingSourceNotFound
 import com.blu3berry.kraft.processor.util.nestedTypeNotMappable
 import com.blu3berry.kraft.processor.util.nullableNestedSource
@@ -422,28 +422,4 @@ class NestedRule : MappingRule {
         return false
     }
 
-    private fun isMappableClass(type: TypeInfo): Boolean {
-        val decl = type.declaration
-        val fqn = decl.qualifiedName?.asString() ?: return false
-        return decl.classKind == ClassKind.CLASS
-            && decl.primaryConstructor != null
-            && Modifier.ABSTRACT !in decl.modifiers
-            && Modifier.SEALED !in decl.modifiers
-            && !fqn.startsWith("kotlin.")
-            && !fqn.startsWith("java.")
-    }
-
-    private fun collectionKindOf(type: TypeInfo): CollectionKind? =
-        when (type.declaration.qualifiedName?.asString()) {
-            "kotlin.collections.List" -> CollectionKind.LIST
-            "kotlin.collections.Set" -> CollectionKind.SET
-            else -> null
-        }
-
-    private fun elementTypeInfo(type: TypeInfo): TypeInfo? {
-        val arg = type.ksType.arguments.firstOrNull() ?: return null
-        val argType = arg.type?.resolve() ?: return null
-        if (argType.declaration !is KSClassDeclaration) return null
-        return TypeInfo.fromKSType(argType)
-    }
 }
