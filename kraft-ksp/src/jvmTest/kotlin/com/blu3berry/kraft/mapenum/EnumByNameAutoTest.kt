@@ -90,4 +90,32 @@ class EnumByNameAutoTest {
         assertThat(mapper).contains("Status.ACTIVE -> StatusDto.ACTIVE")
         assertThat(mapper).contains("Status.INACTIVE -> StatusDto.INACTIVE")
     }
+
+    @Test
+    fun `user-declared @MapEnum for the pair suppresses auto-derivation`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            enum class Status { ACTIVE, INACTIVE }
+            enum class StatusDto { ACTIVE, INACTIVE }
+
+            // User explicitly declares the same pair the deriver would otherwise
+            // pick up. This must NOT result in a duplicate-pair compile error.
+            @com.blu3berry.kraft.config.MapEnum(source = Status::class, target = StatusDto::class)
+            object StatusMapping
+
+            data class Src(val status: Status)
+            data class Dst(val status: StatusDto)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+            object SrcMapper
+            """
+        )
+
+        val files = TestKspRunner.compileAndReturnGenerated(source)
+            .filter { "Status_To_StatusDto_EnumMapper" in it.name }
+        assertThat(files).hasSize(1)
+    }
 }
