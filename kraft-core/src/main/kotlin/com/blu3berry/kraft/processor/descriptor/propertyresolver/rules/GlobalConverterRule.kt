@@ -2,14 +2,20 @@ package com.blu3berry.kraft.processor.descriptor.propertyresolver.rules
 
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Nullability
+import com.blu3berry.kraft.model.MapperId
 import com.blu3berry.kraft.model.PropertyInfo
+import com.blu3berry.kraft.model.TypeInfo
+import com.blu3berry.kraft.model.descriptor.CollectionKind
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.descriptor.ConverterSource
 import com.blu3berry.kraft.model.descriptor.MappingContext
+import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.model.scan.ConverterEntry
 import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
+import com.blu3berry.kraft.processor.util.collectionKindOf
+import com.blu3berry.kraft.processor.util.elementTypeInfo
 
 /**
  * Resolves a target property to a `@KraftConverter` extension function when the
@@ -24,6 +30,12 @@ import com.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
  * - The source/target types already match — let direct/rename rules win.
  * - No converter is registered for the pair — let direct/rename rules emit the
  *   type-mismatch error so the message points users at the original code.
+ *
+ * Also handles element-position converter pairs for `List<A>`/`Set<A>` ↔ `List<B>`/`Set<B>` when
+ * the element-level converter `A → B` is registered (e.g. auto-derived enum mappers). Produces
+ * a [PropertyMappingStrategy.NestedMapper] with the appropriate [CollectionKind] so the code
+ * generator emits `.map { it.toB() }` / `.map { it.toB() }.toSet()` without requiring a full
+ * nested [com.blu3berry.kraft.model.descriptor.MapperDescriptor] for the element type.
  */
 class GlobalConverterRule : MappingRule {
 
@@ -32,7 +44,41 @@ class GlobalConverterRule : MappingRule {
         ctx: MappingContext
     ): PropertyMappingStrategy? {
         if (ctx.globalConverters.entries.isEmpty()) return null
-        val match = findGlobalMatch(target, ctx) ?: return null
+
+        // 1. Direct property-type converter (e.g. Status → StatusDto).
+        val directMatch = findDirectMatch(target, ctx)
+        if (directMatch != null) {
+            return buildConverterFunction(target, directMatch)
+        }
+
+        // 2. Collection-element converter (e.g. List<Status> → List<StatusDto>).
+        return findCollectionElementMatch(target, ctx)
+    }
+
+    // ---------- Direct match ----------
+
+    /**
+     * Resolves the source property + registered converter for [target], honouring
+     * `@MapField` / `FieldMapping` renames. Returns `null` when no source matches
+     * the effective name, types already match, either side is PLATFORM-typed, or
+     * no converter is registered for the pair — letting the rest of the resolver
+     * chain handle those cases.
+     */
+    private fun findDirectMatch(target: PropertyInfo, ctx: MappingContext): GlobalMatch? {
+        val effectiveSourceName = ctx.classRenames[target.name]
+            ?: ctx.configRenames[target.name]
+            ?: target.name
+        val source = ctx.sourceProps[effectiveSourceName] ?: return null
+        if (source.type.ksType == target.type.ksType) return null
+        val key = buildLookupKey(source, target) ?: return null
+        val entry = ctx.globalConverters.lookup(key) ?: return null
+        return GlobalMatch(effectiveSourceName, source, entry)
+    }
+
+    private fun buildConverterFunction(
+        target: PropertyInfo,
+        match: GlobalMatch
+    ): PropertyMappingStrategy.ConverterFunction {
         val (function, isExtension) = when (val entry = match.converter) {
             // Real entries (hand-written @KraftConverter / classpath delegate)
             // expose their KSP declaration; the call is an extension iff that
@@ -61,22 +107,78 @@ class GlobalConverterRule : MappingRule {
         )
     }
 
+    // ---------- Collection-element match ----------
+
     /**
-     * Resolves the source property + registered converter for [target], honouring
-     * `@MapField` / `FieldMapping` renames. Returns `null` when no source matches
-     * the effective name, types already match, either side is PLATFORM-typed, or
-     * no converter is registered for the pair — letting the rest of the resolver
-     * chain handle those cases.
+     * Handles `List<SourceElem>` / `Set<SourceElem>` ↔ `List<TargetElem>` / `Set<TargetElem>`
+     * when a converter for the element pair `(SourceElem → TargetElem)` is registered
+     * (e.g. an auto-derived enum mapper). Produces a [PropertyMappingStrategy.NestedMapper]
+     * with [CollectionKind] so [com.blu3berry.kraft.processor.codegen.generator.CtorCallBuilder]
+     * emits `.map { it.toTargetElem() }` / `.map { it.toTargetElem() }.toSet()`.
+     *
+     * The [NestedMappingDescriptor.nestedMapperId] references the element pair; callers that
+     * validate nested dependency IDs (e.g. [com.blu3berry.kraft.processor.descriptor.DescriptorBuilder])
+     * must exclude IDs whose source/target are covered by an enum mapping (no `MapperDescriptor`
+     * exists for enum types — only an `EnumMappingDescriptor`).
      */
-    private fun findGlobalMatch(target: PropertyInfo, ctx: MappingContext): GlobalMatch? {
+    @Suppress("ReturnCount")
+    private fun findCollectionElementMatch(
+        target: PropertyInfo,
+        ctx: MappingContext
+    ): PropertyMappingStrategy? {
         val effectiveSourceName = ctx.classRenames[target.name]
             ?: ctx.configRenames[target.name]
             ?: target.name
         val source = ctx.sourceProps[effectiveSourceName] ?: return null
-        if (source.type.ksType == target.type.ksType) return null
-        val key = buildLookupKey(source, target) ?: return null
-        val entry = ctx.globalConverters.lookup(key) ?: return null
-        return GlobalMatch(effectiveSourceName, source, entry)
+
+        val srcCollKind = collectionKindOf(source.type) ?: return null
+        val tgtCollKind = collectionKindOf(target.type) ?: return null
+        if (srcCollKind != tgtCollKind) return null
+
+        val srcElement = elementTypeInfo(source.type) ?: return null
+        val tgtElement = elementTypeInfo(target.type) ?: return null
+        if (srcElement.qualifiedName == tgtElement.qualifiedName) return null
+
+        val elementKey = buildElementKey(srcElement, tgtElement) ?: return null
+        val elementEntry = ctx.globalConverters.lookup(elementKey) ?: return null
+        if (!isExtensionEligible(elementEntry)) return null
+
+        return PropertyMappingStrategy.NestedMapper(
+            targetProperty = target,
+            sourceProperty = source,
+            nestedMappingDescriptor = NestedMappingDescriptor(
+                nestedMapperId = MapperId(
+                    sourceQualifiedName = srcElement.qualifiedName,
+                    targetQualifiedName = tgtElement.qualifiedName
+                ),
+                sourceType = srcElement,
+                targetType = tgtElement,
+                collectionKind = srcCollKind
+            )
+        )
+    }
+
+    private fun buildElementKey(srcElement: TypeInfo, tgtElement: TypeInfo): ConverterTypeKey? {
+        val srcNullable = srcElement.ksType.nullableFlag() ?: return null
+        val tgtNullable = tgtElement.ksType.nullableFlag() ?: return null
+        return ConverterTypeKey(
+            sourceFqName = srcElement.qualifiedName,
+            sourceNullable = srcNullable,
+            targetFqName = tgtElement.qualifiedName,
+            targetNullable = tgtNullable
+        )
+    }
+
+    /**
+     * Returns `true` when [entry] is a synthetic enum mapper or a Real extension function —
+     * both can be invoked as `it.toXxx()` inside a `.map { }` lambda.
+     * Non-extension Real converters (e.g. `Converter.convert(it)`) are not eligible
+     * because [CtorCallBuilder][com.blu3berry.kraft.processor.codegen.generator.CtorCallBuilder]
+     * renders `NestedMapper` as a plain extension call.
+     */
+    private fun isExtensionEligible(entry: ConverterEntry): Boolean = when (entry) {
+        is ConverterEntry.Synthetic -> true
+        is ConverterEntry.Real -> entry.function.extensionReceiver != null
     }
 
     /**

@@ -365,6 +365,33 @@ class EnumByNameAutoTest {
     }
 
     @Test
+    fun `List of enum auto-derives the element enum mapping`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            enum class Status { ACTIVE, INACTIVE }
+            enum class StatusDto { ACTIVE, INACTIVE }
+
+            data class Src(val statuses: List<Status>)
+            data class Dst(val statuses: List<StatusDto>)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+            object SrcMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
+            "Compilation failed:\n${result.messages}"
+        }
+        val joined = TestKspRunner.compileAndReturnGenerated(source)
+            .joinToString("\n") { it.readText() }
+        assertThat(joined).contains("fun Status.toStatusDto()")
+    }
+
+    @Test
     fun `nested property enum mismatch auto-derives when an inner @MapConfig also exists`() {
         val source = SourceFile.kotlin(
             "Models.kt",

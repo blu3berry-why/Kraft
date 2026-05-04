@@ -83,10 +83,27 @@ class AutoEnumMappingDeriver {
         val targetProps = pair.target.collectPropertyTypeRefs()
         for ((propName, targetProp) in targetProps) {
             val sourceProp = sourceProps[propName] ?: continue
-            tryDeriveEnumDescriptor(sourceProp, targetProp, covered, out)
-                ?.also { out.putIfAbsent(it.fqKey(), it) }
+            deriveLeafAndElement(sourceProp, targetProp, covered, out)
             enqueueIfNestedClassPair(sourceProp, targetProp, worklist)
         }
+    }
+
+    private fun deriveLeafAndElement(
+        sourceType: KSType,
+        targetType: KSType,
+        covered: Set<Pair<String, String>>,
+        out: MutableMap<Pair<String, String>, EnumMappingDescriptor>,
+    ) {
+        tryDeriveEnumDescriptor(sourceType, targetType, covered, out)
+            ?.also { out.putIfAbsent(it.fqKey(), it) }
+        // Element-position enum pairs (e.g. List<Status>/List<StatusDto>) — the
+        // walker would otherwise miss these because `enqueueIfNestedClassPair`
+        // bails when the unwrapped element types fail isMappableClass (which
+        // enums always do).
+        val (elementSource, elementTarget) = resolveRecursableTypes(sourceType, targetType) ?: return
+        if (elementSource === sourceType) return  // not a collection — already handled by the leaf call above
+        tryDeriveEnumDescriptor(elementSource, elementTarget, covered, out)
+            ?.also { out.putIfAbsent(it.fqKey(), it) }
     }
 
     @Suppress("ReturnCount")
