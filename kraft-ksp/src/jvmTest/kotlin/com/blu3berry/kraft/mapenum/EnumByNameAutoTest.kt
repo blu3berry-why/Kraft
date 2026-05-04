@@ -184,4 +184,69 @@ class EnumByNameAutoTest {
         assertThat(files.any { "Status_To_StatusDto_EnumMapper" in it.name }).isTrue()
         assertThat(files.any { "StatusDto_To_Status_EnumMapper" in it.name }).isTrue()
     }
+
+    @Test
+    fun `same enum pair referenced by two parent mappers is derived exactly once`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            enum class Status { ACTIVE, INACTIVE }
+            enum class StatusDto { ACTIVE, INACTIVE }
+
+            data class SrcA(val status: Status)
+            data class DstA(val status: StatusDto)
+            data class SrcB(val status: Status, val name: String)
+            data class DstB(val status: StatusDto, val name: String)
+
+            @com.blu3berry.kraft.config.MapConfig(source = SrcA::class, target = DstA::class)
+            object MapperA
+
+            @com.blu3berry.kraft.config.MapConfig(source = SrcB::class, target = DstB::class)
+            object MapperB
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
+            "Compilation failed:\n${result.messages}"
+        }
+        val enumMappers = TestKspRunner.compileAndReturnGenerated(source)
+            .filter { "Status_To_StatusDto_EnumMapper" in it.name }
+        assertThat(enumMappers).hasSize(1)
+    }
+
+    @Test
+    fun `nested property enum mismatch auto-derives when an inner @MapConfig also exists`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            enum class Status { ACTIVE, INACTIVE }
+            enum class StatusDto { ACTIVE, INACTIVE }
+
+            data class User(val status: Status, val name: String)
+            data class UserDto(val status: StatusDto, val name: String)
+            data class Store(val user: User)
+            data class StoreDto(val user: UserDto)
+
+            @com.blu3berry.kraft.config.MapConfig(source = User::class, target = UserDto::class)
+            object UserMapper
+
+            @com.blu3berry.kraft.config.MapConfig(source = Store::class, target = StoreDto::class)
+            object StoreMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
+            "Compilation failed:\n${result.messages}"
+        }
+        val mapper = TestKspRunner.compileAndReturnGenerated(source)
+            .first { "ToUserDtoMapper" in it.name }
+            .readText()
+        assertThat(mapper).contains("status = this.status.toStatusDto()")
+    }
 }
