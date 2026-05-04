@@ -214,7 +214,8 @@ class DescriptorBuilder(
                         builtDescriptors = builtDescriptors,
                         inProgress = inProgress,
                         configMappings = configMappings,
-                        globalConverters = globalConverters
+                        globalConverters = globalConverters,
+                        enumBackedIds = enumBackedIds,
                     )
                 }
         }
@@ -228,7 +229,8 @@ class DescriptorBuilder(
         builtDescriptors: MutableMap<MapperId, MapperDescriptor>,
         inProgress: MutableSet<MapperId>,
         configMappings: List<ConfigObjectScanResult>,
-        globalConverters: GlobalConverterRegistry
+        globalConverters: GlobalConverterRegistry,
+        enumBackedIds: Set<MapperId> = emptySet(),
     ) {
         val id = MapperId(
             sourceQualifiedName = source.qualifiedName?.asString() ?: source.simpleName.asString(),
@@ -246,7 +248,10 @@ class DescriptorBuilder(
             return
         }
 
-        recurseIntoDependencies(descriptor, id, path, builtDescriptors, inProgress, configMappings, globalConverters)
+        recurseIntoDependencies(
+            descriptor, id, path, builtDescriptors, inProgress,
+            configMappings, globalConverters, enumBackedIds,
+        )
 
         inProgress -= id              // unmark GRAY
         builtDescriptors[id] = descriptor // mark BLACK
@@ -260,10 +265,12 @@ class DescriptorBuilder(
         builtDescriptors: MutableMap<MapperId, MapperDescriptor>,
         inProgress: MutableSet<MapperId>,
         configMappings: List<ConfigObjectScanResult>,
-        globalConverters: GlobalConverterRegistry
+        globalConverters: GlobalConverterRegistry,
+        enumBackedIds: Set<MapperId> = emptySet(),
     ) {
         descriptor.propertyMappings
             .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
+            .filter { it.nestedMappingDescriptor.nestedMapperId !in enumBackedIds }
             .forEach { strategy ->
                 resolveImplicit(
                     source = strategy.nestedMappingDescriptor.sourceType.declaration,
@@ -272,7 +279,8 @@ class DescriptorBuilder(
                     builtDescriptors = builtDescriptors,
                     inProgress = inProgress,
                     configMappings = configMappings,
-                    globalConverters = globalConverters
+                    globalConverters = globalConverters,
+                    enumBackedIds = enumBackedIds,
                 )
             }
     }
