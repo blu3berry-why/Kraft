@@ -10,8 +10,8 @@ import com.blu3berry.kraft.model.descriptor.EnumEntryMapping
 import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import com.blu3berry.kraft.model.scan.ClassMappingScanResult
 import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
-import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
+import com.blu3berry.kraft.processor.util.collectPropertyTypeRefs
 
 /**
  * Walks every parent `@MapConfig` / `@MapTo` mapping pair and synthesizes an
@@ -44,11 +44,12 @@ class AutoEnumMappingDeriver(
         val out = LinkedHashMap<Pair<String, String>, EnumMappingDescriptor>()
 
         for ((source, target) in pairs) {
-            val targetProps = target.declarationsByProperty()
+            val targetProps = target.collectPropertyTypeRefs()
+            val sourceProps = source.collectPropertyTypeRefs()
             for ((propName, targetProp) in targetProps) {
-                val sourceProp = source.declarationsByProperty()[propName] ?: continue
+                val sourceProp = sourceProps[propName] ?: continue
                 val descriptor = tryDeriveEnumDescriptor(
-                    sourceProp.type, targetProp.type, source, target, covered, out
+                    sourceProp, targetProp, covered, out
                 ) ?: continue
                 val key = descriptor.sourceType.qualifiedName to descriptor.targetType.qualifiedName
                 out.putIfAbsent(key, descriptor)
@@ -77,10 +78,14 @@ class AutoEnumMappingDeriver(
     ): Set<Pair<String, String>> {
         val covered = HashSet<Pair<String, String>>()
         for (m in existingEnumMappings) {
-            covered += m.sourceType.qualifiedName to m.targetType.qualifiedName
+            if (!m.sourceType.isNullable && !m.targetType.isNullable) {
+                covered += m.sourceType.qualifiedName to m.targetType.qualifiedName
+            }
         }
         for ((key, _) in sameModuleConverters.entries) {
-            covered += key.sourceFqName to key.targetFqName
+            if (!key.sourceNullable && !key.targetNullable) {
+                covered += key.sourceFqName to key.targetFqName
+            }
         }
         return covered
     }
@@ -88,8 +93,6 @@ class AutoEnumMappingDeriver(
     private fun tryDeriveEnumDescriptor(
         sourceType: KSType,
         targetType: KSType,
-        sourceParent: KSClassDeclaration,
-        targetParent: KSClassDeclaration,
         covered: Set<Pair<String, String>>,
         already: Map<Pair<String, String>, EnumMappingDescriptor>,
     ): EnumMappingDescriptor? {
@@ -143,7 +146,4 @@ class AutoEnumMappingDeriver(
             .filter { it.classKind == ClassKind.ENUM_ENTRY }
             .map { it.simpleName.asString() }
             .toList()
-
-    private fun KSClassDeclaration.declarationsByProperty(): Map<String, com.blu3berry.kraft.processor.util.PropertyTypeRef> =
-        com.blu3berry.kraft.processor.util.collectPropertyTypeRefs(this)
 }

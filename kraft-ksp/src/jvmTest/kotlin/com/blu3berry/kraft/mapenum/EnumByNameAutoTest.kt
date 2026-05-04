@@ -1,7 +1,6 @@
 package com.blu3berry.kraft.mapenum
 
 import com.google.common.truth.Truth.assertThat
-import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import com.blu3berry.kraft.TestKspRunner
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
@@ -33,11 +32,6 @@ class EnumByNameAutoTest {
             object SrcMapper
             """
         )
-
-        val result = TestKspRunner.compile(source)
-        require(result.exitCode == KotlinCompilation.ExitCode.OK) {
-            "Compilation failed:\n${result.messages}"
-        }
 
         val files = TestKspRunner.compileAndReturnGenerated(source)
         val parent = files.first { "ToDstMapper" in it.name }.readText()
