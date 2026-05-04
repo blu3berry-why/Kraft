@@ -21,7 +21,22 @@ data class TypeInfo(
     val simpleName: String,
     val isNullable: Boolean
 ) {
-    val qualifiedName: String get() = if (packageName.isEmpty()) simpleName else "$packageName.$simpleName"
+    /**
+     * Fully qualified name of the type, including any enclosing classes for
+     * nested types (e.g. `com.example.Outer.Inner.Role` rather than
+     * `com.example.Role`).
+     *
+     * Used as a string identity key by [GlobalConverterRule] for converter
+     * lookup and by [NestedRule] for nested-type comparisons. Composing this
+     * from [packageName] + leaf [simpleName] would silently collide a nested
+     * type with a same-leaf-named top-level type in the same package, so we
+     * defer to KSP's own qualified name resolution which walks the parent
+     * declaration chain. Falls back to the package + leaf form only when KSP
+     * returns null (anonymous / local declarations, which are rejected
+     * elsewhere anyway).
+     */
+    val qualifiedName: String get() = declaration.qualifiedName?.asString()
+        ?: if (packageName.isEmpty()) simpleName else "$packageName.$simpleName"
 
     companion object {
 

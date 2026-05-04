@@ -62,13 +62,18 @@ class ConfigObjectScanner(
             .filter { it.classKind == ClassKind.OBJECT }
             .filter { it !in configObjects }
         orphanedReverseObjects.forEach { obj ->
-            // Only report if it doesn't also have @MapFrom/@MapTo (ClassAnnotationScanner handles those)
-            val hasClassAnnotation = obj.findAnnotation(KraftKspConstants.FQ_MAP_FROM) != null ||
-                obj.findAnnotation(KraftKspConstants.FQ_MAP_TO) != null
-            if (!hasClassAnnotation) {
+            // Only report if it has no other valid mapping annotation:
+            //   @MapFrom/@MapTo are handled by ClassAnnotationScanner.
+            //   @MapEnum is handled by EnumMapScanner, which now also
+            //   honours @MapReverse to emit the inverse enum mapper.
+            val hasOtherMappingAnnotation =
+                obj.findAnnotation(KraftKspConstants.FQ_MAP_FROM) != null ||
+                obj.findAnnotation(KraftKspConstants.FQ_MAP_TO) != null ||
+                obj.findAnnotation(KraftKspConstants.FQ_MAP_ENUM) != null
+            if (!hasOtherMappingAnnotation) {
                 logger.error(
                     "@MapReverse on '${obj.simpleName.asString()}' requires " +
-                    "@MapConfig on the same object.",
+                    "@MapConfig, @MapEnum, @MapFrom, or @MapTo on the same object.",
                     obj
                 )
             }
