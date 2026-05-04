@@ -64,11 +64,15 @@ class AutoEnumMappingDeriver(
         classMappings: List<ClassMappingScanResult>,
         configMappings: List<ConfigObjectScanResult>,
     ): List<ClassPair> {
-        // Filled out in Task 6 to also include reverse directions when
-        // hasReverse is true. Task 1 forward-only is enough to pass test 1.
         val pairs = mutableListOf<ClassPair>()
-        for (m in classMappings) pairs += ClassPair(m.sourceType, m.targetType)
-        for (m in configMappings) pairs += ClassPair(m.sourceType, m.targetType)
+        for (m in classMappings) {
+            pairs += ClassPair(m.sourceType, m.targetType)
+            if (m.hasReverse) pairs += ClassPair(m.targetType, m.sourceType)
+        }
+        for (m in configMappings) {
+            pairs += ClassPair(m.sourceType, m.targetType)
+            if (m.hasReverse) pairs += ClassPair(m.targetType, m.sourceType)
+        }
         return pairs
     }
 

@@ -187,6 +187,10 @@ class ReverseDescriptorBuilder(
 
         for (fwdStrategy in forwardConverterStrategies) {
             val fwdConverter = fwdStrategy.converter
+            // Converters resolved from the global registry (synthetic enum mappers or @KraftConverter
+            // extensions) have no enclosing config object. Their reverse direction is handled by the
+            // GlobalConverterRule during resolveAllProperties — no config-object reverse is required.
+            if (fwdConverter.enclosingObject == null) continue
             // The forward converter maps source.propA → target.propB
             // The reverse needs a converter mapping source.propB (old target) → target.propA (old source)
             val reversePropSource = fwdConverter.targetPropertyName  // old target prop is now source

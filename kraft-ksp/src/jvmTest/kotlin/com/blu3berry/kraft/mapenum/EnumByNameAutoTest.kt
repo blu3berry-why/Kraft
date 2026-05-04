@@ -156,4 +156,28 @@ class EnumByNameAutoTest {
         assertThat(result.consumer.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
         assertThat(result.consumer.messages).contains("Type mismatch for property 'status'")
     }
+
+    @Test
+    fun `parent @MapReverse derives both directions when entries align both ways`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            enum class Status { ACTIVE, INACTIVE }
+            enum class StatusDto { ACTIVE, INACTIVE }
+
+            data class Src(val status: Status)
+            data class Dst(val status: StatusDto)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+            @com.blu3berry.kraft.config.MapReverse
+            object SrcMapper
+            """
+        )
+
+        val files = TestKspRunner.compileAndReturnGenerated(source)
+        assertThat(files.any { "Status_To_StatusDto_EnumMapper" in it.name }).isTrue()
+        assertThat(files.any { "StatusDto_To_Status_EnumMapper" in it.name }).isTrue()
+    }
 }
