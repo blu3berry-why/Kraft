@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
   publish:
@@ -46,8 +45,6 @@ jobs:
       - name: Inject publish credentials
         uses: ./.github/actions/inject-credentials
         with:
-          gpr-user: ${{ github.actor }}
-          gpr-token: ${{ secrets.GITHUB_TOKEN }}
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-key-id: ${{ secrets.GPG_KEY_ID }}
           gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
@@ -57,21 +54,13 @@ jobs:
       - name: Verify gradle.properties has credentials
         run: |
           set -euo pipefail
-          for prop in gpr.user gpr.token signing.gnupg.keyName signing.gnupg.passphrase maven.central.username maven.central.password; do
+          for prop in signing.gnupg.keyName signing.gnupg.passphrase maven.central.username maven.central.password; do
             if ! grep -q "^${prop}=" gradle.properties; then
               echo "::error::Property '${prop}' missing from gradle.properties after credential injection."
               exit 1
             fi
           done
           echo "All credential properties verified in gradle.properties."
-
-      - name: Publish all modules to GitHub Packages
-        run: |
-          ./gradlew \
-            :kraft-core:publish \
-            :kraft-ksp:publish \
-            :kraft-annotations:publish \
-            --no-configuration-cache
 
       - name: Publish all modules to Central Portal
         run: |

@@ -2,12 +2,6 @@ name: Inject publish credentials
 description: Appends publishing credentials to gradle.properties and imports GPG key
 
 inputs:
-  gpr-user:
-    description: GitHub Packages username
-    required: true
-  gpr-token:
-    description: GitHub Packages token
-    required: true
   gpg-private-key:
     description: GPG private key (base64-encoded or ASCII-armored)
     required: true
@@ -73,8 +67,6 @@ runs:
 
     - shell: bash
       env:
-        GPR_USER: ${{ inputs.gpr-user }}
-        GPR_TOKEN: ${{ inputs.gpr-token }}
         GPG_KEY_ID: ${{ inputs.gpg-key-id }}
         GPG_PASSPHRASE: ${{ inputs.gpg-passphrase }}
         MAVEN_USER: ${{ inputs.maven-central-username }}
@@ -84,8 +76,6 @@ runs:
         # Ensure a newline separator from existing content
         printf '\n' >> gradle.properties
         {
-          printf 'gpr.user=%s\n' "$GPR_USER"
-          printf 'gpr.token=%s\n' "$GPR_TOKEN"
           printf 'signing.gnupg.keyName=%s\n' "$GPG_KEY_ID"
           printf 'signing.gnupg.passphrase=%s\n' "$GPG_PASSPHRASE"
           printf 'maven.central.username=%s\n' "$MAVEN_USER"

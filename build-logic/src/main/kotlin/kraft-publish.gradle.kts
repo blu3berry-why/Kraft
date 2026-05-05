@@ -38,18 +38,6 @@ publishing {
             }
         }
     }
-
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/blu3berry-why/Kraft")
-
-            credentials {
-                username = project.findProperty("gpr.user") as String?
-                password = project.findProperty("gpr.token") as String?
-            }
-        }
-    }
 }
 
 signing {

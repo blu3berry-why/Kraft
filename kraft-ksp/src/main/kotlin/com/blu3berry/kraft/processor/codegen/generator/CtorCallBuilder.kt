@@ -7,10 +7,12 @@ import com.blu3berry.kraft.model.descriptor.CollectionKind
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.descriptor.ConverterSource
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
+import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.processor.codegen.GenerationConfig
 import com.blu3berry.kraft.processor.codegen.className
 import com.blu3berry.kraft.processor.codegen.functionNameForNested
+import com.blu3berry.kraft.processor.codegen.generatedMapperPackage
 
 /**
  * Assembles the `TargetClass(param = value, ...)` constructor invocation [CodeBlock]
@@ -173,14 +175,14 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
     ) {
         val t = strategy.targetProperty.name
         val s = strategy.sourceProperty.name
-        val fnName = config.functionNameForNested(strategy.nestedMappingDescriptor)
+        val fnMember = nestedMapperMemberName(strategy.nestedMappingDescriptor)
         val collKind = strategy.nestedMappingDescriptor.collectionKind
 
         if (collKind != null) {
-            addCollectionNestedLine(block, strategy, t, s, fnName, collKind)
+            addCollectionNestedLine(block, strategy, t, s, fnMember, collKind)
         } else {
             val dot = if (strategy.sourceProperty.type.isNullable) "?." else "."
-            block.add("%N = this.%N%L%N()", t, s, dot, fnName)
+            block.add("%N = this.%N%L%M()", t, s, dot, fnMember)
         }
     }
 
@@ -189,7 +191,7 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
         strategy: PropertyMappingStrategy.NestedMapper,
         t: String,
         s: String,
-        fnName: String,
+        fnMember: MemberName,
         collKind: CollectionKind
     ) {
         val sourceIsNullable = strategy.sourceProperty.type.isNullable
@@ -209,10 +211,15 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
                 CollectionKind.SET -> "emptySet()"
             }
             val fallback = if (!targetIsNullable) " ?: $emptyFallback" else ""
-            block.add("%N = this.%N?.%L { %L.%N() }%L%L", t, s, mapFn, itRef, fnName, toSuffix, fallback)
+            block.add("%N = this.%N?.%L { %L.%M() }%L%L", t, s, mapFn, itRef, fnMember, toSuffix, fallback)
         } else {
-            block.add("%N = this.%N.%L { %L.%N() }%L", t, s, mapFn, itRef, fnName, toSuffix)
+            block.add("%N = this.%N.%L { %L.%M() }%L", t, s, mapFn, itRef, fnMember, toSuffix)
         }
+    }
+
+    private fun nestedMapperMemberName(nested: NestedMappingDescriptor): MemberName {
+        val pkg = generatedMapperPackage(nested.sourceType.className.packageName)
+        return MemberName(pkg, config.functionNameForNested(nested))
     }
 
     private fun enclosingClassName(converter: ConverterDescriptor): ClassName {
