@@ -14,6 +14,7 @@ import com.blu3berry.kraft.processor.codegen.GenerationConfig
 import com.blu3berry.kraft.processor.codegen.OptInMarker
 import com.blu3berry.kraft.processor.codegen.OptInMarkerCollector
 import com.blu3berry.kraft.processor.codegen.className
+import com.blu3berry.kraft.processor.codegen.generatedMapperPackage
 import com.blu3berry.kraft.processor.codegen.MapperGenerator
 import com.blu3berry.kraft.processor.util.CodeGenUtils
 
@@ -32,8 +33,7 @@ class ExtensionMapperGenerator(
         val fromClass = descriptor.sourceType.className
         val toClass = descriptor.targetType.className
 
-        val basePackage = fromClass.packageName.ifBlank { "generated" }
-        val packageName = "$basePackage.generated"
+        val packageName = generatedMapperPackage(fromClass.packageName)
         val functionName = config.functionNameFor(descriptor)
         val fileName = "${fromClass.simpleName}To${toClass.simpleName}Mapper"
 

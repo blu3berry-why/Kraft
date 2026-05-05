@@ -31,3 +31,13 @@ fun GenerationConfig.functionNameForNested(nested: NestedMappingDescriptor): Str
         nested.targetType.simpleName
     )
 }
+
+/**
+ * The package a generated mapper file is placed in, derived from the source type's package.
+ * Single source of truth: used both for file placement and for resolving cross-package
+ * imports at call sites.
+ */
+fun generatedMapperPackage(sourcePackageName: String): String {
+    val base = sourcePackageName.ifBlank { "generated" }
+    return "$base.generated"
+}
