@@ -110,6 +110,70 @@ object SrcMapper {
 
 Generated: `combined = with(SrcMapper) { this@toDst.combine() }`
 
+### Whole-Source Mode Patterns
+
+Whole-source mode is the right tool for several patterns where source and target fields don't line up 1:1. Each one is a single `@MapUsing(target = "...")` declaration that reads any combination of source fields.
+
+#### Pattern 1 — Decompose one source field into N target fields
+
+A value type on the source (like `Money`) maps onto multiple primitive fields on the target (`minorUnits` + `currency`). Declare one whole-source `@MapUsing` per target field:
+
+```kotlin
+data class Money(val amount: Long, val currency: String)
+data class Product(val salePrice: Money)
+data class ProductDto(val salePriceMinorUnits: Long, val salePriceCurrency: String)
+
+@MapConfig(source = Product::class, target = ProductDto::class)
+object ProductMapper {
+    @MapUsing(target = "salePriceMinorUnits")
+    fun Product.minorUnits(): Long = salePrice.amount
+
+    @MapUsing(target = "salePriceCurrency")
+    fun Product.currency(): String = salePrice.currency
+}
+```
+
+#### Pattern 2 — Compose N source fields into one target field
+
+The reverse direction: two flat source fields fold into a single target value type. One whole-source `@MapUsing` reads both:
+
+```kotlin
+@MapConfig(source = ProductDto::class, target = Product::class)
+object ProductReverseMapper {
+    @MapUsing(target = "salePrice")
+    fun ProductDto.toMoney(): Money = Money(salePriceMinorUnits, salePriceCurrency)
+}
+```
+
+#### Pattern 3 — Inject a constant on a target field with no source counterpart
+
+A target field has no equivalent on the source — supply a constant via a whole-source function whose body ignores the receiver:
+
+```kotlin
+@MapConfig(source = LongAmount::class, target = Money::class)
+object MoneyMapper {
+    @MapUsing(target = "currency")
+    fun LongAmount.fixedCurrency(): String = "HUF"
+}
+```
+
+#### Pattern 4 — Coalesce a nullable source into a non-null target with a default
+
+When the source field is nullable but the target requires a value, use whole-source mode to apply a default in one place:
+
+```kotlin
+data class CartItemDto(val packSize: Int? = null)
+data class CartItem(val packSize: Int)
+
+@MapConfig(source = CartItemDto::class, target = CartItem::class)
+object CartItemMapper {
+    @MapUsing(target = "packSize")
+    fun CartItemDto.packSizeOrDefault(): Int = packSize ?: 1
+}
+```
+
+These four patterns cover almost every "fields don't line up" case without writing manual mappers. If you find yourself reaching for a hand-written extension function or a global `@KraftConverter`, check whether one of these whole-source patterns fits first.
+
 ## Type Matching Rules
 
 - **Property-source mode**: the function parameter type must match the source property type exactly (including nullability)
