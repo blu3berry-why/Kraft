@@ -23,6 +23,7 @@ import com.blu3berry.kraft.processor.scanner.ClasspathConverterScanner
 import com.blu3berry.kraft.processor.scanner.ConfigObjectScanner
 import com.blu3berry.kraft.processor.scanner.EnumMapScanner
 import com.blu3berry.kraft.processor.scanner.GlobalConverterScanner
+import com.blu3berry.kraft.processor.sides.SideRegistry
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 import java.util.ServiceLoader
 
@@ -66,7 +67,7 @@ class AutoMapperProcessor(
         )
 
         val sideRegistry = try {
-            com.blu3berry.kraft.processor.sides.SideRegistry.parseFromOptions(env.options)
+            SideRegistry.parseFromOptions(env.options)
         } catch (e: IllegalArgumentException) {
             logger.error(e.message ?: "Kraft side configuration error.")
             return deferred
