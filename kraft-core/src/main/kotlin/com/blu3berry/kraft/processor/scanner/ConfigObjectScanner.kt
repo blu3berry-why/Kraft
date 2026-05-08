@@ -12,6 +12,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.blu3berry.kraft.config.AliasEmitMode
 import com.blu3berry.kraft.config.ConverterDirection
 import com.blu3berry.kraft.config.IgnoreSide
 import com.blu3berry.kraft.model.MapperId
@@ -113,6 +114,18 @@ class ConfigObjectScanner(
             .firstOrNull { it.name?.asString() == KraftKspConstants.ARG_USE_GLOBAL_CONVERTERS }
             ?.value as? Boolean ?: true
 
+        val aliasEmitModeName = annotation.getEnumArgOrNull(
+            name = KraftKspConstants.ARG_ALIAS_EMIT_MODE,
+            logger = logger,
+            symbol = classDeclaration,
+            annotationFqName = KraftKspConstants.FQ_MAP_CONFIG
+        ) ?: AliasEmitMode.INHERIT.name
+        val aliasEmitMode = try {
+            AliasEmitMode.valueOf(aliasEmitModeName)
+        } catch (_: IllegalArgumentException) {
+            AliasEmitMode.INHERIT
+        }
+
         return ConfigObjectScanResult(
             sourceType = fromType,
             targetType = toType,
@@ -122,7 +135,8 @@ class ConfigObjectScanner(
             converters = converters,
             nestedMappings = nestedMappings,
             hasReverse = hasReverse,
-            useGlobalConverters = useGlobalConverters
+            useGlobalConverters = useGlobalConverters,
+            aliasEmitMode = aliasEmitMode,
         )
     }
 

@@ -1,5 +1,6 @@
 package com.blu3berry.kraft.model.descriptor
 
+import com.blu3berry.kraft.config.AliasEmitMode
 import com.blu3berry.kraft.model.MapperId
 import com.blu3berry.kraft.model.TypeInfo
 
@@ -17,6 +18,7 @@ import com.blu3berry.kraft.model.TypeInfo
  * @param nestedMappings         Child mapper descriptors referenced by [PropertyMappingStrategy.NestedMapper] entries.
  * @param enumMappings           Enum-to-enum mapping descriptors for this mapper.
  * @param converters             `@MapUsing` converter descriptors scanned from the config object.
+ * @param aliasEmitMode          Per-mapper alias-emission override from [MapConfig.aliasEmitMode].
  */
 data class MapperDescriptor(
     val id: MapperId,
@@ -27,6 +29,7 @@ data class MapperDescriptor(
     val nestedMappings: List<NestedMappingDescriptor> = emptyList(),
     val enumMappings: List<EnumMappingDescriptor> = emptyList(),
     val converters: List<ConverterDescriptor> = emptyList(),
+    val aliasEmitMode: AliasEmitMode = AliasEmitMode.INHERIT,
 ) {
 
     /**

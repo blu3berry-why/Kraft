@@ -66,7 +66,8 @@ class ReverseDescriptorBuilder(
             source = forwardDescriptor.source,
             propertyMappings = mappings,
             nestedMappings = reverseNestedMappings,
-            converters = reverseConverters
+            converters = reverseConverters,
+            aliasEmitMode = forwardDescriptor.aliasEmitMode,
         )
     }
 

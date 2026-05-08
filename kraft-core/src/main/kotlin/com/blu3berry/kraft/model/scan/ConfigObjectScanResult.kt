@@ -1,6 +1,7 @@
 package com.blu3berry.kraft.model.scan
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.blu3berry.kraft.config.AliasEmitMode
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 
@@ -19,6 +20,7 @@ import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
  * @param hasReverse       Whether `@MapReverse` is also present on the config object.
  * @param useGlobalConverters Whether the generated mapper should consult the
  *                         `@KraftConverter` registry; mirrors the annotation flag.
+ * @param aliasEmitMode    Per-mapper override for alias emission; mirrors [MapConfig.aliasEmitMode].
  */
 data class ConfigObjectScanResult(
     val sourceType: KSClassDeclaration,
@@ -30,4 +32,5 @@ data class ConfigObjectScanResult(
     val nestedMappings: List<NestedMappingDescriptor> = emptyList(),
     val hasReverse: Boolean = false,
     val useGlobalConverters: Boolean = true,
+    val aliasEmitMode: AliasEmitMode = AliasEmitMode.INHERIT,
 )

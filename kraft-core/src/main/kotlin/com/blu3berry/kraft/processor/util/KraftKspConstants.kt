@@ -29,6 +29,7 @@ object KraftKspConstants {
     const val ARG_IGNORED_MAPPINGS = "ignoredMappings"
     const val ARG_OBJECT           = "object"
     const val ARG_USE_GLOBAL_CONVERTERS = "useGlobalConverters"
+    const val ARG_ALIAS_EMIT_MODE       = "aliasEmitMode"
 
     const val GENERATED_REGISTRY_PACKAGE = "kraft.generated.registry"
 
@@ -51,4 +52,11 @@ object KraftKspConstants {
     // Processor option keys
     const val OPTION_FUNCTION_NAME_FORMAT = "kraft.functionNameFormat"
     const val OPTION_MODULE_ID            = "kraft.moduleId"
+
+    // Side-alias config (per-side keys: kraft.side.<slot>.<field>)
+    const val OPTION_SIDE_PREFIX           = "kraft.side."
+    const val OPTION_SIDE_FIELD_NAME       = "name"
+    const val OPTION_SIDE_FIELD_PATTERN    = "packagePattern"
+    const val OPTION_SIDE_FIELD_TEMPLATE   = "template"
+    const val OPTION_SIDE_FIELD_EMIT_MODE  = "emitMode"
 }

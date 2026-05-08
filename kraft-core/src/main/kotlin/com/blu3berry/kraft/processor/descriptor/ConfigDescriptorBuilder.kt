@@ -71,6 +71,7 @@ class ConfigDescriptorBuilder(
             enumMappings = enums,
             converters = forwardConverters,
             nestedMappings = config.nestedMappings,
+            aliasEmitMode = config.aliasEmitMode,
         )
     }
 
