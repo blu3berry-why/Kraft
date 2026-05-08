@@ -35,6 +35,7 @@ class SideRegistry private constructor(
                 .sortedBy { it.key }
                 .map { (slot, fields) -> buildSide(slot, fields) }
 
+            validateNoOverlap(sides)
             return SideRegistry(sides)
         }
 
@@ -73,6 +74,39 @@ class SideRegistry private constructor(
                 template = AliasTemplate.parse(templateRaw),
                 emitMode = emitMode,
             )
+        }
+
+        private fun validateNoOverlap(sides: List<SideConfig>) {
+            for (i in sides.indices) for (j in i + 1 until sides.size) {
+                val a = sides[i]
+                val b = sides[j]
+                if (a.packagePattern.raw == b.packagePattern.raw) {
+                    error(
+                        "Kraft side configuration error in build.gradle.kts: " +
+                            "sides `kraft.side.${a.slot}` and `kraft.side.${b.slot}` " +
+                            "have identical packagePattern '${a.packagePattern.raw}'. " +
+                            "Patterns must be disjoint."
+                    )
+                }
+                if (a.packagePattern.isStrictSubsetOf(b.packagePattern)) {
+                    error(
+                        "Kraft side configuration error in build.gradle.kts: " +
+                            "`kraft.side.${a.slot}.packagePattern` ('${a.packagePattern.raw}') is a strict subset " +
+                            "of `kraft.side.${b.slot}.packagePattern` ('${b.packagePattern.raw}'). " +
+                            "Every class matched by the first would also match the second. " +
+                            "Patterns must be disjoint — tighten one of the two."
+                    )
+                }
+                if (b.packagePattern.isStrictSubsetOf(a.packagePattern)) {
+                    error(
+                        "Kraft side configuration error in build.gradle.kts: " +
+                            "`kraft.side.${b.slot}.packagePattern` ('${b.packagePattern.raw}') is a strict subset " +
+                            "of `kraft.side.${a.slot}.packagePattern` ('${a.packagePattern.raw}'). " +
+                            "Every class matched by the first would also match the second. " +
+                            "Patterns must be disjoint — tighten one of the two."
+                    )
+                }
+            }
         }
     }
 }
