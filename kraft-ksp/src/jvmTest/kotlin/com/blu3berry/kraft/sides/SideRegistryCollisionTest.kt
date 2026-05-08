@@ -29,6 +29,13 @@ class SideRegistryCollisionTest {
     }
 
     @Test
+    fun `recordAlias is idempotent for same triple`() {
+        val r = registry()
+        r.recordAlias("com.x.A", "toDto", "MapperA")
+        r.recordAlias("com.x.A", "toDto", "MapperA") // same origin must not throw
+    }
+
+    @Test
     fun `duplicate (receiver, alias) raises with both mapper origins`() {
         val r = registry()
         r.recordAlias("com.x.A", "toDto", "MapperA")
