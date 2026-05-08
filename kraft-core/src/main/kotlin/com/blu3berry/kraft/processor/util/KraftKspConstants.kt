@@ -29,6 +29,7 @@ object KraftKspConstants {
     const val ARG_IGNORED_MAPPINGS = "ignoredMappings"
     const val ARG_OBJECT           = "object"
     const val ARG_USE_GLOBAL_CONVERTERS = "useGlobalConverters"
+    const val ARG_ALIAS_EMIT_MODE       = "aliasEmitMode"
 
     const val GENERATED_REGISTRY_PACKAGE = "kraft.generated.registry"
 
@@ -58,7 +59,4 @@ object KraftKspConstants {
     const val OPTION_SIDE_FIELD_PATTERN    = "packagePattern"
     const val OPTION_SIDE_FIELD_TEMPLATE   = "template"
     const val OPTION_SIDE_FIELD_EMIT_MODE  = "emitMode"
-
-    // @MapConfig argument names for the new parameter
-    const val ARG_ALIAS_EMIT_MODE = "aliasEmitMode"
 }
