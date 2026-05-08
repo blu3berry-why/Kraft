@@ -45,6 +45,30 @@ class SideRegistry private constructor(
         }
     }
 
+    private val recordedAliases: MutableMap<Pair<String, String>, String> = mutableMapOf()
+
+    /**
+     * Track an emitted alias `(receiverFqn, aliasName)` and the originating
+     * mapper's identifier (e.g. the `@MapConfig`-bearing object's qualified
+     * name). Throws [IllegalStateException] on collision — same receiver +
+     * same alias name from two different mappers.
+     */
+    fun recordAlias(receiverFqn: String, aliasName: String, mapperOrigin: String) {
+        val key = receiverFqn to aliasName
+        val previous = recordedAliases.put(key, mapperOrigin)
+        if (previous != null && previous != mapperOrigin) {
+            error(
+                "Alias name collision: two @MapConfig declarations would emit " +
+                    "`$receiverFqn.$aliasName(): ?`.\n" +
+                    "  - $previous\n" +
+                    "  - $mapperOrigin\n" +
+                    "Fix by either:\n" +
+                    "  1. Disambiguate via template (e.g. `to{side}{target}` instead of `to{side}`).\n" +
+                    "  2. Set `aliasEmitMode = AliasEmitMode.FULL_NAME_ONLY` on one of the colliding @MapConfigs."
+            )
+        }
+    }
+
     companion object {
 
         fun parseFromOptions(options: Map<String, String>): SideRegistry {
