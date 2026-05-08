@@ -113,14 +113,15 @@ class ExtensionMapperGenerator(
             target = toClass.simpleName,
         )
 
-        val mapperOrigin = when (val src = descriptor.source) {
-            is MappingSource.ClassAnnotation -> src.annotatedClass.qualifiedName?.asString() ?: "<unknown>"
-            is MappingSource.ConfigObject -> src.configObject.qualifiedName?.asString() ?: "<unknown>"
+        val originSymbol = when (val src = descriptor.source) {
+            is MappingSource.ClassAnnotation -> src.annotatedClass
+            is MappingSource.ConfigObject -> src.configObject
         }
+        val mapperOrigin = originSymbol.qualifiedName?.asString() ?: "<unknown>"
         try {
             sideRegistry.recordAlias(fromClass.canonicalName, aliasName, mapperOrigin)
         } catch (e: IllegalStateException) {
-            logger.error(e.message ?: "Alias collision.")
+            logger.error(e.message ?: "Alias collision.", originSymbol)
             return null
         }
 
