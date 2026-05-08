@@ -71,8 +71,8 @@ class EnumMapperGenerator(
         // 5) Compose file path + incremental dependency
         val pkg = generatedPackage(desc)
         val fileName = CodeGenUtils.buildFileName(
-            desc.sourceType.className.simpleName,
-            desc.targetType.className.simpleName,
+            CodeGenUtils.qualifiedSegments(desc.sourceType.declaration),
+            CodeGenUtils.qualifiedSegments(desc.targetType.declaration),
             "EnumMapper"
         )
 
