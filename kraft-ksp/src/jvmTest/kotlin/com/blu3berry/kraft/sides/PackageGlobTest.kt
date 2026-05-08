@@ -82,4 +82,31 @@ class PackageGlobTest {
         val b = PackageGlob.parse("**.data.**")
         assertThat(a.isStrictSubsetOf(b)).isFalse()
     }
+
+    @Test
+    fun `literal pattern is subset of double-star pattern`() {
+        val literal = PackageGlob.parse("com.x.User")
+        val wildcard = PackageGlob.parse("com.x.**")
+        assertThat(literal.isStrictSubsetOf(wildcard)).isTrue()
+        assertThat(wildcard.isStrictSubsetOf(literal)).isFalse()
+    }
+
+    @Test
+    fun `single-star is subset of double-star at same position`() {
+        val singleStar = PackageGlob.parse("com.x.*.User")
+        val doubleStar = PackageGlob.parse("com.x.**.User")
+        assertThat(singleStar.isStrictSubsetOf(doubleStar)).isTrue()
+        assertThat(doubleStar.isStrictSubsetOf(singleStar)).isFalse()
+    }
+
+    @Test
+    fun `empty segments fail parse`() {
+        for (bad in listOf(".foo", "foo.", "foo..bar", ".")) {
+            org.junit.jupiter.api.assertThrows<IllegalArgumentException>(
+                "expected pattern '$bad' to be rejected"
+            ) {
+                PackageGlob.parse(bad)
+            }
+        }
+    }
 }

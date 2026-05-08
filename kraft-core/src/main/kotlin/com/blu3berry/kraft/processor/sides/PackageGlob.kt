@@ -40,6 +40,9 @@ class PackageGlob private constructor(
             require(!pattern.contains("***")) {
                 "Invalid glob pattern '$pattern': only `*` and `**` wildcards are allowed."
             }
+            require(!pattern.startsWith('.') && !pattern.endsWith('.') && !pattern.contains("..")) {
+                "Invalid glob pattern '$pattern': empty package segments are not allowed."
+            }
             val tokens = tokenize(pattern)
             val regex = compileRegex(tokens)
             return PackageGlob(pattern, regex, tokens)
