@@ -14,6 +14,37 @@ class SideRegistry private constructor(
     val sides: List<SideConfig>,
 ) {
 
+    /**
+     * Returns the side that names this target FQN, or null if no registered
+     * side matches. Throws [IllegalStateException] (framed as a gradle config
+     * error) if multiple sides match — Phase 2 of overlap detection from the
+     * spec, used for cases the eager subset analysis can't prove.
+     */
+    fun resolveSide(targetFqn: String): SideConfig? {
+        val matches = sides.filter { it.packagePattern.matches(targetFqn) }
+        return when (matches.size) {
+            0 -> null
+            1 -> matches.single()
+            else -> {
+                val lines = matches.joinToString("\n") {
+                    "  - kraft.side.${it.slot}.packagePattern  = \"${it.packagePattern.raw}\""
+                }
+                error(
+                    """
+                    Kraft side configuration error: package patterns overlap.
+
+                    Class $targetFqn matches ${matches.size} sides:
+                    $lines
+
+                    Patterns must be disjoint. Tighten one of the patterns in
+                    build.gradle.kts so the classes you intend each side to
+                    match no longer overlap.
+                    """.trimIndent()
+                )
+            }
+        }
+    }
+
     companion object {
 
         fun parseFromOptions(options: Map<String, String>): SideRegistry {
