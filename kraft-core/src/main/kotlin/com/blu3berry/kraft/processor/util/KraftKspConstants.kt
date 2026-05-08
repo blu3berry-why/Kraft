@@ -51,4 +51,14 @@ object KraftKspConstants {
     // Processor option keys
     const val OPTION_FUNCTION_NAME_FORMAT = "kraft.functionNameFormat"
     const val OPTION_MODULE_ID            = "kraft.moduleId"
+
+    // Side-alias config (per-side keys: kraft.side.<slot>.<field>)
+    const val OPTION_SIDE_PREFIX           = "kraft.side."
+    const val OPTION_SIDE_FIELD_NAME       = "name"
+    const val OPTION_SIDE_FIELD_PATTERN    = "packagePattern"
+    const val OPTION_SIDE_FIELD_TEMPLATE   = "template"
+    const val OPTION_SIDE_FIELD_EMIT_MODE  = "emitMode"
+
+    // @MapConfig argument names for the new parameter
+    const val ARG_ALIAS_EMIT_MODE = "aliasEmitMode"
 }
