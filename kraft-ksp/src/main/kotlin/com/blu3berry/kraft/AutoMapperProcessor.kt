@@ -66,15 +66,7 @@ class AutoMapperProcessor(
                 ?: "to\${target}"
         )
 
-        val sideRegistry = try {
-            SideRegistry.parseFromOptions(env.options)
-        } catch (e: IllegalArgumentException) {
-            logger.error(e.message ?: "Kraft side configuration error.")
-            return deferred
-        } catch (e: IllegalStateException) {
-            logger.error(e.message ?: "Kraft side configuration error.")
-            return deferred
-        }
+        val sideRegistry = parseSideRegistryOrNull() ?: return deferred
 
         val generatorEnv = GeneratorEnvironment(
             logger = logger,
@@ -127,6 +119,20 @@ class AutoMapperProcessor(
         }
 
         return deferred
+    }
+
+    /**
+     * Builds the [SideRegistry] from KSP options, or returns null after logging
+     * a config error so the caller can short-circuit out of [process].
+     */
+    private fun parseSideRegistryOrNull(): SideRegistry? = try {
+        SideRegistry.parseFromOptions(env.options)
+    } catch (e: IllegalArgumentException) {
+        logger.error(e.message ?: "Kraft side configuration error.")
+        null
+    } catch (e: IllegalStateException) {
+        logger.error(e.message ?: "Kraft side configuration error.")
+        null
     }
 
     private fun loadMapperGenerator(
