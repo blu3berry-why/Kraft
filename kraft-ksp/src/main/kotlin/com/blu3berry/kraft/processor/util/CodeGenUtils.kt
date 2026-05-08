@@ -2,6 +2,7 @@ package com.blu3berry.kraft.processor.util
 
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.ksp.writeTo
@@ -40,4 +41,22 @@ object CodeGenUtils {
      */
     fun buildFileName(fromClassName: String, toClassName: String, suffix: String = "Mapper"): String =
         "${fromClassName}_To_${toClassName}_$suffix"
+
+    /**
+     * Walks the parent-class chain for [decl] and returns the simple names from
+     * outermost enclosing class down to [decl] itself, joined by `_`.
+     *
+     * Top-level: `Status` -> `"Status"`.
+     * Nested:    `AuthResponse.User.Role` -> `"AuthResponse_User_Role"`.
+     *
+     * Disambiguates generated mapper filenames when two declarations share a
+     * leaf simple name (K-N3). Within a single KSP run the result is unique
+     * per FQN: parent chain + simple name + package = FQN, and Kotlin
+     * guarantees FQN uniqueness.
+     */
+    fun qualifiedSegments(decl: KSClassDeclaration): String =
+        generateSequence(decl) { it.parentDeclaration as? KSClassDeclaration }
+            .toList()
+            .asReversed()
+            .joinToString("_") { it.simpleName.asString() }
 }
