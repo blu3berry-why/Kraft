@@ -56,7 +56,8 @@ class SideRegistryParseTest {
             "kraft.side.domain.name" to "Domain",
             "kraft.side.domain.packagePattern" to "**.domain.**",
         ))
-        assertThat(r.sides.map { it.slot }).containsExactly("dto", "domain")
+        // Sides are sorted lexicographically by slot key: "domain" < "dto".
+        assertThat(r.sides.map { it.slot }).containsExactly("domain", "dto").inOrder()
     }
 
     @Test
