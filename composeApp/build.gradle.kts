@@ -53,6 +53,13 @@ kotlin {
     }
 }
 
+ksp {
+    arg("kraft.side.dto.name", "Dto")
+    arg("kraft.side.dto.packagePattern", "com.blu3berry.kraft.sample.dto.**")
+    arg("kraft.side.domain.name", "Domain")
+    arg("kraft.side.domain.packagePattern", "com.blu3berry.kraft.sample.domain.**")
+}
+
 android {
     namespace = "com.blu3berry.kraft"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
