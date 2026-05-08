@@ -72,6 +72,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Read version from gradle.properties
         id: version
@@ -87,14 +89,41 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve previous release tag
+        id: prev
+        run: |
+          # release-branch is force-reset to `main + chore: release <v>` each
+          # cycle, so prior release tags are not ancestors of the new release
+          # SHA. Without an explicit --notes-start-tag, gh's --generate-notes
+          # falls back to "no previous release" and dumps every PR since #1
+          # into the changelog (and renders Full Changelog as commits/<tag>
+          # instead of compare/<prev>...<tag>). Pick the most recent stable
+          # release tag globally by version sort, restricted to bare
+          # MAJOR.MINOR.PATCH so old experimental tags (v*, -RC*, -Alpha*,
+          # -test*) don't sort on top.
+          git fetch --tags --force --quiet
+          LAST_TAG=$(git for-each-ref --sort=-v:refname \
+            --format='%(refname:short)' 'refs/tags/[0-9]*' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+            | grep -v "^${{ steps.version.outputs.version }}$" \
+            | head -n1)
+          echo "tag=$LAST_TAG" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREV_TAG: ${{ steps.prev.outputs.tag }}
         run: |
-          gh release create "${{ steps.version.outputs.version }}" \
-            --generate-notes \
-            --title "${{ steps.version.outputs.version }}" \
+          args=(
+            "${{ steps.version.outputs.version }}"
+            --generate-notes
+            --title "${{ steps.version.outputs.version }}"
             --target "${{ github.sha }}"
+          )
+          if [ -n "$PREV_TAG" ]; then
+            args+=( --notes-start-tag "$PREV_TAG" )
+          fi
+          gh release create "${args[@]}"
 
   sync-version-to-main:
     needs: [ create-release ]
