@@ -65,10 +65,21 @@ class AutoMapperProcessor(
                 ?: "to\${target}"
         )
 
+        val sideRegistry = try {
+            com.blu3berry.kraft.processor.sides.SideRegistry.parseFromOptions(env.options)
+        } catch (e: IllegalArgumentException) {
+            logger.error(e.message ?: "Kraft side configuration error.")
+            return deferred
+        } catch (e: IllegalStateException) {
+            logger.error(e.message ?: "Kraft side configuration error.")
+            return deferred
+        }
+
         val generatorEnv = GeneratorEnvironment(
             logger = logger,
             options = env.options,
-            config = genConfig
+            config = genConfig,
+            sideRegistry = sideRegistry,
         )
 
         // The enum generator is loaded eagerly (when there are @MapEnum
