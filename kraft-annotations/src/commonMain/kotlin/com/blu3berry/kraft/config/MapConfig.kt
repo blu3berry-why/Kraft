@@ -25,6 +25,10 @@ import kotlin.reflect.KClass
  *                        to resolve mismatched property types. Set to `false` to
  *                        force every type-mismatched property to be claimed by an
  *                        explicit `@MapUsing` converter on this object.
+ * @param aliasEmitMode Per-mapper override of the alias emission policy. Defaults
+ *                     to [AliasEmitMode.INHERIT], which uses the project-level
+ *                     `emitMode` set on the matched side in build.gradle.kts.
+ *                     See [AliasEmitMode] for full semantics.
  *
  * Example:
  * ```
@@ -46,4 +50,5 @@ annotation class MapConfig(
     val nestedMappings: Array<NestedMapping> = [],
     val ignoredMappings: Array<MapIgnoreField> = [],
     val useGlobalConverters: Boolean = true,
+    val aliasEmitMode: AliasEmitMode = AliasEmitMode.INHERIT,
 )
