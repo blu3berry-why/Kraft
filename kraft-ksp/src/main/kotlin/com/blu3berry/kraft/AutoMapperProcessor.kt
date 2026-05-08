@@ -140,7 +140,8 @@ class AutoMapperProcessor(
         return when {
             providers.isEmpty() -> ExtensionMapperGenerator(
                 logger = env.logger,
-                config = env.config
+                config = env.config,
+                sideRegistry = env.sideRegistry,
             )
             providers.size == 1 -> providers.single().create(env)
             else -> {

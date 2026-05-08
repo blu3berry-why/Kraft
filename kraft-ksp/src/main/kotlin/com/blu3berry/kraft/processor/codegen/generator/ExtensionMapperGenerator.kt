@@ -8,23 +8,30 @@ import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ksp.writeTo
+import com.blu3berry.kraft.config.AliasEmitMode
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
 import com.blu3berry.kraft.model.descriptor.MappingSource
 import com.blu3berry.kraft.processor.codegen.GenerationConfig
+import com.blu3berry.kraft.processor.codegen.MapperGenerator
 import com.blu3berry.kraft.processor.codegen.OptInMarker
 import com.blu3berry.kraft.processor.codegen.OptInMarkerCollector
 import com.blu3berry.kraft.processor.codegen.className
 import com.blu3berry.kraft.processor.codegen.generatedMapperPackage
-import com.blu3berry.kraft.processor.codegen.MapperGenerator
+import com.blu3berry.kraft.processor.sides.SideRegistry
 import com.blu3berry.kraft.processor.util.CodeGenUtils
 
 /**
  * Built-in [MapperGenerator] that produces Kotlin extension functions
  * (`fun Source.toTarget(): Target`) using KotlinPoet.
+ *
+ * Also emits a short side-alias delegate if the target's package matches a
+ * registered side in [sideRegistry] and the descriptor's `aliasEmitMode`
+ * resolves to [AliasEmitMode.BOTH].
  */
 class ExtensionMapperGenerator(
     private val logger: KSPLogger,
     private val config: GenerationConfig,
+    private val sideRegistry: SideRegistry = SideRegistry.parseFromOptions(emptyMap()),
 ) : MapperGenerator {
 
     private val ctorCallBuilder = CtorCallBuilder(config)
@@ -51,25 +58,78 @@ class ExtensionMapperGenerator(
             return
         }
 
-        val funBuilder = FunSpec.builder(functionName)
+        val verboseFn = FunSpec.builder(functionName)
             .receiver(fromClass)
             .returns(toClass)
             .addCode("return %L\n", ctorCallBuilder.build(descriptor))
 
-        optInAnnotation(OptInMarkerCollector.collect(descriptor))?.let(funBuilder::addAnnotation)
+        optInAnnotation(OptInMarkerCollector.collect(descriptor))?.let(verboseFn::addAnnotation)
 
-        val file = FileSpec.builder(packageName, "$fileName.kt")
+        val fileBuilder = FileSpec.builder(packageName, "$fileName.kt")
             .addFileComment(CodeGenUtils.generatedBanner())
-            .addFunction(funBuilder.build())
-            .build()
+            .addFunction(verboseFn.build())
+
+        // ----- Side alias (if any) -----
+        val aliasFn = buildAliasFunSpec(
+            descriptor = descriptor,
+            verboseFunctionName = functionName,
+            fromClass = fromClass,
+            toClass = toClass,
+        )
+        if (aliasFn != null) fileBuilder.addFunction(aliasFn)
 
         @Suppress("SpreadOperator")
         val deps = Dependencies(
             aggregating = false,
             *originatingFiles.toTypedArray()
         )
-        file.writeTo(codeGenerator = codeGenerator, dependencies = deps)
+        fileBuilder.build().writeTo(codeGenerator = codeGenerator, dependencies = deps)
         logger.info("Generated extension mapper function: $packageName.$functionName")
+    }
+
+    private fun buildAliasFunSpec(
+        descriptor: MapperDescriptor,
+        verboseFunctionName: String,
+        fromClass: ClassName,
+        toClass: ClassName,
+    ): FunSpec? {
+        val targetFqn = toClass.canonicalName
+        val side = try {
+            sideRegistry.resolveSide(targetFqn) ?: return null
+        } catch (e: IllegalStateException) {
+            logger.error(e.message ?: "Kraft side configuration error.")
+            return null
+        }
+
+        val effectiveMode = when (descriptor.aliasEmitMode) {
+            AliasEmitMode.INHERIT -> side.emitMode
+            else -> descriptor.aliasEmitMode
+        }
+        if (effectiveMode == AliasEmitMode.FULL_NAME_ONLY) return null
+
+        val aliasName = side.template.render(
+            side = side.name,
+            source = fromClass.simpleName,
+            target = toClass.simpleName,
+        )
+
+        val mapperOrigin = when (val src = descriptor.source) {
+            is MappingSource.ClassAnnotation -> src.annotatedClass.qualifiedName?.asString() ?: "<unknown>"
+            is MappingSource.ConfigObject -> src.configObject.qualifiedName?.asString() ?: "<unknown>"
+        }
+        try {
+            sideRegistry.recordAlias(fromClass.canonicalName, aliasName, mapperOrigin)
+        } catch (e: IllegalStateException) {
+            logger.error(e.message ?: "Alias collision.")
+            return null
+        }
+
+        return FunSpec.builder(aliasName)
+            .receiver(fromClass)
+            .returns(toClass)
+            .addKdoc("Alias generated for side ${side.name} (template = ${side.template.raw})")
+            .addCode("return %N()\n", verboseFunctionName)
+            .build()
     }
 
     @Suppress("SpreadOperator")
