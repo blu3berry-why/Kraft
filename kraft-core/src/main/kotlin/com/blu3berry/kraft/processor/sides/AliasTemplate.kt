@@ -70,6 +70,9 @@ class AliasTemplate private constructor(
                         literal.clear()
                     }
                     val name = raw.substring(i + 1, end)
+                    require(!name.contains('{')) {
+                        "Nested or unbalanced '{' in alias template '$raw'."
+                    }
                     require(name in ALLOWED) {
                         "Unknown variable '{$name}' in alias template '$raw'. Allowed: ${ALLOWED.sorted()}."
                     }
@@ -99,8 +102,11 @@ class AliasTemplate private constructor(
 
         private fun isValidKotlinIdentifier(s: String): Boolean {
             if (s.isEmpty()) return false
-            if (!s[0].isJavaIdentifierStart()) return false
-            for (i in 1 until s.length) if (!s[i].isJavaIdentifierPart()) return false
+            if (!s[0].isLetter() && s[0] != '_') return false
+            for (i in 1 until s.length) {
+                val c = s[i]
+                if (!c.isLetterOrDigit() && c != '_') return false
+            }
             return true
         }
     }

@@ -64,4 +64,25 @@ class AliasTemplateTest {
             t.render(side = "1Bad", source = "S", target = "T")
         }
     }
+
+    @Test
+    fun `unterminated brace fails parse`() {
+        assertThrows<IllegalArgumentException> { AliasTemplate.parse("to{side") }
+    }
+
+    @Test
+    fun `nested brace fails parse with clear message`() {
+        val ex = assertThrows<IllegalArgumentException> {
+            AliasTemplate.parse("{source{target}}")
+        }
+        assertThat(ex.message).contains("Nested")
+    }
+
+    @Test
+    fun `dollar-sign side value is rejected`() {
+        val t = AliasTemplate.parse("to{side}")
+        assertThrows<IllegalArgumentException> {
+            t.render(side = "\$bad", source = "S", target = "T")
+        }
+    }
 }
