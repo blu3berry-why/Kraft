@@ -35,7 +35,8 @@ class ExtensionMapperGenerator(
 
         val packageName = generatedMapperPackage(fromClass.packageName)
         val functionName = config.functionNameFor(descriptor)
-        val fileName = "${fromClass.simpleName}To${toClass.simpleName}Mapper"
+        val fileName = "${CodeGenUtils.qualifiedSegments(descriptor.sourceType.declaration)}" +
+            "To${CodeGenUtils.qualifiedSegments(descriptor.targetType.declaration)}Mapper"
 
         val originatingFiles = listOfNotNull(
             when (val src = descriptor.source) {
