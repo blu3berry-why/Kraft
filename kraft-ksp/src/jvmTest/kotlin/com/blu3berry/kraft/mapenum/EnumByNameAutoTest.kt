@@ -36,7 +36,13 @@ class EnumByNameAutoTest {
 
         val files = TestKspRunner.compileAndReturnGenerated(source)
         val parent = files.first { "ToDstMapper" in it.name }.readText()
-        val enumMapper = files.first { "Status_To_StatusDto_EnumMapper" in it.name }.readText()
+        val enumMapperFile = files.first { "Status_To_StatusDto_EnumMapper" in it.name }
+        val enumMapper = enumMapperFile.readText()
+
+        // K-N3 backward-compat guard: top-level enum filenames must remain unchanged.
+        // Use startsWith so the assertion is robust to KotlinPoet's `.kt` extension
+        // handling but still catches any spurious parent-chain prefix being added.
+        assertThat(enumMapperFile.name).startsWith("Status_To_StatusDto_EnumMapper")
 
         assertThat(parent).contains("status = this.status.toStatusDto()")
         assertThat(enumMapper).contains("Status.ACTIVE -> StatusDto.ACTIVE")
