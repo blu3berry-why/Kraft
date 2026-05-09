@@ -57,6 +57,7 @@ nav:
       - Configuration Objects: user-guide/configuration-objects.md
       - Reverse Mapping: user-guide/reverse-mapping.md
       - KSP Options: user-guide/ksp-options.md
+      - Side Aliases: user-guide/side-aliases.md
       - AI Integration: user-guide/ai-integration.md
   - Developer Guide:
       - Architecture: developer-guide/architecture.md
