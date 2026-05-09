@@ -329,7 +329,7 @@ When KSP processes a module that contains `@KraftConverter` functions, it genera
 You generally do not need to think about the delegate file. Two things to know:
 
 - The wrapper is generated automatically; do not write `@KraftConverterDelegate` yourself.
-- If multiple modules contribute converters that all end up on the same compile classpath, set the [`kraft.moduleId`](ksp-options.md#kraft-moduleid) processor option in each producing module so the delegate file names do not collide.
+- If multiple modules contribute converters that all end up on the same compile classpath, set the [`kraft.moduleId`](ksp-options.md#kraftmoduleid) processor option in each producing module so the delegate file names do not collide.
 
 ### Disabling for a single config
 

@@ -287,6 +287,7 @@ Both the class annotation and the config must reference the same source/target p
 | Scenario | Result |
 |----------|--------|
 | `@MapIgnoreField` names a property without a default value | Compile-time error |
-| `@MapIgnoreField` names a property that does not exist on the target | Compile-time error |
+| `@MapIgnoreField(direction = IgnoreSide.TARGET)` names a property that does not exist on the target | Compile-time error |
+| `@MapIgnoreField` (default `IgnoreSide.BOTH`) names a property absent from the forward target | Warning; the rule is silently skipped to allow declaring reverse-only ignores |
 | `@MapUsing` whole-source converter parameter type does not match source class | Compile-time error |
 | Duplicate source-to-target pair across multiple `@MapConfig` objects | Compile-time error |

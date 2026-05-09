@@ -111,7 +111,7 @@ fun OrderSource.toOrderDto(): OrderDto = OrderDto(
 
 ## @MapIgnore
 
-Use `@MapIgnore` to explicitly skip a target property when using `@MapFrom` or `@MapTo`. The property must have a default value (or be nullable) since Kraft will not supply a value for it. For the config-based equivalent, see [Ignore Rules](ignore-rules.md).
+Use `@MapIgnore` to explicitly skip a target property when using `@MapFrom` or `@MapTo`. The property must declare a default value (e.g. `= null` for nullable types) since Kraft will not supply a value for it. For the config-based equivalent, see [Ignore Rules](ignore-rules.md).
 
 ```kotlin
 import com.blu3berry.kraft.mapping.MapFrom
