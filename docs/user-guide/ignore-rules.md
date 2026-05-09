@@ -99,11 +99,11 @@ data class UserDto(val id: Int, val name: String, val secret: String? = null)
 object UserMapper
 ```
 
-Generated: the `secret` parameter is omitted from the `UserDto(...)` constructor call. If a reverse mapper were generated in the future, `secret` would not be ignored in that direction.
+Generated: the `secret` parameter is omitted from the `UserDto(...)` constructor call. When a reverse mapper is generated with `@MapReverse`, `secret` is not ignored in that direction.
 
 ### BOTH direction with unknown property
 
-When using `IgnoreSide.BOTH` (the default), a property name that does not exist in the current forward target is silently skipped. This allows you to declare ignore rules for future reverse-mapping without causing errors on the forward mapper:
+When using `IgnoreSide.BOTH` (the default), a property name that does not exist in the current forward target is silently skipped. This lets you declare ignore rules that apply only to the reverse direction (under `@MapReverse`) without causing errors on the forward mapper:
 
 ```kotlin
 @MapConfig(
