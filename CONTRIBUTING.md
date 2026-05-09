@@ -47,7 +47,7 @@ Detekt runs automatically on every pull request via GitHub Actions. PRs with vio
 
 ## Commit Conventions
 
-Kraft uses [Conventional Commits](https://www.conventionalcommits.org/). The commit message drives automated versioning via release-please.
+Kraft uses [Conventional Commits](https://www.conventionalcommits.org/). The commit message drives automated versioning via the project's `create-release.yml` workflow.
 
 | Prefix | Meaning | Version bump |
 |--------|---------|-------------|
@@ -134,6 +134,8 @@ converter/       — property-source, whole-source, extension functions, type ma
 mapignore/       — class-level @MapIgnore
 configignore/    — config-level @MapIgnoreField, IgnoreSide
 reverse/         — @MapReverse with renames, nested, converters
+optin/           — @OptIn propagation from @KraftConverter to generated functions
+sides/           — side-alias happy paths, error cases, emit modes, enum aliases, @MapReverse interaction, registry parsing and collision detection
 propertyresolver/ — unit tests for individual MappingRule implementations
 ```
 
@@ -168,12 +170,11 @@ For the current rule chain order, see [Architecture: Property Resolver Rule Chai
 
 ## Release Process
 
-Kraft uses [release-please](https://github.com/googleapis/release-please) for automated releases:
+Releases are driven by two GitHub Actions workflows. The version is stored in `gradle.properties` as `kraft.version` (and mirrored in `.release-please-manifest.json`) and shared across all modules.
 
-1. Merge PRs with conventional commit messages to `main`
-2. Run the "Create Release" workflow (manual dispatch) — computes next version from commit history
-3. Review and merge the generated release PR to `release-branch`
-4. The publish workflow auto-triggers, publishing to Maven Central
-5. A GitHub Release is created with auto-generated changelog
-
-Version is stored in `gradle.properties` as `kraft.version` and shared across all modules.
+1. A maintainer manually triggers the **Create Release** workflow (`create-release.yml`) via `workflow_dispatch`.
+2. The workflow reads the current version from `.release-please-manifest.json`, then walks commits since the last `MAJOR.MINOR.PATCH` tag — inspecting both commit subjects and bodies — and computes the next version: a `BREAKING CHANGE` or `!`-suffix commit triggers a major bump, a `feat:` commit triggers a minor bump, anything else triggers a patch bump.
+3. A `release/<version>` branch is created; `.release-please-manifest.json` and `gradle.properties` are bumped, committed, and pushed; a PR targeting `release-branch` is opened automatically.
+4. A maintainer reviews and merges the PR into `release-branch`.
+5. The push to `release-branch` triggers the **Publish** workflow (`publish.yml`), which validates GPG and Maven Central secrets, signs the artifacts, and publishes all modules to Maven Central.
+6. After publishing, a GitHub Release is created with auto-generated notes (`gh release create --generate-notes`), and the updated version files are synced back to `main`.
