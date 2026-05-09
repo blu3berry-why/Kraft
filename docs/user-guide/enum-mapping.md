@@ -18,6 +18,7 @@ Parameters:
 | `source` | The enum class to map from |
 | `target` | The enum class to map to |
 | `fieldMappings` | Array of `FieldMapping` for entries with different names (default: empty) |
+| `aliasEmitMode` | Per-mapper alias-emission override (`AliasEmitMode.INHERIT` by default). See [Side Aliases — Per-Mapper Override](side-aliases.md#per-mapper-override). |
 
 ## When you do NOT need `@MapEnum`
 
