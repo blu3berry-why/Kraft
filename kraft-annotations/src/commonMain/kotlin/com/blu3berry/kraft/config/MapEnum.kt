@@ -17,6 +17,10 @@ import kotlin.reflect.KClass
  * @param fieldMappings Explicit entry mappings for source entries whose name differs
  *                      from the target entry name. Each [@FieldMapping][FieldMapping]
  *                      maps a source entry name to a target entry name.
+ * @param aliasEmitMode Per-mapper override of the alias emission policy. Defaults
+ *                     to [AliasEmitMode.INHERIT], which uses the project-level
+ *                     `emitMode` set on the matched side in build.gradle.kts.
+ *                     See [AliasEmitMode] for full semantics.
  *
  * Example — all entries share the same name (no fieldMappings needed):
  * ```
@@ -45,5 +49,6 @@ import kotlin.reflect.KClass
 annotation class MapEnum(
     val source: KClass<*>,
     val target: KClass<*>,
-    val fieldMappings: Array<FieldMapping> = []
+    val fieldMappings: Array<FieldMapping> = [],
+    val aliasEmitMode: AliasEmitMode = AliasEmitMode.INHERIT,
 )

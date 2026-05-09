@@ -170,7 +170,7 @@ class AutoMapperProcessor(
 
         return when {
             providers.isEmpty() -> EnumMapperGenerator(
-                codeGenerator, logger, env.config
+                codeGenerator, logger, env.config, env.sideRegistry
             )
             providers.size == 1 -> providers.single().create(env)
             else -> {
