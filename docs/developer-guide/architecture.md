@@ -25,6 +25,9 @@ Scanners read KSP symbols and produce raw scan results. Each scanner is responsi
 - **ClassAnnotationScanner** -- processes `@MapFrom` and `@MapTo` annotations on data classes, producing `ClassMappingScanResult` instances that capture source/target types, field-level overrides, converters, and ignored properties.
 - **ConfigObjectScanner** -- processes `@MapConfig` companion objects, producing `ConfigObjectScanResult` instances that capture bulk rename rules, shared converters, and field mappings declared outside the class itself.
 - **EnumMapScanner** -- processes `@MapEnum` annotations, producing `EnumMappingDescriptor` instances that capture enum constant correspondence.
+- **GlobalConverterScanner** -- scans current-module top-level functions annotated with `@KraftConverter` and builds a `GlobalConverterRegistry` indexed by `(sourceType, targetType)` pair.
+- **ClasspathConverterScanner** -- discovers upstream `@KraftConverterDelegate` extension functions from the classpath (published by upstream Kraft modules) and merges them into a classpath-scoped `GlobalConverterRegistry`.
+- **AutoEnumMappingDeriver** -- walks every parent mapping pair and synthesizes `EnumMappingDescriptor` instances for property pairs whose source and target are two same-module enum classes with matching entry names, skipping pairs already covered by `@MapEnum` or `@KraftConverter`.
 
 ### 2. Descriptor Building
 
@@ -53,7 +56,8 @@ kraft-core (JVM only)
   depends on: kraft-annotations, KSP API
   model/         -- MapperDescriptor, PropertyMappingStrategy, TypeInfo, PropertyInfo, MapperId
   model/scan/    -- Raw scan results
-  scanner/       -- ClassAnnotationScanner, ConfigObjectScanner, EnumMapScanner
+  scanner/       -- ClassAnnotationScanner, ConfigObjectScanner, EnumMapScanner, GlobalConverterScanner, ClasspathConverterScanner, AutoEnumMappingDeriver
+  sides/         -- SideRegistry, SideConfig, AliasTemplate, PackageGlob
   descriptor/    -- DescriptorBuilder, ClassDescriptorBuilder, ConfigDescriptorBuilder, ReverseDescriptorBuilder
   descriptor/propertyresolver/ -- PropertyResolver + MappingRule chain
   codegen/       -- MapperGenerator SPI, GenerationConfig, provider interfaces
@@ -83,6 +87,7 @@ The central intermediate representation. Contains:
 - `propertyMappings: List<PropertyMappingStrategy>` -- resolved strategy for each target property.
 - `nestedMappings: List<NestedMappingDescriptor>` -- child mapper dependencies.
 - `converters: List<ConverterDescriptor>` -- `@MapUsing` converter functions. Each carries a `resolvedDirection` (`AUTO`, `FORWARD`, or `REVERSE`) for directional filtering when `@MapReverse` is active.
+- `aliasEmitMode: AliasEmitMode` -- controls whether and how the side-alias delegate is emitted; defaults to `INHERIT`.
 
 ### PropertyMappingStrategy (sealed interface)
 
@@ -104,7 +109,7 @@ Wraps a KSP type with metadata:
 - `declaration: KSClassDeclaration` -- KSP class declaration.
 - `ksType: KSType` -- resolved type for equality checks.
 - `packageName / simpleName` -- plain strings (no KotlinPoet dependency in kraft-core).
-- `qualifiedName` -- computed: `"$packageName.$simpleName"`.
+- `qualifiedName` -- delegates to KSP's `declaration.qualifiedName?.asString()`, which correctly handles nested types; falls back to `"$packageName.$simpleName"` only for anonymous or local declarations.
 - `isNullable: Boolean`.
 
 ### MappingContext
