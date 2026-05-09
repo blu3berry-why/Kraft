@@ -6,6 +6,7 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.validate
+import com.blu3berry.kraft.config.AliasEmitMode
 import com.blu3berry.kraft.model.descriptor.EnumEntryMapping
 import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import com.blu3berry.kraft.model.TypeInfo
@@ -13,6 +14,7 @@ import com.blu3berry.kraft.processor.util.KraftKspConstants
 import com.blu3berry.kraft.processor.util.annotationTargetError
 import com.blu3berry.kraft.processor.util.enumEntryNames
 import com.blu3berry.kraft.processor.util.findAnnotation
+import com.blu3berry.kraft.processor.util.getEnumArgOrNull
 import com.blu3berry.kraft.processor.util.getKClassArgOrNull
 import com.blu3berry.kraft.processor.util.unmappedEnumEntries
 
@@ -82,15 +84,18 @@ class EnumMapScanner(
             enumPair, fromEntries, toEntries, customMappings, decl
         ) ?: return emptyList()
 
+        val aliasEmitMode = extractAliasEmitMode(annotation, decl)
+
         val forward = EnumMappingDescriptor(
             sourceType = TypeInfo.fromKSType(enumPair.sourceKSType),
             targetType = TypeInfo.fromKSType(enumPair.targetKSType),
             entries = forwardEntries,
             declaration = decl,
+            aliasEmitMode = aliasEmitMode,
         )
 
         val reverse = buildReverseDescriptor(
-            decl, enumPair, fromEntries, toEntries, customMappings
+            decl, enumPair, fromEntries, toEntries, customMappings, aliasEmitMode
         )
         return listOfNotNull(forward, reverse)
     }
@@ -100,7 +105,8 @@ class EnumMapScanner(
         enumPair: EnumPair,
         fromEntries: List<String>,
         toEntries: List<String>,
-        customMappings: List<EnumEntryMapping>
+        customMappings: List<EnumEntryMapping>,
+        aliasEmitMode: AliasEmitMode,
     ): EnumMappingDescriptor? {
         if (decl.findAnnotation(KraftKspConstants.FQ_MAP_REVERSE) == null) return null
         val reverseCustom = customMappings
@@ -113,7 +119,25 @@ class EnumMapScanner(
             targetType = TypeInfo.fromKSType(enumPair.sourceKSType),
             entries = reverseEntries,
             declaration = decl,
+            aliasEmitMode = aliasEmitMode,
         )
+    }
+
+    private fun extractAliasEmitMode(
+        annotation: KSAnnotation,
+        decl: KSClassDeclaration,
+    ): AliasEmitMode {
+        val name = annotation.getEnumArgOrNull(
+            name = KraftKspConstants.ARG_ALIAS_EMIT_MODE,
+            logger = logger,
+            symbol = decl,
+            annotationFqName = KraftKspConstants.FQ_MAP_ENUM,
+        ) ?: return AliasEmitMode.INHERIT
+        return try {
+            AliasEmitMode.valueOf(name)
+        } catch (_: IllegalArgumentException) {
+            AliasEmitMode.INHERIT
+        }
     }
 
     private data class EnumPair(
