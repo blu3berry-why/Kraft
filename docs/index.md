@@ -24,6 +24,8 @@ Kraft is a KSP-based annotation processor that generates type-safe extension fun
 
 ## Quick Start
 
+JVM / Android:
+
 ```kotlin
 // build.gradle.kts
 plugins {
@@ -35,6 +37,29 @@ dependencies {
     ksp("com.blu3berry.kraft:kraft-ksp:<version>")
 }
 ```
+
+Kotlin Multiplatform:
+
+```kotlin
+// build.gradle.kts
+plugins {
+    id("com.google.devtools.ksp") version "2.3.3"
+}
+
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("com.blu3berry.kraft:kraft-annotations:<version>")
+        }
+    }
+}
+
+dependencies {
+    add("kspCommonMainMetadata", "com.blu3berry.kraft:kraft-ksp:<version>")
+}
+```
+
+See [Getting Started](user-guide/getting-started.md) for full installation details.
 
 ```kotlin
 data class User(val id: Int, val name: String, val email: String)

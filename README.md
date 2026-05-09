@@ -93,7 +93,9 @@ dependencies {
 | `@KraftConverter` | Globally discoverable converter | On top-level extension function |
 | `@MapEnum` | Enum-to-enum mapping | On object |
 | `@MapReverse` | Generate inverse mapper | On class or `@MapConfig` object |
-| `aliasEmitMode` | Per-mapper alias control (`AliasEmitMode` enum) | Parameter on `@MapConfig` |
+| `aliasEmitMode` | Per-mapper alias control (`AliasEmitMode` enum) | Parameter on `@MapConfig` and `@MapEnum` |
+| `ConverterDirection` | Direction selector for `@MapUsing` (`AUTO` / `FORWARD` / `REVERSE`) | Parameter on `@MapUsing(direction = …)` |
+| `IgnoreSide` | Direction selector for `@MapIgnoreField` (`TARGET` / `SOURCE` / `BOTH`) | Parameter on `@MapIgnoreField(direction = …)` |
 | `@FieldMapping` | Config-level rename | In `@MapConfig.fieldMappings` |
 | `@NestedMapping` | ~~Deprecated~~ — auto-detected | In `@MapConfig.nestedMappings` |
 | `@MapIgnoreField` | Config-level ignore | In `@MapConfig.ignoredMappings` |
