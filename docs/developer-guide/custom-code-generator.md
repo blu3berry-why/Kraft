@@ -22,6 +22,7 @@ classDiagram
         +logger: KSPLogger
         +options: Map~String, String~
         +config: GenerationConfig
+        +sideRegistry: SideRegistry
     }
     class GenerationConfig {
         +functionNameTemplate: String
@@ -389,6 +390,7 @@ Your provider's `create()` method receives a `GeneratorEnvironment` with:
 | `logger` | `KSPLogger` | KSP logger — use `info()`, `warn()`, `error()` for compile-time messages. |
 | `options` | `Map<String, String>` | All KSP processor options from `build.gradle.kts`. Read custom options here. |
 | `config` | `GenerationConfig` | Holds the `functionNameTemplate` (default `"to${target}"`). Use `config.functionNameFor(descriptor)` to get the resolved function name. |
+| `sideRegistry` | `SideRegistry` | Registered side-alias configs from `kraft.side.*` KSP args. Call `sideRegistry.resolveSide(targetFqn)` to find the matching side, or check `sideRegistry.sides.isEmpty()` to short-circuit when no sides are configured. See [Side Aliases](../user-guide/side-aliases.md). |
 
 ---
 

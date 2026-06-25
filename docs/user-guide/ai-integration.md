@@ -43,7 +43,11 @@ This project uses Kraft, a KSP-based compile-time mapper generator for Kotlin. W
 - **Standalone mapping config**: Use `@MapConfig` on an object. Supports field renames, nested mappings, ignore rules, converters, and reverse mapping.
 - **Different property names**: Use `FieldMapping` in `@MapConfig`, or `@MapField` on the class.
 - **Nested objects**: Auto-detected when source and target have same-named properties with different types. Use `FieldMapping` or `@MapField` if the property is renamed.
-- **Complex transformations**: Use `@MapUsing` inside a `@MapConfig` object. Omit the `source` parameter to receive the whole source object.
+- **Complex transformations**: Use `@MapUsing` inside a `@MapConfig` object. Omit the `source` parameter to receive the whole source object — this whole-source mode covers four common patterns:
+    - **Decompose** one source field into N target fields (e.g. `Money` → `minorUnits + currency`): one whole-source `@MapUsing(target = "...")` per target field.
+    - **Compose** N source fields into one target field (e.g. `minorUnits + currency` → `Money`): one whole-source `@MapUsing` whose body reads both source fields.
+    - **Constant injection** for target fields with no source counterpart (e.g. `currency = "HUF"`): a whole-source function whose body ignores the receiver and returns the constant.
+    - **Nullable → non-null default** (e.g. `packSize: Int? → Int`): a whole-source function that returns `field ?: default`.
 - **Need both directions**: Add `@MapReverse` to generate the inverse mapper. Kraft auto-detects converter direction by matching the `@MapUsing` parameter type against each direction's source property type. Set `direction = ConverterDirection.FORWARD/REVERSE` only when that type-based inference is ambiguous (e.g. both directions have the same parameter type) or you need to force a direction explicitly.
 - **Enum-to-enum**: Use `@MapEnum` with auto-matching or explicit `fieldMappings`.
 - **Class-level annotations**: Use `@MapFrom` on the target class or `@MapTo` on the source class when you prefer annotating the data classes directly.
@@ -64,7 +68,7 @@ Generated extension functions appear in:
 ### Imports
 
 Annotations are in two packages:
-- `com.blu3berry.kraft.mapping.*` -- @MapFrom, @MapTo, @MapField, @MapIgnore, @MapNested
+- `com.blu3berry.kraft.mapping.*` -- @MapFrom, @MapTo, @MapField, @MapIgnore (and the deprecated @MapNested -- avoid in new code)
 - `com.blu3berry.kraft.config.*` -- @MapConfig, @MapEnum, @MapUsing, @MapReverse, FieldMapping, MapIgnoreField, IgnoreSide, ConverterDirection
 ````
 

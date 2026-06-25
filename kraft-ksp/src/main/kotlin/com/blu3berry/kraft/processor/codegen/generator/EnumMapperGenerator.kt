@@ -5,13 +5,16 @@ import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ksp.writeTo
+import com.blu3berry.kraft.config.AliasEmitMode
 import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import com.blu3berry.kraft.processor.codegen.EnumMapperGeneratorSpi
 import com.blu3berry.kraft.processor.codegen.GenerationConfig
 import com.blu3berry.kraft.processor.codegen.className
+import com.blu3berry.kraft.processor.sides.SideRegistry
 import com.blu3berry.kraft.processor.util.CodeGenUtils
 import com.blu3berry.kraft.processor.util.enumEntryNames
 
@@ -31,7 +34,8 @@ import com.blu3berry.kraft.processor.util.enumEntryNames
 class EnumMapperGenerator(
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
-    private val config: GenerationConfig = GenerationConfig()
+    private val config: GenerationConfig = GenerationConfig(),
+    private val sideRegistry: SideRegistry = SideRegistry.parseFromOptions(emptyMap()),
 ) : EnumMapperGeneratorSpi {
 
     override fun generate(
@@ -67,19 +71,29 @@ class EnumMapperGenerator(
 
         // 4) Build mapper function
         val funSpec = buildEnumMapperFunction(desc)
+        val verboseFunctionName = generatedFunctionName(desc)
 
         // 5) Compose file path + incremental dependency
         val pkg = generatedPackage(desc)
         val fileName = CodeGenUtils.buildFileName(
-            desc.sourceType.className.simpleName,
-            desc.targetType.className.simpleName,
+            CodeGenUtils.qualifiedSegments(desc.sourceType.declaration),
+            CodeGenUtils.qualifiedSegments(desc.targetType.declaration),
             "EnumMapper"
         )
 
-        val fileSpec = FileSpec.builder(pkg, "$fileName.kt")
+        val fileBuilder = FileSpec.builder(pkg, "$fileName.kt")
             .addFileComment(CodeGenUtils.generatedBanner())
             .addFunction(funSpec)
-            .build()
+
+        val aliasFn = buildAliasFunSpec(
+            descriptor = desc,
+            verboseFunctionName = verboseFunctionName,
+            fromClass = desc.sourceType.className,
+            toClass = desc.targetType.className,
+        )
+        if (aliasFn != null) fileBuilder.addFunction(aliasFn)
+
+        val fileSpec = fileBuilder.build()
 
         // The @MapEnum-annotated declaration is included so editing the
         // annotation arguments / fieldMappings invalidates this file even when
@@ -173,6 +187,51 @@ class EnumMapperGenerator(
         builder.addCode("}\n")
 
         return builder.build()
+    }
+
+
+    private fun buildAliasFunSpec(
+        descriptor: EnumMappingDescriptor,
+        verboseFunctionName: String,
+        fromClass: ClassName,
+        toClass: ClassName,
+    ): FunSpec? {
+        val targetFqn = toClass.canonicalName
+        val side = try {
+            sideRegistry.resolveSide(targetFqn) ?: return null
+        } catch (e: IllegalStateException) {
+            logger.error(e.message ?: "Kraft side configuration error.")
+            return null
+        }
+
+        val effectiveMode = when (descriptor.aliasEmitMode) {
+            AliasEmitMode.INHERIT -> side.emitMode
+            else -> descriptor.aliasEmitMode
+        }
+        if (effectiveMode == AliasEmitMode.FULL_NAME_ONLY) return null
+
+        val aliasName = side.template.render(
+            side = side.name,
+            source = fromClass.simpleName,
+            target = toClass.simpleName,
+        )
+
+        val originDecl = descriptor.declaration
+        val mapperOrigin = originDecl?.qualifiedName?.asString()
+            ?: "${fromClass.canonicalName}->${toClass.canonicalName}"
+        try {
+            sideRegistry.recordAlias(fromClass.canonicalName, aliasName, mapperOrigin)
+        } catch (e: IllegalStateException) {
+            logger.error(e.message ?: "Alias collision.", originDecl)
+            return null
+        }
+
+        return FunSpec.builder(aliasName)
+            .receiver(fromClass)
+            .returns(toClass)
+            .addKdoc("Alias generated for side ${side.name} (template = ${side.template.raw})")
+            .addCode("return %N()\n", verboseFunctionName)
+            .build()
     }
 
 

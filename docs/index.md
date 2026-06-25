@@ -17,6 +17,7 @@ Kraft is a KSP-based annotation processor that generates type-safe extension fun
 - **Custom converters** — `@MapUsing` for property-source or whole-source transformations
 - **Global converters** — `@KraftConverter` on a top-level extension is auto-discovered across the module and the classpath, with `@OptIn` markers propagated onto the generated mapper
 - **Reverse mapping** — `@MapReverse` generates the inverse mapper automatically
+- **Layer-aware aliases** — register `Dto` / `Domain` / `Entity` sides via Gradle to emit short `.toDomain()` / `.toEntity()` extensions alongside the verbose mappers
 - **Ignore rules** — `@MapIgnore` and `@MapIgnoreField` with directional control
 - **Plugin SPI** — implement `MapperGeneratorProvider` to plug in your own code generator
 - **Kotlin Multiplatform** — annotations work on JVM, iOS, JS, and WasmJs
@@ -24,6 +25,8 @@ Kraft is a KSP-based annotation processor that generates type-safe extension fun
 ## Quick Start
 
 Kraft is on **Maven Central** (`com.blu3berry.kraft`) — ensure `mavenCentral()` is in your `repositories { }` block.
+
+JVM / Android:
 
 ```kotlin
 // build.gradle.kts
@@ -40,6 +43,29 @@ dependencies {
     ksp("com.blu3berry.kraft:kraft-ksp:<version>")
 }
 ```
+
+Kotlin Multiplatform:
+
+```kotlin
+// build.gradle.kts
+plugins {
+    id("com.google.devtools.ksp") version "2.3.3"
+}
+
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("com.blu3berry.kraft:kraft-annotations:<version>")
+        }
+    }
+}
+
+dependencies {
+    add("kspCommonMainMetadata", "com.blu3berry.kraft:kraft-ksp:<version>")
+}
+```
+
+See [Getting Started](user-guide/getting-started.md) for full installation details.
 
 ```kotlin
 data class User(val id: Int, val name: String, val email: String)

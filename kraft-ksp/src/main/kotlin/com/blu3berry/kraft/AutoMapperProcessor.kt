@@ -23,6 +23,7 @@ import com.blu3berry.kraft.processor.scanner.ClasspathConverterScanner
 import com.blu3berry.kraft.processor.scanner.ConfigObjectScanner
 import com.blu3berry.kraft.processor.scanner.EnumMapScanner
 import com.blu3berry.kraft.processor.scanner.GlobalConverterScanner
+import com.blu3berry.kraft.processor.sides.SideRegistry
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 import java.util.ServiceLoader
 
@@ -65,10 +66,13 @@ class AutoMapperProcessor(
                 ?: "to\${target}"
         )
 
+        val sideRegistry = parseSideRegistryOrNull() ?: return deferred
+
         val generatorEnv = GeneratorEnvironment(
             logger = logger,
             options = env.options,
-            config = genConfig
+            config = genConfig,
+            sideRegistry = sideRegistry,
         )
 
         // The enum generator is loaded eagerly (when there are @MapEnum
@@ -117,6 +121,20 @@ class AutoMapperProcessor(
         return deferred
     }
 
+    /**
+     * Builds the [SideRegistry] from KSP options, or returns null after logging
+     * a config error so the caller can short-circuit out of [process].
+     */
+    private fun parseSideRegistryOrNull(): SideRegistry? = try {
+        SideRegistry.parseFromOptions(env.options)
+    } catch (e: IllegalArgumentException) {
+        logger.error(e.message ?: "Kraft side configuration error.")
+        null
+    } catch (e: IllegalStateException) {
+        logger.error(e.message ?: "Kraft side configuration error.")
+        null
+    }
+
     private fun loadMapperGenerator(
         env: GeneratorEnvironment
     ): MapperGenerator {
@@ -128,7 +146,8 @@ class AutoMapperProcessor(
         return when {
             providers.isEmpty() -> ExtensionMapperGenerator(
                 logger = env.logger,
-                config = env.config
+                config = env.config,
+                sideRegistry = env.sideRegistry,
             )
             providers.size == 1 -> providers.single().create(env)
             else -> {
@@ -151,7 +170,7 @@ class AutoMapperProcessor(
 
         return when {
             providers.isEmpty() -> EnumMapperGenerator(
-                codeGenerator, logger, env.config
+                codeGenerator, logger, env.config, env.sideRegistry
             )
             providers.size == 1 -> providers.single().create(env)
             else -> {

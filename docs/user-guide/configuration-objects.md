@@ -179,6 +179,19 @@ public fun Src.toDst(): Dst = Dst(
 )
 ```
 
+#### Whole-source patterns at a glance
+
+Whole-source mode covers four practical patterns. See [custom-converters.md → Whole-Source Mode Patterns](custom-converters.md#whole-source-mode-patterns) for full examples.
+
+| Pattern | Shape | One-line example |
+|---|---|---|
+| Decompose 1 → N | Value type on source, primitives on target | `@MapUsing(target = "salePriceMinorUnits") fun Product.minorUnits() = salePrice.amount` |
+| Compose N → 1 | Primitives on source, value type on target | `@MapUsing(target = "salePrice") fun ProductDto.toMoney() = Money(salePriceMinorUnits, salePriceCurrency)` |
+| Constant injection | Target field has no source counterpart | `@MapUsing(target = "currency") fun LongAmount.fixedCurrency() = "HUF"` |
+| Nullable → non-null default | Source nullable, target non-null | `@MapUsing(target = "packSize") fun CartItemDto.packSizeOrDefault() = packSize ?: 1` |
+
+If a target field doesn't line up with a source field, reach for one of these patterns before writing a manual mapper or a global `@KraftConverter`.
+
 ### Converter Direction
 
 When using `@MapReverse` and both classes share a property name with different types, use the `direction` parameter to specify which direction each converter applies to. Kraft auto-detects direction by default, but you can be explicit with `ConverterDirection.FORWARD` or `ConverterDirection.REVERSE`. See [Custom Converters -- Direction Parameter](custom-converters.md#direction-parameter) for details.
@@ -274,6 +287,7 @@ Both the class annotation and the config must reference the same source/target p
 | Scenario | Result |
 |----------|--------|
 | `@MapIgnoreField` names a property without a default value | Compile-time error |
-| `@MapIgnoreField` names a property that does not exist on the target | Compile-time error |
+| `@MapIgnoreField(direction = IgnoreSide.TARGET)` names a property that does not exist on the target | Compile-time error |
+| `@MapIgnoreField` (default `IgnoreSide.BOTH`) names a property absent from the forward target | Warning; the rule is silently skipped to allow declaring reverse-only ignores |
 | `@MapUsing` whole-source converter parameter type does not match source class | Compile-time error |
 | Duplicate source-to-target pair across multiple `@MapConfig` objects | Compile-time error |

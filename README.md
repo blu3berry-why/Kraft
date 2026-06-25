@@ -31,6 +31,7 @@ val dto = user.toUserDto()
 - **Custom converters** — `@MapUsing` for property-source or whole-source transformations
 - **Global converters** — `@KraftConverter` on a top-level extension is auto-discovered across the module and the classpath, with `@OptIn` markers propagated onto the generated mapper
 - **Reverse mapping** — `@MapReverse` generates the inverse mapper automatically
+- **Layer-aware aliases** — register `Dto` / `Domain` / `Entity` sides via Gradle to emit short `.toDomain()` / `.toEntity()` extensions alongside the verbose mappers
 - **Ignore rules** — `@MapIgnore` and `@MapIgnoreField` with directional control
 - **Configuration objects** — `@MapConfig` for mapping without modifying data classes
 - **Plugin SPI** — implement `MapperGeneratorProvider` to plug in your own code generator
@@ -97,6 +98,9 @@ dependencies {
 | `@KraftConverter` | Globally discoverable converter | On top-level extension function |
 | `@MapEnum` | Enum-to-enum mapping | On object |
 | `@MapReverse` | Generate inverse mapper | On class or `@MapConfig` object |
+| `aliasEmitMode` | Per-mapper alias control (`AliasEmitMode` enum) | Parameter on `@MapConfig` and `@MapEnum` |
+| `ConverterDirection` | Direction selector for `@MapUsing` (`AUTO` / `FORWARD` / `REVERSE`) | Parameter on `@MapUsing(direction = …)` |
+| `IgnoreSide` | Direction selector for `@MapIgnoreField` (`TARGET` / `SOURCE` / `BOTH`) | Parameter on `@MapIgnoreField(direction = …)` |
 | `@FieldMapping` | Config-level rename | In `@MapConfig.fieldMappings` |
 | `@NestedMapping` | ~~Deprecated~~ — auto-detected | In `@MapConfig.nestedMappings` |
 | `@MapIgnoreField` | Config-level ignore | In `@MapConfig.ignoredMappings` |

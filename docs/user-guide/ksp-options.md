@@ -132,3 +132,48 @@ The value is sanitized into a Kotlin file-name suffix, so any non-alphanumeric c
 - Projects that consume converters from a published library but do not declare any of their own.
 
 In those cases the default hash is sufficient.
+
+## kraft.side.*
+
+Register named layers (`Dto`, `Domain`, `Entity`, …) so Kraft emits short alias extensions like `.toDomain()` alongside the verbose mappers. See [Side Aliases](side-aliases.md) for the full feature guide; this section is a reference of the four KSP keys.
+
+### Default
+
+Unset. No sides are registered, no aliases are emitted, and behaviour is identical to a build with no side configuration.
+
+### Keys
+
+Each side is identified by a slot key (your choice of lowercase identifier — e.g. `dto`, `domain`). All four keys share the prefix `kraft.side.<slot>.`:
+
+| Key | Required | Default | Type |
+|---|---|---|---|
+| `kraft.side.<slot>.name` | yes | — | string — substituted into `{side}` in the template, verbatim |
+| `kraft.side.<slot>.packagePattern` | yes | — | Ant-style glob matched against the target class FQN |
+| `kraft.side.<slot>.template` | no | `to{side}` | string — alias function name; variables: `{side}`, `{target}`, `{source}` |
+| `kraft.side.<slot>.emitMode` | no | `BOTH` | `BOTH` or `FULL_NAME_ONLY` |
+
+### Configuration
+
+```kotlin
+// build.gradle.kts
+ksp {
+    arg("kraft.side.dto.name",           "Dto")
+    arg("kraft.side.dto.packagePattern", "com.example.**.dto.**")
+
+    arg("kraft.side.domain.name",           "Domain")
+    arg("kraft.side.domain.packagePattern", "com.example.**.domain.**")
+}
+```
+
+For a `@MapConfig(source = CategoryDto::class, target = Category::class)` mapper where `Category` lives under `com.example.feature.domain`, this generates:
+
+```kotlin
+public fun CategoryDto.toCategory(): Category = /* … */
+
+/** Alias generated for side Domain (template = to{side}) */
+public fun CategoryDto.toDomain(): Category = toCategory()
+```
+
+### Per-mapper override
+
+A `@MapConfig` can opt out of (or into) alias emission via `aliasEmitMode = AliasEmitMode.{INHERIT, BOTH, FULL_NAME_ONLY}`. See [Side Aliases — Per-Mapper Override](side-aliases.md#per-mapper-override).
