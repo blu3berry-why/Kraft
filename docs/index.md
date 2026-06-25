@@ -23,10 +23,16 @@ Kraft is a KSP-based annotation processor that generates type-safe extension fun
 
 ## Quick Start
 
+Kraft is on **Maven Central** (`com.blu3berry.kraft`) — ensure `mavenCentral()` is in your `repositories { }` block.
+
 ```kotlin
 // build.gradle.kts
 plugins {
     id("com.google.devtools.ksp") version "2.3.3"
+}
+
+repositories {
+    mavenCentral()
 }
 
 dependencies {
