@@ -1,3 +1,4 @@
+[![Maven Central](https://img.shields.io/maven-central/v/com.blu3berry.kraft/kraft-annotations.svg?label=Maven%20Central)](https://central.sonatype.com/namespace/com.blu3berry.kraft)
 [![GitHub Release](https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/blu3berry-why/Kraft/releases/latest&query=tag_name&label=release&color=blue)](https://github.com/blu3berry-why/Kraft/releases/latest)
 [![Test](https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml/badge.svg)](https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -38,11 +39,15 @@ val dto = user.toUserDto()
 
 ## Requirements
 
-- Kotlin 2.0+
-- KSP (matching your Kotlin version)
-- JVM 17+ for the build toolchain (the processor runs at compile time)
+- **Kotlin 2.2+** (built and tested with Kotlin 2.2.21)
+- **KSP 2.3.3** (use a KSP version matching your Kotlin version)
+- **JDK 17+ build toolchain** — the processor runs at compile time only
+
+Kraft runs entirely at build time; the generated mappers are plain Kotlin and the annotations target JVM 1.8, so **legacy apps on older runtimes are supported** — see [Compatibility and legacy projects](https://blu3berry-why.github.io/Kraft/user-guide/getting-started/#compatibility-and-legacy-projects).
 
 ## Installation
+
+Kraft is published to **Maven Central** under the `com.blu3berry.kraft` group (latest version shown in the badge above). Make sure `mavenCentral()` is in your `repositories { }` block, then add the dependencies below — replace `<version>` with the current release.
 
 ### Kotlin Multiplatform
 
