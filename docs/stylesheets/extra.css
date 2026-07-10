@@ -1,0 +1,27 @@
+/* Kraft brand palette — matches marketing/linkedin/cards-src/card-style.css */
+:root {
+  /* header / primary: brand navy-purple */
+  --md-primary-fg-color: #221d3b;
+  --md-primary-fg-color--light: #2c2547;
+  --md-primary-fg-color--dark: #141120;
+  /* accent: brand orange (links hover, focus, active elements) */
+  --md-accent-fg-color: #fb9144;
+  --md-accent-fg-color--transparent: rgba(251, 145, 68, 0.1);
+}
+
+/* dark scheme: pull background toward brand navy */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #16121f;
+  --md-code-bg-color: #1b1730;
+  --md-typeset-a-color: #b39aff;
+}
+
+[data-md-color-scheme="default"] {
+  --md-typeset-a-color: #6b4fd8;
+}
+
+/* banner image: no border/shadow, slight rounding */
+.md-typeset img[alt^="Kraft —"] {
+  border-radius: 12px;
+  display: block;
+}

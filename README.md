@@ -1,41 +1,63 @@
-[![Maven Central](https://img.shields.io/maven-central/v/com.blu3berry.kraft/kraft-annotations.svg?label=Maven%20Central)](https://central.sonatype.com/namespace/com.blu3berry.kraft)
-[![GitHub Release](https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/blu3berry-why/Kraft/releases/latest&query=tag_name&label=release&color=blue)](https://github.com/blu3berry-why/Kraft/releases/latest)
-[![Test](https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml/badge.svg)](https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.2%2B-7F52FF.svg)](https://kotlinlang.org)
+<p align="center">
+  <img src="docs/assets/kraft-banner.png" alt="Kraft — mappers you write, generated. Compile-time KSP, no reflection, no runtime cost, Kotlin Multiplatform." width="100%">
+</p>
 
-# Kraft
+<p align="center">
+  <a href="https://central.sonatype.com/namespace/com.blu3berry.kraft"><img src="https://img.shields.io/maven-central/v/com.blu3berry.kraft/kraft-annotations.svg?label=Maven%20Central" alt="Maven Central"></a>
+  <a href="https://github.com/blu3berry-why/Kraft/releases/latest"><img src="https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/blu3berry-why/Kraft/releases/latest&query=tag_name&label=release&color=blue" alt="GitHub Release"></a>
+  <a href="https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml"><img src="https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml/badge.svg" alt="Test"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+  <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.2%2B-7F52FF.svg" alt="Kotlin"></a>
+</p>
 
-Compile-time mapper generation for Kotlin Multiplatform, powered by KSP.
+Every Kotlin codebase has that file. Forty lines of `id = id, name = name, email = email` that nobody wanted to write and nobody wants to review. Kraft deletes it:
 
-Kraft generates type-safe extension functions to map between data classes. No reflection, no runtime overhead — just clean, generated Kotlin code.
-
-```kotlin
-data class User(val id: Int, val name: String, val email: String)
-data class UserDto(val id: Int, val name: String, val email: String)
-
-@MapConfig(source = User::class, target = UserDto::class)
-object UserMapper
-
-// Generated: fun User.toUserDto(): UserDto
-val dto = user.toUserDto()
+```diff
+- fun User.toUserDto(): UserDto = UserDto(
+-     id = id,
+-     name = name,
+-     email = email,
+- )
++ @MapConfig(source = User::class, target = UserDto::class)
++ object UserMapper
 ```
 
+```kotlin
+val dto = user.toUserDto() // generated at compile time
+```
+
+That's the whole mapper. Kraft is a KSP processor that generates type-safe extension functions between your data classes — plain, readable Kotlin you can inspect in `build/generated`. No reflection, no runtime library, nothing to ship.
+
+## Why Kraft
+
+- **Breaks at build time, not in production** — rename a property and the generated mapper stops compiling right there, instead of passing `null` around at runtime.
+- **Zero runtime cost** — the generated code is exactly what you'd have written by hand, minus the writing.
+- **Multiplatform from the start** — annotations live in `commonMain`; JVM, Android, iOS, JS, and WasmJs all work.
+- **Escape hatches everywhere** — renames, ignores, custom converters, enum tables: when your models disagree, you override one property, not the whole mapper.
+
 ## Features
+
+### Mapping
 
 - **Automatic property matching** — same-name properties mapped without configuration
 - **Field renaming** — `@MapField` or `@FieldMapping` for cross-name mapping
 - **Nested objects** — auto-detected when types differ, including renamed properties
 - **Collections** — `List<T>` and `Set<T>` with nested element mapping
 - **Enum mapping** — `@MapEnum` with auto-matching and custom entry pairs
+- **Reverse mapping** — `@MapReverse` generates the inverse mapper automatically
+
+### Control & customization
+
 - **Custom converters** — `@MapUsing` for property-source or whole-source transformations
 - **Global converters** — `@KraftConverter` on a top-level extension is auto-discovered across the module and the classpath, with `@OptIn` markers propagated onto the generated mapper
-- **Reverse mapping** — `@MapReverse` generates the inverse mapper automatically
-- **Layer-aware aliases** — register `Dto` / `Domain` / `Entity` sides via Gradle to emit short `.toDomain()` / `.toEntity()` extensions alongside the verbose mappers
 - **Ignore rules** — `@MapIgnore` and `@MapIgnoreField` with directional control
 - **Configuration objects** — `@MapConfig` for mapping without modifying data classes
-- **Plugin SPI** — implement `MapperGeneratorProvider` to plug in your own code generator
+- **Layer-aware aliases** — register `Dto` / `Domain` / `Entity` sides via Gradle to emit short `.toDomain()` / `.toEntity()` extensions alongside the verbose mappers
+
+### Platform & tooling
+
 - **Kotlin Multiplatform** — annotations work on JVM, iOS, JS, and WasmJs
+- **Plugin SPI** — implement `MapperGeneratorProvider` to plug in your own code generator
 
 ## Requirements
 
