@@ -13,6 +13,7 @@ import com.blu3berry.kraft.model.scan.ConverterEntry
 import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.util.KraftKspConstants
+import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 
 /**
  * Scans the classpath for `@KraftConverterDelegate`-annotated extension functions
@@ -108,9 +109,10 @@ class ClasspathConverterScanner(
      * anyway so an unexpected delegate doesn't silently alias into a NOT_NULL key.
      */
     private fun KSType.fqAndNullable(): Pair<String, Boolean>? {
-        val decl = declaration as? KSClassDeclaration ?: return null
+        val unwrapped = unwrapTypeAliases()
+        val decl = unwrapped.declaration as? KSClassDeclaration ?: return null
         val fq = decl.qualifiedName?.asString() ?: return null
-        val nullable = when (nullability) {
+        val nullable = when (unwrapped.nullability) {
             Nullability.NULLABLE -> true
             Nullability.NOT_NULL -> false
             Nullability.PLATFORM -> return null

@@ -9,6 +9,7 @@ import com.blu3berry.kraft.model.toTypeInfo
 import com.blu3berry.kraft.processor.util.constructorPropertyMismatch
 import com.blu3berry.kraft.processor.util.missingConstructorProperty
 import com.blu3berry.kraft.processor.util.unsupportedTypeInConstructor
+import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 
 /**
  * Extracts and validates [PropertyInfo] entries from a target class's primary constructor.
@@ -49,7 +50,7 @@ internal class TargetPropertyExtractor(private val logger: KSPLogger) {
                     return null
                 }
 
-            val ksType = param.type.resolve()
+            val ksType = param.type.resolve().unwrapTypeAliases()
             val decl = ksType.declaration as? KSClassDeclaration ?: run {
                 logger.unsupportedTypeInConstructor(
                     typeName = targetTypeName,

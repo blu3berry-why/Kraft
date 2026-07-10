@@ -32,7 +32,9 @@ fun KSAnnotation.getKClassArgOrNull(
         return null
     }
 
-    return type
+    // KSP2 preserves type aliases in class-literal arguments
+    // (`AliasedDto::class`); callers expect the underlying class type.
+    return type.unwrapTypeAliases()
 }
 
 /**

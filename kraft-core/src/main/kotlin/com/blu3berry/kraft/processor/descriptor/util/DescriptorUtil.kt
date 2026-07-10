@@ -6,11 +6,12 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.toTypeInfo
 import com.blu3berry.kraft.processor.util.unsupportedSourcePropertyType
+import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 
 /** Converts the declared properties of this [KSClassDeclaration] into a name-keyed map of [PropertyInfo]. */
 fun KSClassDeclaration.toPropertyInfoMap(logger: KSPLogger): Map<String, PropertyInfo> =
     getDeclaredProperties().mapNotNull { prop ->
-        val ks = prop.type.resolve()
+        val ks = prop.type.resolve().unwrapTypeAliases()
         val typeDecl = ks.declaration as? KSClassDeclaration ?: run {
             logger.unsupportedSourcePropertyType(
                 typeName = simpleName.asString(),

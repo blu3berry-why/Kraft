@@ -3,6 +3,7 @@ package com.blu3berry.kraft.model
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Nullability
+import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 
 /**
  * Wraps a KSP type reference with metadata needed for type comparison
@@ -40,17 +41,22 @@ data class TypeInfo(
 
     companion object {
 
-        /** Creates a [TypeInfo] from a resolved [KSType]. */
+        /**
+         * Creates a [TypeInfo] from a resolved [KSType], unwrapping type
+         * aliases to their underlying class first (aliases are transparent
+         * at Kotlin call sites, so mapping must see the underlying type).
+         */
         fun fromKSType(type: KSType): TypeInfo {
-            val decl = type.declaration as? KSClassDeclaration
+            val unwrapped = type.unwrapTypeAliases()
+            val decl = unwrapped.declaration as? KSClassDeclaration
                 ?: error("TypeInfo.fromKSType: expected KSClassDeclaration for $type")
 
             return TypeInfo(
                 declaration = decl,
-                ksType = type,
+                ksType = unwrapped,
                 packageName = decl.packageName.asString(),
                 simpleName = decl.simpleName.asString(),
-                isNullable = type.nullability == Nullability.NULLABLE
+                isNullable = unwrapped.nullability == Nullability.NULLABLE
             )
         }
     }
