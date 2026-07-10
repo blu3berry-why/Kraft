@@ -2,84 +2,48 @@
 
 AI coding assistants (Claude, Copilot, Cursor, etc.) tend to write manual mapping code by default. Giving them context about Kraft lets them generate proper annotation-based mappers instead.
 
+Kraft ships a ready-made agent skill so you don't have to write (or paste) that context yourself:
+
+**[`.claude/skills/kraft-mappers/SKILL.md`](https://github.com/blu3berry-why/Kraft/blob/main/.claude/skills/kraft-mappers/SKILL.md)**
+
+The skill covers:
+
+- The **decision tree** for choosing between `@MapConfig`, `@MapFrom`/`@MapTo`, `@MapEnum`, `@KraftConverter`, and `@MapUsing` (including whole-source mode for decompose / compose / constant / default patterns)
+- Reverse mapping with `@MapReverse` and converter direction inference
+- Placement and naming conventions for mapper objects and converter functions
+- **Known gotchas** with generated API-client DTOs (nested `$ref` copies, enum filename collisions, type-aliased properties) and which Kraft version fixes each
+- A common-errors table mapping processor messages to fixes
+- A pre-commit verification checklist
+
 ## Quick Setup
 
-Copy the skill block below into your project's AI configuration file:
+**Claude Code** — copy the skill file into your project so the agent auto-loads it whenever a mapper file is touched:
 
-- **Claude Code**: `CLAUDE.md` in your project root
-- **Cursor**: `.cursorrules`
-- **Other agents**: `AGENTS.md` or equivalent
+```bash
+mkdir -p .claude/skills/kraft-mappers
+curl -o .claude/skills/kraft-mappers/SKILL.md \
+  https://raw.githubusercontent.com/blu3berry-why/Kraft/main/.claude/skills/kraft-mappers/SKILL.md
+```
 
-## Kraft Agent Skill
+Alternatively, add one pointer line to your project's `CLAUDE.md`:
 
-Below is a ready-to-copy block. It gives the AI agent everything it needs to use Kraft correctly.
-
-````markdown
+```markdown
 ## Kraft Mapper Library
+This project uses Kraft (com.blu3berry.kraft), a KSP compile-time mapper generator.
+When writing or reviewing DTO ↔ domain mappers, follow .claude/skills/kraft-mappers/SKILL.md
+— use Kraft annotations, never manual mapping extension functions.
+```
 
-This project uses Kraft, a KSP-based compile-time mapper generator for Kotlin. When creating mappers between data classes, use Kraft annotations instead of writing manual mapping code.
-
-### Quick Reference
-
-| Task | Annotation | Placement |
-|------|-----------|-----------|
-| Config-based mapping | `@MapConfig(source = A::class, target = B::class)` | On object |
-| Map source to target | `@MapFrom(Source::class)` | On target class |
-| Map target from source | `@MapTo(Target::class)` | On source class |
-| Rename property (config) | `FieldMapping(source = "src", target = "tgt")` | In @MapConfig.fieldMappings |
-| Rename property (class) | `@MapField(counterPartName = "srcProp")` | On target property |
-| Nested object mapping | Auto-detected when same-named properties have differing types | No annotation needed; use `FieldMapping` / `@MapField` if renamed |
-| Ignore property (config) | `MapIgnoreField("prop")` | In @MapConfig.ignoredMappings |
-| Ignore property (class) | `@MapIgnore` | On target property (must have default) |
-| Reverse mapping | `@MapReverse` | On class with @MapFrom/@MapTo or on @MapConfig object |
-| Enum mapping | `@MapEnum(source = A::class, target = B::class)` | On config object |
-| Custom converter | `@MapUsing(source = "prop", target = "prop")` | On function in @MapConfig object |
-| Whole-source converter | `@MapUsing(target = "prop")` | On function in @MapConfig object (omit source) |
-| Converter direction | `@MapUsing(..., direction = ConverterDirection.FORWARD)` | Default is `ConverterDirection.AUTO`; set `FORWARD` / `REVERSE` only when AUTO can't disambiguate (e.g. `@MapReverse` with same-name, same-typed properties) or you need to force a direction |
-
-### Decision Rules
-
-- **Simple same-name properties**: No annotation needed -- Kraft maps them automatically.
-- **Standalone mapping config**: Use `@MapConfig` on an object. Supports field renames, nested mappings, ignore rules, converters, and reverse mapping.
-- **Different property names**: Use `FieldMapping` in `@MapConfig`, or `@MapField` on the class.
-- **Nested objects**: Auto-detected when source and target have same-named properties with different types. Use `FieldMapping` or `@MapField` if the property is renamed.
-- **Complex transformations**: Use `@MapUsing` inside a `@MapConfig` object. Omit the `source` parameter to receive the whole source object — this whole-source mode covers four common patterns:
-    - **Decompose** one source field into N target fields (e.g. `Money` → `minorUnits + currency`): one whole-source `@MapUsing(target = "...")` per target field.
-    - **Compose** N source fields into one target field (e.g. `minorUnits + currency` → `Money`): one whole-source `@MapUsing` whose body reads both source fields.
-    - **Constant injection** for target fields with no source counterpart (e.g. `currency = "HUF"`): a whole-source function whose body ignores the receiver and returns the constant.
-    - **Nullable → non-null default** (e.g. `packSize: Int? → Int`): a whole-source function that returns `field ?: default`.
-- **Need both directions**: Add `@MapReverse` to generate the inverse mapper. Kraft auto-detects converter direction by matching the `@MapUsing` parameter type against each direction's source property type. Set `direction = ConverterDirection.FORWARD/REVERSE` only when that type-based inference is ambiguous (e.g. both directions have the same parameter type) or you need to force a direction explicitly.
-- **Enum-to-enum**: Use `@MapEnum` with auto-matching or explicit `fieldMappings`.
-- **Class-level annotations**: Use `@MapFrom` on the target class or `@MapTo` on the source class when you prefer annotating the data classes directly.
-
-### Anti-Patterns
-
-- Do NOT write manual mapping extension functions -- use Kraft annotations.
-- Do NOT use `@MapFrom` and `@MapTo` on the same class (compile-time error).
-- Do NOT forget default values on `@MapIgnore` properties (compile-time error).
-- Do NOT use `@MapNested` in new code — it is deprecated; rely on auto-detection or use `@MapField` / `FieldMapping` for renamed nested pairs.
-
-### Generated Code Location
-
-Generated extension functions appear in:
-- KMP: `build/generated/ksp/metadata/commonMain/kotlin/`
-- JVM: `build/generated/ksp/main/kotlin/`
-
-### Imports
-
-Annotations are in two packages:
-- `com.blu3berry.kraft.mapping.*` -- @MapFrom, @MapTo, @MapField, @MapIgnore (and the deprecated @MapNested -- avoid in new code)
-- `com.blu3berry.kraft.config.*` -- @MapConfig, @MapEnum, @MapUsing, @MapReverse, FieldMapping, MapIgnoreField, IgnoreSide, ConverterDirection
-````
+**Cursor / Copilot / other agents** — these read a single instructions file instead of a skill directory. Paste the skill file's content into `.cursorrules`, `AGENTS.md`, or your agent's equivalent. The skill is plain Markdown; no Claude-specific syntax beyond the frontmatter block, which you can drop.
 
 ## How It Works
 
-When you add this to your project's AI config:
+With the skill in place:
 
 1. The agent knows Kraft exists and what it does.
 2. When asked to "create a mapper" or "map X to Y", it uses annotations instead of manual code.
-3. It knows the decision rules for choosing the right annotation.
-4. It avoids common mistakes (missing defaults, duplicate annotations, manual extension functions).
+3. It follows the decision tree for choosing the right annotation.
+4. It avoids common mistakes (missing defaults on `@MapIgnore`, `@MapFrom` + `@MapTo` on the same class, manual extension functions) and recognizes processor errors from the common-errors table.
 
 ## Example Interaction
 
@@ -210,7 +174,7 @@ Kraft auto-matches most same-named properties, handles nested objects and collec
 
 ## Customizing the Skill
 
-You can extend the skill block with project-specific conventions:
+The skill file is yours once copied — extend it with project-specific conventions:
 
 - **Preferred mapping style**: State whether your project prefers `@MapFrom`/`@MapTo` on classes or `@MapConfig` on standalone objects.
 - **Naming conventions**: Specify naming patterns for config objects (e.g. `XToYMapper`, `XMappingConfig`).
