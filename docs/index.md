@@ -4,7 +4,8 @@ title: Kraft
 
 # ![Kraft — mappers you write, generated. Compile-time KSP, no reflection, no runtime cost, Kotlin Multiplatform.](assets/kraft-banner.png)
 
-[![GitHub Release](https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/blu3berry-why/Kraft/releases/latest&query=tag_name&label=release&color=blue)](https://github.com/blu3berry-why/Kraft/releases/latest)
+[![Maven Central](https://img.shields.io/maven-central/v/com.blu3berry.kraft/kraft-annotations.svg?label=Maven%20Central)](https://central.sonatype.com/namespace/com.blu3berry.kraft)
+[![GitHub Release](https://img.shields.io/github/v/release/blu3berry-why/Kraft?label=release&color=blue)](https://github.com/blu3berry-why/Kraft/releases/latest)
 
 Every Kotlin codebase has that file. Forty lines of `id = id, name = name, email = email` that nobody wanted to write and nobody wants to review. Kraft deletes it:
 

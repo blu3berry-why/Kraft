@@ -76,7 +76,7 @@ Tests use [kotlin-compile-testing](https://github.com/ZacSweers/kotlin-compile-t
 - `compile(vararg sources, kspOptions)` — compiles sources with KSP and returns the compilation result
 - `compileAndReturnGenerated(vararg sources, kspOptions)` — compiles and returns only the generated `.kt` files
 
-Before writing a new fixture, check [KSP Compile-Testing Gotchas](docs/developer-guide/ksp-compile-testing-gotchas.md) — notably: select generated files by name (never `generated.first()`, its order is filesystem-dependent), and give converter-declaring fixtures a `package` line.
+Before writing a new fixture, check [Testing the Processor](docs/developer-guide/ksp-compile-testing-gotchas.md) — notably: select generated files by name (never `generated.first()`, its order is filesystem-dependent), and give converter-declaring fixtures a `package` line.
 
 ### Writing a Happy-Path Test
 

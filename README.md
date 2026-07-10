@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://central.sonatype.com/namespace/com.blu3berry.kraft"><img src="https://img.shields.io/maven-central/v/com.blu3berry.kraft/kraft-annotations.svg?label=Maven%20Central" alt="Maven Central"></a>
-  <a href="https://github.com/blu3berry-why/Kraft/releases/latest"><img src="https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/blu3berry-why/Kraft/releases/latest&query=tag_name&label=release&color=blue" alt="GitHub Release"></a>
+  <a href="https://github.com/blu3berry-why/Kraft/releases/latest"><img src="https://img.shields.io/github/v/release/blu3berry-why/Kraft?label=release&color=blue" alt="GitHub Release"></a>
   <a href="https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml"><img src="https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml/badge.svg" alt="Test"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
   <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.2%2B-7F52FF.svg" alt="Kotlin"></a>

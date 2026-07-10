@@ -1,4 +1,4 @@
-# KSP Compile-Testing Gotchas
+# Testing the Processor
 
 Traps that bite when authoring `TestKspRunner`-based tests in `kraft-ksp/src/jvmTest`. Both were hit in PR #74's CI run; check here before writing a new fixture.
 
