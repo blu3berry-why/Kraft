@@ -32,32 +32,32 @@
     color: var(--text);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 56px;
-    padding: 0 72px 0 80px;
+    justify-content: center;
     position: relative;
     overflow: hidden;
   }
-  /* purple glow, top-left cast */
+  /* purple glow, top cast */
   body::before {
     content: "";
     position: absolute;
-    top: -320px; left: -120px;
-    width: 1000px; height: 640px;
+    top: -360px; left: 50%;
+    transform: translateX(-50%);
+    width: 1400px; height: 700px;
     background: radial-gradient(ellipse at center, rgba(127, 82, 255, 0.18), transparent 65%);
     pointer-events: none;
   }
-  /* faint orange counter-glow bottom-right */
+  /* faint orange counter-glow bottom */
   body::after {
     content: "";
     position: absolute;
-    bottom: -340px; right: -160px;
-    width: 900px; height: 620px;
+    bottom: -380px; left: 50%;
+    transform: translateX(-50%);
+    width: 1100px; height: 620px;
     background: radial-gradient(ellipse at center, rgba(251, 145, 68, 0.08), transparent 65%);
     pointer-events: none;
   }
 
-  .brand { position: relative; flex: none; width: 500px; }
+  .brand { position: relative; text-align: center; }
   .wordmark {
     font-family: 'Archivo Black', sans-serif;
     text-transform: uppercase;
@@ -68,11 +68,10 @@
   }
   .wordmark .a { color: var(--orange); }
   .tagline {
-    margin-top: 20px;
-    font-size: 23px;
+    margin-top: 22px;
+    font-size: 25px;
     line-height: 1.5;
     color: var(--muted);
-    max-width: 500px;
   }
   .tagline b { color: var(--text); font-weight: 500; }
   .tagline .strike { color: var(--diff-red); position: relative; white-space: nowrap; }
@@ -141,23 +140,6 @@
   <div class="brand">
     <div class="wordmark">Kr<span class="a">a</span>ft</div>
     <div class="tagline">Mappers you <span class="strike">write</span> generate.<br>Compile-time KSP · <b>no reflection, no runtime cost</b> · Kotlin&nbsp;Multiplatform</div>
-  </div>
-
-  <div class="editor">
-    <div class="editor-bar">
-      <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-      <div class="filename">UserMappers.kt</div>
-      <div class="diffstat"><span class="minus">−38</span>&nbsp;&nbsp;<span class="plus">+3</span></div>
-    </div>
-    <div class="code">
-      <div class="line del"><span class="gutter">−</span><span class="src">fun User.toUserDto(): UserDto = UserDto(</span></div>
-      <div class="line del"><span class="gutter">−</span><span class="src ellipsis">    … 37 more lines of copy-paste</span></div>
-      <div class="gap"></div>
-      <div class="line add"><span class="gutter">+</span><span><span class="ann">@MapConfig</span>(source = User::<span class="kw">class</span>,</span></div>
-      <div class="line add"><span class="gutter">+</span><span>           target = UserDto::<span class="kw">class</span>)</span></div>
-      <div class="line add"><span class="gutter">+</span><span><span class="ann">@MapReverse</span></span></div>
-      <div class="line add"><span class="gutter">+</span><span><span class="kw">object</span> UserMapper</span></div>
-    </div>
   </div>
 
 </body>
