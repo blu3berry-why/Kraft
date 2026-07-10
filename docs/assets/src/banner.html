@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Kraft README banner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;0,800;1,400&family=Archivo+Black&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #141120;
+    --panel: #1b1730;
+    --panel-border: #2c2547;
+    --chrome: #221d3b;
+    --text: #ece9f7;
+    --muted: #8f89ab;
+    --faint: #5e5880;
+    --diff-red: #f07189;
+    --diff-red-bg: rgba(240, 113, 137, 0.07);
+    --diff-green: #7ce38b;
+    --diff-green-bg: rgba(124, 227, 139, 0.08);
+    --kw: #b39aff;
+    --ann: #ffc66d;
+    --fn: #82d2ce;
+    --orange: #fb9144;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1280px; height: 320px; }
+  body {
+    background: var(--bg);
+    font-family: "JetBrains Mono", monospace;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  /* purple glow, top cast */
+  body::before {
+    content: "";
+    position: absolute;
+    top: -360px; left: 50%;
+    transform: translateX(-50%);
+    width: 1400px; height: 700px;
+    background: radial-gradient(ellipse at center, rgba(127, 82, 255, 0.18), transparent 65%);
+    pointer-events: none;
+  }
+  /* faint orange counter-glow bottom */
+  body::after {
+    content: "";
+    position: absolute;
+    bottom: -380px; left: 50%;
+    transform: translateX(-50%);
+    width: 1100px; height: 620px;
+    background: radial-gradient(ellipse at center, rgba(251, 145, 68, 0.08), transparent 65%);
+    pointer-events: none;
+  }
+
+  .brand { position: relative; text-align: center; }
+  .wordmark {
+    font-family: 'Archivo Black', sans-serif;
+    text-transform: uppercase;
+    font-size: 148px;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    color: var(--text);
+  }
+  .wordmark .a { color: var(--orange); }
+  .tagline {
+    margin-top: 26px;
+    font-size: 27px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+  .tagline b { color: var(--text); font-weight: 500; }
+  .tagline .strike { color: var(--diff-red); position: relative; white-space: nowrap; }
+  .tagline .strike::after {
+    content: "";
+    position: absolute;
+    left: -4px; right: -4px; top: 52%;
+    height: 3px;
+    background: rgba(240, 113, 137, 0.85);
+    border-radius: 2px;
+  }
+
+  .editor {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    flex: none;
+  }
+  .editor-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 20px;
+    background: var(--chrome);
+    border-bottom: 1px solid var(--panel-border);
+    font-size: 15px;
+    color: var(--muted);
+  }
+  .dots { display: flex; gap: 7px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: #443c66; }
+  .filename { font-weight: 500; }
+  .diffstat { margin-left: auto; padding-left: 28px; font-size: 15px; }
+  .diffstat .minus { color: var(--diff-red); font-weight: 700; }
+  .diffstat .plus { color: var(--diff-green); font-weight: 700; }
+
+  .code {
+    font-size: 18.5px;
+    line-height: 1.6;
+    padding: 14px 0 16px;
+  }
+  .line {
+    padding: 0 22px 0 16px;
+    white-space: pre;
+    display: flex;
+  }
+  .gutter { width: 26px; flex: none; color: var(--faint); }
+  .del { background: var(--diff-red-bg); }
+  .del .gutter { color: var(--diff-red); }
+  .del .src { color: rgba(240, 113, 137, 0.62); }
+  .add { background: var(--diff-green-bg); }
+  .add .gutter { color: var(--diff-green); }
+  .ellipsis { color: var(--faint); font-style: italic; }
+  .gap { height: 10px; }
+
+  .kw { color: var(--kw); font-weight: 500; }
+  .ann { color: var(--ann); }
+  .fn { color: var(--fn); }
+  .cmt { color: var(--faint); font-style: italic; }
+</style>
+</head>
+<body>
+
+  <div class="brand">
+    <div class="wordmark">Kr<span class="a">a</span>ft</div>
+    <div class="tagline">Mappers you <span class="strike">write</span> generate.</div>
+  </div>
+
+</body>
+</html>
