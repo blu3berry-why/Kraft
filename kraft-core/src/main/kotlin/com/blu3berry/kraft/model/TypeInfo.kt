@@ -2,6 +2,7 @@ package com.blu3berry.kraft.model
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.Nullability
 import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 
@@ -49,7 +50,16 @@ data class TypeInfo(
         fun fromKSType(type: KSType): TypeInfo {
             val unwrapped = type.unwrapTypeAliases()
             val decl = unwrapped.declaration as? KSClassDeclaration
-                ?: error("TypeInfo.fromKSType: expected KSClassDeclaration for $type")
+                ?: error(
+                    if (unwrapped.declaration is KSTypeAlias) {
+                        "Kraft cannot map '$type': parameterized type aliases " +
+                            "(typealias X<T> = ...) are not supported. Declare the " +
+                            "property with the underlying type, or use a non-generic alias."
+                    } else {
+                        "Kraft cannot map '$type': only class-backed types are " +
+                            "supported here (found ${unwrapped.declaration::class.simpleName})."
+                    }
+                )
 
             return TypeInfo(
                 declaration = decl,
