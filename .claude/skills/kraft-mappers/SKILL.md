@@ -172,6 +172,12 @@ Pre-fix behavior: Kraft derived the generated mapper's filename from `<sourceSim
 
 **Post-fix:** filenames become `AuthMe200Response_Role_To_UserRole_EnumMapper.kt` and `AuthResponse_User_Role_To_UserRole_EnumMapper.kt` — distinct paths, no workaround needed. Top-level types keep their short filenames (backward compatible).
 
+### K3 — Type-aliased property types *(fixed in Kraft 0.10.1)*
+
+**Status:** Fixed in Kraft 0.10.1 (PR #74). On older Kraft, any DTO property declared through a `typealias` (common in generated API clients that attach serializers via annotated aliases, e.g. kmpgen ≥1.5.0's date-time fields) crashes the processor with `expected KSClassDeclaration for [typealias ...]` — or silently skips properties, converters, and enum derivations on scanner paths.
+
+**Fix:** upgrade Kraft to ≥0.10.1 — aliases resolve to their underlying type everywhere (property types, converter signatures, `Alias::class` annotation arguments, collection elements), with use-site nullability preserved. **Remaining limitation:** parameterized aliases (`typealias X<T> = ...`) are unsupported; Kraft reports a clear error — declare the property with the underlying type.
+
 ### Don't run mappers on JVM-only paths in `commonMain`
 
 Kraft itself is multiplatform-friendly, but a `@KraftConverter` whose body touches JVM types will compile in `commonMain` only via expect/actual or platform-specific source sets. Keep converter bodies KMP-pure (`Uuid.parse`, `Uuid.toString`, `Instant.parse`, etc.).

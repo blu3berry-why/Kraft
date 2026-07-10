@@ -62,3 +62,4 @@ nav:
   - Developer Guide:
       - Architecture: developer-guide/architecture.md
       - Custom Code Generator: developer-guide/custom-code-generator.md
+      - KSP Compile-Testing Gotchas: developer-guide/ksp-compile-testing-gotchas.md
