@@ -2,7 +2,7 @@
 [![GitHub Release](https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/blu3berry-why/Kraft/releases/latest&query=tag_name&label=release&color=blue)](https://github.com/blu3berry-why/Kraft/releases/latest)
 [![Test](https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml/badge.svg)](https://github.com/blu3berry-why/Kraft/actions/workflows/test.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0%2B-7F52FF.svg)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.2%2B-7F52FF.svg)](https://kotlinlang.org)
 
 # Kraft
 
