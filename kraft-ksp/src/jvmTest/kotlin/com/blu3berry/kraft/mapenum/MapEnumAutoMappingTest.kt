@@ -24,7 +24,7 @@ class MapEnumAutoMappingTest {
         )
 
         val content = TestKspRunner.compileAndReturnGenerated(source)
-            .first().readText()
+            .first { "EnumMapper" in it.name }.readText()
 
         assertThat(content).contains("fun Status.toStatusDto()")
         assertThat(content).contains("Status.ACTIVE -> StatusDto.ACTIVE")

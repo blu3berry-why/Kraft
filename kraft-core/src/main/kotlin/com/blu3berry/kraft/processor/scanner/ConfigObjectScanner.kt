@@ -29,6 +29,7 @@ import com.blu3berry.kraft.processor.util.getArrayArgOrNull
 import com.blu3berry.kraft.processor.util.getEnumArgOrNull
 import com.blu3berry.kraft.processor.util.getKClassArgOrNull
 import com.blu3berry.kraft.processor.util.getStringArgOrNull
+import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 
 /**
  * Scans for configuration objects annotated with @MapConfig and extracts mapping information.
@@ -395,11 +396,13 @@ class ConfigObjectScanner(
     ): ConverterDirection {
         if (parsed.direction != ConverterDirection.AUTO) return parsed.direction
 
-        val paramType = if (fn.extensionReceiver != null) {
-            fn.extensionReceiver!!.resolve()
-        } else {
-            fn.parameters.firstOrNull()?.type?.resolve()
-        } ?: return ConverterDirection.FORWARD
+        val paramType = (
+            if (fn.extensionReceiver != null) {
+                fn.extensionReceiver!!.resolve()
+            } else {
+                fn.parameters.firstOrNull()?.type?.resolve()
+            } ?: return ConverterDirection.FORWARD
+            ).unwrapTypeAliases()
 
         if (parsed.isWholeSource) {
             val matchesForward = paramType.declaration.qualifiedName?.asString() ==
@@ -731,7 +734,7 @@ class ConfigObjectScanner(
             fn.extensionReceiver!!.resolve()
         } else {
             fn.parameters.first().type.resolve()
-        }
+        }.unwrapTypeAliases()
     }
 
     /**
@@ -746,7 +749,7 @@ class ConfigObjectScanner(
             )
             return null
         }
-        return returnType
+        return returnType.unwrapTypeAliases()
     }
 
     /**
@@ -805,7 +808,9 @@ class ConfigObjectScanner(
      * Checks whether two [KSType]s are structurally identical: same qualified name,
      * same nullability, and matching type arguments (recursively for generic types like [List]).
      */
-    private fun typesMatch(a: KSType, b: KSType): Boolean {
+    private fun typesMatch(rawA: KSType, rawB: KSType): Boolean {
+        val a = rawA.unwrapTypeAliases()
+        val b = rawB.unwrapTypeAliases()
         if (a.declaration.qualifiedName?.asString() != b.declaration.qualifiedName?.asString()) return false
         if (a.nullability != b.nullability) return false
         if (a.arguments.size != b.arguments.size) return false

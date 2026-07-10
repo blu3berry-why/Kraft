@@ -29,7 +29,7 @@ class MapEnumCustomMappingTest {
         )
 
         val content = TestKspRunner.compileAndReturnGenerated(source)
-            .first().readText()
+            .first { "EnumMapper" in it.name }.readText()
 
         assertThat(content).contains("fun OrderState.toOrderStatus()")
         assertThat(content).contains("OrderState.PENDING -> OrderStatus.IN_PROGRESS")

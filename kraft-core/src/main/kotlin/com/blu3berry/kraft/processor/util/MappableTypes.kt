@@ -46,7 +46,7 @@ fun collectionKindOf(type: TypeInfo): CollectionKind? =
  */
 fun elementTypeInfo(type: TypeInfo): TypeInfo? {
     val arg = type.ksType.arguments.firstOrNull() ?: return null
-    val argType = arg.type?.resolve() ?: return null
+    val argType = arg.type?.resolve()?.unwrapTypeAliases() ?: return null
     if (argType.declaration !is KSClassDeclaration) return null
     return TypeInfo.fromKSType(argType)
 }

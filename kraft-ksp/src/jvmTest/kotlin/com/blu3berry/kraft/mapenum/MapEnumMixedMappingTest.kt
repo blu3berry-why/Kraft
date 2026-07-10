@@ -30,7 +30,7 @@ class MapEnumMixedMappingTest {
         )
 
         val content = TestKspRunner.compileAndReturnGenerated(source)
-            .first().readText()
+            .first { "EnumMapper" in it.name }.readText()
 
         assertThat(content).contains("fun PaymentState.toPaymentStatus()")
         assertThat(content).contains("PaymentState.PAID -> PaymentStatus.PAID")

@@ -2,7 +2,9 @@ package com.blu3berry.kraft.model
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.Nullability
+import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 
 /**
  * Wraps a KSP type reference with metadata needed for type comparison
@@ -40,17 +42,31 @@ data class TypeInfo(
 
     companion object {
 
-        /** Creates a [TypeInfo] from a resolved [KSType]. */
+        /**
+         * Creates a [TypeInfo] from a resolved [KSType], unwrapping type
+         * aliases to their underlying class first (aliases are transparent
+         * at Kotlin call sites, so mapping must see the underlying type).
+         */
         fun fromKSType(type: KSType): TypeInfo {
-            val decl = type.declaration as? KSClassDeclaration
-                ?: error("TypeInfo.fromKSType: expected KSClassDeclaration for $type")
+            val unwrapped = type.unwrapTypeAliases()
+            val decl = unwrapped.declaration as? KSClassDeclaration
+                ?: error(
+                    if (unwrapped.declaration is KSTypeAlias) {
+                        "Kraft cannot map '$type': parameterized type aliases " +
+                            "(typealias X<T> = ...) are not supported. Declare the " +
+                            "property with the underlying type, or use a non-generic alias."
+                    } else {
+                        "Kraft cannot map '$type': only class-backed types are " +
+                            "supported here (found ${unwrapped.declaration::class.simpleName})."
+                    }
+                )
 
             return TypeInfo(
                 declaration = decl,
-                ksType = type,
+                ksType = unwrapped,
                 packageName = decl.packageName.asString(),
                 simpleName = decl.simpleName.asString(),
-                isNullable = type.nullability == Nullability.NULLABLE
+                isNullable = unwrapped.nullability == Nullability.NULLABLE
             )
         }
     }

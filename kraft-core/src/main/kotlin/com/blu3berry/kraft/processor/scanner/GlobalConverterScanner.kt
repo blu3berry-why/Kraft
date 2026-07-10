@@ -3,15 +3,13 @@ package com.blu3berry.kraft.processor.scanner
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.FunctionKind
-import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
-import com.google.devtools.ksp.symbol.KSType
-import com.google.devtools.ksp.symbol.Nullability
 import com.google.devtools.ksp.validate
 import com.blu3berry.kraft.model.scan.ConverterEntry
 import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.util.KraftKspConstants
+import com.blu3berry.kraft.processor.util.buildConverterTypeKey
 
 /**
  * Scans for top-level extension functions annotated with
@@ -69,7 +67,7 @@ class GlobalConverterScanner(
             return
         }
 
-        val key = buildKey(receiverType, returnType) ?: return
+        val key = buildConverterTypeKey(receiverType, returnType) ?: return
 
         val existing = entries[key]
         if (existing != null) {
@@ -134,28 +132,6 @@ class GlobalConverterScanner(
             return false
         }
         return true
-    }
-
-    private fun buildKey(sourceType: KSType, targetType: KSType): ConverterTypeKey? {
-        val (sFq, sNull) = sourceType.fqAndNullable() ?: return null
-        val (tFq, tNull) = targetType.fqAndNullable() ?: return null
-        return ConverterTypeKey(sFq, sNull, tFq, tNull)
-    }
-
-    /**
-     * Returns the qualified name + nullability flag for [this], or `null` when the
-     * type cannot be represented as a converter key (anonymous declaration, missing
-     * FQN, or PLATFORM-typed — the last must not silently alias into a NOT_NULL key).
-     */
-    private fun KSType.fqAndNullable(): Pair<String, Boolean>? {
-        val decl = declaration as? KSClassDeclaration ?: return null
-        val fq = decl.qualifiedName?.asString() ?: return null
-        val nullable = when (nullability) {
-            Nullability.NULLABLE -> true
-            Nullability.NOT_NULL -> false
-            Nullability.PLATFORM -> return null
-        }
-        return fq to nullable
     }
 
     private fun nullSuffix(nullable: Boolean) = if (nullable) "?" else ""
