@@ -18,9 +18,9 @@ How `Set<T>` collection mapping actually landed — the template for most "suppo
 
 ```mermaid
 flowchart LR
-    T["jvmTest fixture<br/>Set&lt;OrderDto&gt; → Set&lt;Order&gt;"] --> N["NestedRule<br/>detect the collection"]
-    N --> CK["CollectionKind<br/>add SET variant"]
-    CK --> CB["CtorCallBuilder<br/>emit .map { it.toX() }.toSet()"]
+    T["<span style='color:#141120'>jvmTest fixture<br/>Set&lt;OrderDto&gt; → Set&lt;Order&gt;</span>"] --> N["<span style='color:#f4f0e6'>NestedRule<br/>detect the collection</span>"]
+    N --> CK["<span style='color:#f4f0e6'>CollectionKind<br/>add SET variant</span>"]
+    CK --> CB["<span style='color:#f4f0e6'>CtorCallBuilder<br/>emit .map { it.toX() }.toSet()</span>"]
 
     classDef anno fill:#fec14e,stroke:#141120,color:#141120
     classDef scan fill:#4f5f83,stroke:#141120,color:#ffffff

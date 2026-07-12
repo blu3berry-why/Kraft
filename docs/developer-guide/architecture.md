@@ -6,11 +6,11 @@ Kraft is a KSP processor with one mental model: **annotations in, extension func
 
 ```mermaid
 flowchart LR
-    A["Your annotated classes<br/>@MapFrom · @MapTo<br/>@MapConfig · @MapEnum"] --> S[Scanners]
-    S --> D[DescriptorBuilder]
-    D --> IR(["MapperDescriptor<br/>(central IR)"])
-    IR --> G[MapperGenerator]
-    G --> OUT["Generated .kt files<br/>(extension functions)"]
+    A["<span style='color:#141120'>Your annotated classes<br/>@MapFrom · @MapTo<br/>@MapConfig · @MapEnum</span>"] --> S["<span style='color:#f4f0e6'>Scanners</span>"]
+    S --> D["<span style='color:#f4f0e6'>DescriptorBuilder</span>"]
+    D --> IR(["<span style='color:#141120'>MapperDescriptor<br/>(central IR)</span>"])
+    IR --> G["<span style='color:#141120'>MapperGenerator</span>"]
+    G --> OUT["<span style='color:#141120'>Generated .kt files<br/>(extension functions)</span>"]
 
     classDef anno fill:#fec14e,stroke:#141120,color:#141120
     classDef scan fill:#4f5f83,stroke:#141120,color:#ffffff
@@ -50,10 +50,10 @@ Where to look when you have a task:
 
 ```mermaid
 flowchart BT
-    anno["kraft-annotations<br/>KMP: JVM · iOS · JS · WasmJs"]
-    core["kraft-core<br/>JVM"]
-    ksp["kraft-ksp<br/>JVM"]
-    sample["composeApp<br/>(sample, not published)"]
+    anno["<span style='color:#141120'>kraft-annotations<br/>KMP: JVM · iOS · JS · WasmJs</span>"]
+    core["<span style='color:#f4f0e6'>kraft-core<br/>JVM</span>"]
+    ksp["<span style='color:#141120'>kraft-ksp<br/>JVM</span>"]
+    sample["<span style='color:#141120'>composeApp<br/>(sample, not published)</span>"]
 
     core -->|api| anno
     ksp -->|implementation| core
@@ -103,9 +103,9 @@ Scanners read KSP symbols and produce raw scan results — no resolution logic y
 
 ```mermaid
 flowchart LR
-    K["KSP symbols<br/>(resolver)"] --> SC["Six scanners"]
-    SC --> R["Scan results<br/>(model/scan/)"]
-    R --> DB[DescriptorBuilder]
+    K["<span style='color:#141120'>KSP symbols<br/>(resolver)</span>"] --> SC["<span style='color:#f4f0e6'>Six scanners</span>"]
+    SC --> R["<span style='color:#f4f0e6'>Scan results<br/>(model/scan/)</span>"]
+    R --> DB["<span style='color:#141120'>DescriptorBuilder</span>"]
 
     classDef anno fill:#fec14e,stroke:#141120,color:#141120
     classDef scan fill:#4f5f83,stroke:#141120,color:#ffffff
@@ -137,14 +137,14 @@ For every target property, `PropertyResolver` walks this chain top to bottom. **
 
 ```mermaid
 flowchart TD
-    R1["1 · ConverterRule<br/>@MapUsing targets this property"]
-    R2["2 · IgnoreRule<br/>@MapIgnore / @MapIgnoreField"]
-    R3["3 · NestedRule<br/>nested mappable object or collection"]
-    R4["4 · GlobalConverterRule<br/>@KraftConverter matches the type pair"]
-    R5["5 · ClassOverrideRule<br/>@MapField rename"]
-    R6["6 · ConfigOverrideRule<br/>@FieldMapping rename"]
-    R7["7 · DirectMatchRule<br/>same name, same type"]
-    R8["8 · RequiredFieldErrorRule<br/>compile-time error"]
+    R1["<span style='color:#f4f0e6'>1 · ConverterRule<br/>@MapUsing targets this property</span>"]
+    R2["<span style='color:#f4f0e6'>2 · IgnoreRule<br/>@MapIgnore / @MapIgnoreField</span>"]
+    R3["<span style='color:#f4f0e6'>3 · NestedRule<br/>nested mappable object or collection</span>"]
+    R4["<span style='color:#f4f0e6'>4 · GlobalConverterRule<br/>@KraftConverter matches the type pair</span>"]
+    R5["<span style='color:#f4f0e6'>5 · ClassOverrideRule<br/>@MapField rename</span>"]
+    R6["<span style='color:#f4f0e6'>6 · ConfigOverrideRule<br/>@FieldMapping rename</span>"]
+    R7["<span style='color:#f4f0e6'>7 · DirectMatchRule<br/>same name, same type</span>"]
+    R8["<span style='color:#f4f0e6'>8 · RequiredFieldErrorRule<br/>compile-time error</span>"]
 
     R1 -->|miss| R2 -->|miss| R3 -->|miss| R4 -->|miss| R5 -->|miss| R6 -->|miss| R7 -->|miss| R8
 
@@ -167,9 +167,9 @@ When a descriptor references a nested type pair with no explicit mapper, `Descri
 
 ```mermaid
 flowchart TD
-    O["OrderDto → Order<br/>(explicit @MapFrom)"]
-    A["AddressDto → Address<br/>(synthesized)"]
-    C["CityDto → City<br/>(synthesized)"]
+    O["<span style='color:#141120'>OrderDto → Order<br/>(explicit @MapFrom)</span>"]
+    A["<span style='color:#141120'>AddressDto → Address<br/>(synthesized)</span>"]
+    C["<span style='color:#141120'>CityDto → City<br/>(synthesized)</span>"]
 
     O -->|"address: AddressDto"| A
     A -->|"city: CityDto"| C
@@ -196,9 +196,9 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    P[AutoMapperProcessor] --> Q{"ServiceLoader finds a<br/>MapperGeneratorProvider?"}
-    Q -->|yes| CG["Your custom generator"]
-    Q -->|no| BG["Built-in<br/>ExtensionMapperGenerator"]
+    P["<span style='color:#f4f0e6'>AutoMapperProcessor</span>"] --> Q{"<span style='color:#f4f0e6'>ServiceLoader finds a<br/>MapperGeneratorProvider?</span>"}
+    Q -->|yes| CG["<span style='color:#141120'>Your custom generator</span>"]
+    Q -->|no| BG["<span style='color:#141120'>Built-in<br/>ExtensionMapperGenerator</span>"]
 
     classDef scan fill:#4f5f83,stroke:#141120,color:#ffffff
     classDef gen fill:#f07189,stroke:#141120,color:#141120
