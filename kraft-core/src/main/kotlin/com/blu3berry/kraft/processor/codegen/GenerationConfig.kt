@@ -1,5 +1,6 @@
 package com.blu3berry.kraft.processor.codegen
 
+import com.blu3berry.kraft.ExperimentalKraftApi
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
 import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 
@@ -8,6 +9,7 @@ import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
  *
  * @param functionNameTemplate template string where `${source}` and `${target}` are replaced with the respective type simple names.
  */
+@ExperimentalKraftApi
 data class GenerationConfig(
     val functionNameTemplate: String = "to\${target}"
 ) {
