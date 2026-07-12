@@ -63,8 +63,10 @@ classDiagram
         +create(env) EnumMapperGeneratorSpi
     }
     class EnumMapperGeneratorSpi {
-        <<fun interface>>
+        <<interface>>
         +generate(descriptors, codeGenerator)
+        +generatedPackage(descriptor) String
+        +generatedFunctionName(descriptor) String
     }
 
     MapperGeneratorProvider --> GeneratorEnvironment : receives
@@ -94,6 +96,7 @@ classDiagram
         +nestedMappings: List
         +enumMappings: List
         +converters: List
+        +aliasEmitMode: AliasEmitMode
     }
 
     class MapperId {
@@ -376,6 +379,14 @@ class MyEnumGenerator(
             // descriptor.entries — List<EnumEntryMapping> with source/target constant names
         }
     }
+
+    // Must match what generate() actually emits: the converter registry and the
+    // @KraftConverterDelegate trampolines use these to compute call coordinates.
+    override fun generatedPackage(descriptor: EnumMappingDescriptor): String =
+        "${descriptor.sourceType.packageName}.generated"
+
+    override fun generatedFunctionName(descriptor: EnumMappingDescriptor): String =
+        config.functionNameFor(descriptor.sourceType.simpleName, descriptor.targetType.simpleName)
 }
 ```
 
