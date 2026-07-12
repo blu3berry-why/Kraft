@@ -15,6 +15,7 @@ ksp = "2.3.3"
 kotlinpoet = "1.15.3"
 sonarqube = "6.1.0.5360"
 detekt = "1.23.8"
+kover = "0.9.8"
 
 # Testing
 kotlin-compile-testing = "0.11.1"
@@ -54,4 +55,5 @@ jetbrainsKotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 kraft-publish = { id = "kraft-publish" }

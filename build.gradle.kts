@@ -10,6 +10,23 @@ plugins {
     alias(libs.plugins.android.kotlin.multiplatform.library) apply false
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.sonarqube)
+    alias(libs.plugins.kover)
+}
+
+// Aggregate coverage from the library modules into the root Kover report;
+// kraft-ksp's jvmTest exercises kraft-core, so both count toward coverage.
+dependencies {
+    kover(project(":kraft-core"))
+    kover(project(":kraft-ksp"))
+}
+
+sonar {
+    properties {
+        property(
+            "sonar.coverage.jacoco.xmlReportPaths",
+            layout.buildDirectory.file("reports/kover/report.xml").get().asFile.path,
+        )
+    }
 }
 
 subprojects {
