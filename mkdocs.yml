@@ -67,5 +67,6 @@ nav:
       - API-First Client Design: user-guide/api-first-client-design.md
   - Developer Guide:
       - Architecture: developer-guide/architecture.md
+      - Contributing: developer-guide/contributing.md
       - Custom Code Generator: developer-guide/custom-code-generator.md
       - Testing the Processor: developer-guide/ksp-compile-testing-gotchas.md
