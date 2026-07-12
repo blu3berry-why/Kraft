@@ -4,6 +4,31 @@ Kraft's code generation phase is pluggable via a **ServiceLoader-based SPI**. In
 
 ---
 
+## The SPI is experimental — opt in first
+
+Every SPI type on this page (`MapperGenerator`, `MapperGeneratorProvider`, `GeneratorEnvironment`, `GenerationConfig`, `EnumMapperGeneratorSpi`, `EnumMapperGeneratorProvider`) is marked `@ExperimentalKraftApi`. The contract: **these types are excluded from Kraft's semantic-versioning promise and may change in any release without a major version bump.** Annotation users and generated code are never affected — only code that references SPI types in source.
+
+Referencing them without opting in is a compile error. Opt in either per file:
+
+```kotlin
+@OptIn(ExperimentalKraftApi::class)
+class JsonSchemaGeneratorProvider : MapperGeneratorProvider { /* ... */ }
+```
+
+or module-wide in your generator module's build script:
+
+```kotlin
+kotlin {
+    compilerOptions {
+        optIn.add("com.blu3berry.kraft.ExperimentalKraftApi")
+    }
+}
+```
+
+The samples below assume the module-wide flag.
+
+---
+
 ## Data Structure Diagrams
 
 ### SPI Wiring
