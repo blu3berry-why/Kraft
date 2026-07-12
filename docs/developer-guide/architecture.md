@@ -218,8 +218,10 @@ The central intermediate representation. Contains:
 
 - `id: MapperId` — unique source/target qualified name pair.
 - `sourceType / targetType: TypeInfo` — source and target class info.
+- `source: MappingSource` — whether the mapping was declared by a class annotation (`@MapFrom`/`@MapTo`) or a `@MapConfig` object.
 - `propertyMappings: List<PropertyMappingStrategy>` — resolved strategy for each target property.
 - `nestedMappings: List<NestedMappingDescriptor>` — child mapper dependencies.
+- `enumMappings: List<EnumMappingDescriptor>` — enum constant correspondences for this pair.
 - `converters: List<ConverterDescriptor>` — `@MapUsing` converter functions. Each carries a `resolvedDirection` (`AUTO`, `FORWARD`, or `REVERSE`) for directional filtering when `@MapReverse` is active.
 - `aliasEmitMode: AliasEmitMode` — controls whether and how the side-alias delegate is emitted; defaults to `INHERIT`.
 
