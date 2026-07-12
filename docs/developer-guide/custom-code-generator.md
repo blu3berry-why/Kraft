@@ -116,9 +116,12 @@ classDiagram
         <<sealed>>
     }
     class ClassAnnotation {
+        +annotatedClass: KSClassDeclaration
         +direction: MappingDirection
     }
-    class ConfigObject
+    class ConfigObject {
+        +configObject: KSClassDeclaration
+    }
 
     class NestedMappingDescriptor {
         +nestedMapperId: MapperId
@@ -207,6 +210,8 @@ classDiagram
     ConverterSource <|-- Property
     ConverterSource <|-- WholeObject
 ```
+
+`Ignored` really has no fields of its own — the empty box is accurate: it carries only the inherited `targetProperty`, and the generator simply emits no constructor argument for it.
 
 ---
 
