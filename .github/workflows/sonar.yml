@@ -14,6 +14,8 @@ jobs:
         with:
           # Sonar needs full history for blame/new-code detection.
           fetch-depth: 0
+          # Nothing after checkout needs the git token; don't leave it in .git config.
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@v5
