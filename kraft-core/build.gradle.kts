@@ -7,6 +7,7 @@ kotlin {
     jvm {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+            optIn.add("com.blu3berry.kraft.ExperimentalKraftApi")
         }
     }
     jvmToolchain(17)
