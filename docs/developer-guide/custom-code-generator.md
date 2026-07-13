@@ -4,6 +4,31 @@ Kraft's code generation phase is pluggable via a **ServiceLoader-based SPI**. In
 
 ---
 
+## The SPI is experimental — opt in first
+
+Every SPI type on this page (`MapperGenerator`, `MapperGeneratorProvider`, `GeneratorEnvironment`, `GenerationConfig`, `EnumMapperGeneratorSpi`, `EnumMapperGeneratorProvider`) is marked `@ExperimentalKraftApi`. The contract: **these types are excluded from Kraft's semantic-versioning promise and may change in any release without a major version bump.** Annotation users and generated code are never affected — only code that references SPI types in source.
+
+Referencing them without opting in is a compile error. Opt in either per file:
+
+```kotlin
+@OptIn(ExperimentalKraftApi::class)
+class JsonSchemaGeneratorProvider : MapperGeneratorProvider { /* ... */ }
+```
+
+or module-wide in your generator module's build script:
+
+```kotlin
+kotlin {
+    compilerOptions {
+        optIn.add("com.blu3berry.kraft.ExperimentalKraftApi")
+    }
+}
+```
+
+The samples below assume the module-wide flag.
+
+---
+
 ## Data Structure Diagrams
 
 ### SPI Wiring
@@ -38,8 +63,10 @@ classDiagram
         +create(env) EnumMapperGeneratorSpi
     }
     class EnumMapperGeneratorSpi {
-        <<fun interface>>
+        <<interface>>
         +generate(descriptors, codeGenerator)
+        +generatedPackage(descriptor) String
+        +generatedFunctionName(descriptor) String
     }
 
     MapperGeneratorProvider --> GeneratorEnvironment : receives
@@ -69,6 +96,7 @@ classDiagram
         +nestedMappings: List
         +enumMappings: List
         +converters: List
+        +aliasEmitMode: AliasEmitMode
     }
 
     class MapperId {
@@ -91,9 +119,12 @@ classDiagram
         <<sealed>>
     }
     class ClassAnnotation {
+        +annotatedClass: KSClassDeclaration
         +direction: MappingDirection
     }
-    class ConfigObject
+    class ConfigObject {
+        +configObject: KSClassDeclaration
+    }
 
     class NestedMappingDescriptor {
         +nestedMapperId: MapperId
@@ -182,6 +213,8 @@ classDiagram
     ConverterSource <|-- Property
     ConverterSource <|-- WholeObject
 ```
+
+`Ignored` really has no fields of its own — the empty box is accurate: it carries only the inherited `targetProperty`, and the generator simply emits no constructor argument for it.
 
 ---
 
@@ -346,6 +379,14 @@ class MyEnumGenerator(
             // descriptor.entries — List<EnumEntryMapping> with source/target constant names
         }
     }
+
+    // Must match what generate() actually emits: the converter registry and the
+    // @KraftConverterDelegate trampolines use these to compute call coordinates.
+    override fun generatedPackage(descriptor: EnumMappingDescriptor): String =
+        "${descriptor.sourceType.packageName}.generated"
+
+    override fun generatedFunctionName(descriptor: EnumMappingDescriptor): String =
+        config.functionNameFor(descriptor.sourceType.simpleName, descriptor.targetType.simpleName)
 }
 ```
 

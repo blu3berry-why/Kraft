@@ -128,4 +128,4 @@ See [Getting Started](user-guide/getting-started.md) for requirements, KSP versi
 - [Getting Started](user-guide/getting-started.md) — installation and your first mapper
 - [User Guide](user-guide/basic-mapping.md) — every feature, with examples
 - [Architecture](developer-guide/architecture.md) — internals and the plugin SPI
-- [Contributing](https://github.com/blu3berry-why/Kraft/blob/main/CONTRIBUTING.md) — issues and PRs welcome
+- [Contributing](developer-guide/contributing.md) — your first contribution, step by step
