@@ -235,7 +235,7 @@ Six variants:
 | `Renamed` | Different name, same type | `id = this.userId` |
 | `ConverterFunction` | Custom converter | `label = Mapper.convert(this.count)` |
 | `NestedMapper` | Nested object | `address = this.address.toAddressDto()` |
-| `Constant` | Literal value (reserved for future use) | — |
+| `Constant` | Literal expression. No built-in `MappingRule` produces it yet (no annotation maps to it), but the generators already handle the variant | `isActive = true` |
 | `Ignored` | Property skipped (must have default) | — |
 
 ### TypeInfo
