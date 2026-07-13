@@ -343,7 +343,8 @@ fun processStrategies(descriptor: MapperDescriptor) {
                 val isCollection = nested.isCollection
             }
             is PropertyMappingStrategy.Constant -> {
-                // Literal expression (reserved for future use)
+                // Literal expression. No built-in MappingRule produces this yet,
+                // but handle it for exhaustiveness — the built-in generator does.
                 val expr = strategy.expression
             }
             is PropertyMappingStrategy.Ignored -> {
