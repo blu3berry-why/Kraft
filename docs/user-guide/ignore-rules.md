@@ -103,7 +103,7 @@ Generated: the `secret` parameter is omitted from the `UserDto(...)` constructor
 
 ### BOTH direction with unknown property
 
-When using `IgnoreSide.BOTH` (the default), a property name that does not exist in the current forward target is silently skipped. This lets you declare ignore rules that apply only to the reverse direction (under `@MapReverse`) without causing errors on the forward mapper:
+When using `IgnoreSide.BOTH` (the default), a property name that does not exist in the current forward target is skipped with a KSP warning. This lets you declare ignore rules that apply only to the reverse direction (under `@MapReverse`) without causing errors on the forward mapper:
 
 ```kotlin
 @MapConfig(
@@ -114,7 +114,7 @@ When using `IgnoreSide.BOTH` (the default), a property name that does not exist 
 object ItemMapper
 ```
 
-This compiles successfully even though `futureReverseOnly` does not exist on `ItemDto`.
+This compiles successfully even though `futureReverseOnly` does not exist on `ItemDto` — the processor only emits a warning for the unmatched forward direction.
 
 ### Multiple ignored properties
 

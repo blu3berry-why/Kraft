@@ -137,7 +137,7 @@ fun Order.toOrderDto(): OrderDto = OrderDto(
 
 That is **35+ lines** of boilerplate. Every time you add, rename, or remove a field in either class, you must update this function manually — and the compiler won't always catch the mismatch.
 
-**With Kraft**, the AI writes only the exceptions — the 3 things that aren't a direct match:
+**With Kraft**, the AI writes only the exception — the one thing that isn't a direct match:
 
 ```kotlin
 data class OrderDto(
@@ -165,12 +165,9 @@ data class OrderItemDto(val sku: String, val name: String, val quantity: Int, va
     fieldMappings = [FieldMapping(source = "orderId", target = "id")]
 )
 object OrderMapper
-
-@MapEnum(source = OrderStatus::class, target = OrderStatusDto::class)
-object OrderStatusMapping
 ```
 
-Kraft auto-matches most same-named properties, handles nested objects and collections, maps the enum, and the one rename (`orderId` → `id`) is a single `FieldMapping`. When you add a new field to both classes, Kraft picks it up automatically — no mapper code to update. The generated code is produced at compile time, is type-safe, and stays in sync with your data classes.
+Kraft auto-matches most same-named properties, handles nested objects and collections, and the one rename (`orderId` → `id`) is a single `FieldMapping`. Even the `OrderStatus` → `OrderStatusDto` enum mapper is [auto-derived](enum-mapping.md#when-you-do-not-need-mapenum) — both enums live in the same module, every entry pairs by name, and the pair is reachable from the `@MapConfig` — so no `@MapEnum` declaration is needed. When you add a new field to both classes, Kraft picks it up automatically — no mapper code to update. The generated code is produced at compile time, is type-safe, and stays in sync with your data classes.
 
 ## Customizing the Skill
 
