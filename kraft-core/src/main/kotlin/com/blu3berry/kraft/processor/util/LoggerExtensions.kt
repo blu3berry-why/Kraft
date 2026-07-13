@@ -93,54 +93,6 @@ fun KSPLogger.invalidKClassArgument(
 )
 
 /**
- * A @MapField refers to a property that does not exist
- */
-fun KSPLogger.noSuchProperty(
-    typeName: String,
-    propertyName: String,
-    available: List<String>,
-    symbol: KSNode
-) {
-    val suggestions = suggestNames(propertyName, available)
-
-    err(
-        """
-        Property '$propertyName' does not exist on type '$typeName'.
-
-        Available properties:
-        ${available.joinToString("\n") { " - $it" }}
-
-        ${if (suggestions.isNotEmpty()) "Did you mean: ${suggestions.joinToString(", ")} ?" else ""}
-
-        Fix:
-        - Check the spelling of the property.
-        - Update your @MapField or @FieldMapping accordingly.
-        """.trimIndent(),
-        symbol
-    )
-}
-
-/**
- * Unmapped non-nullable property in target class
- */
-fun KSPLogger.unmappedNonNullableProperty(
-    targetType: String,
-    propertyName: String,
-    symbol: KSNode
-) = err(
-    """
-    Property '$propertyName' in target type '$targetType' is non-nullable 
-    but no mapping was provided.
-
-    Fix:
-    - Add @MapField(counterPartName = "sourceName")
-    - Or add @MapUsing with a converter
-    - Or make '$propertyName' nullable
-    """.trimIndent(),
-    symbol
-)
-
-/**
  * More informative error: required target property cannot be mapped.
  */
 fun KSPLogger.detailedMissingMapping(

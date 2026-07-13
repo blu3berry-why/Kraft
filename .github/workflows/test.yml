@@ -2,6 +2,10 @@ name: Test
 
 on:
   pull_request:
+  # Also run on main so the Gradle cache is seeded on the default branch;
+  # pull_request caches are scoped to their own PR and can't be shared.
+  push:
+    branches: [ main ]
 
 permissions:
   checks: write
@@ -19,6 +23,11 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+
+      # Caches Gradle distribution, dependencies, and build caches.
+      # Writes only on main (default), so PR runs read without thrashing quota.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Run detekt
         run: ./gradlew detekt --continue
