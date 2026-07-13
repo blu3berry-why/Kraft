@@ -2,7 +2,7 @@
 
 When source and target properties have different names, Kraft provides two ways to declare the mapping: `FieldMapping` (in `@MapConfig`) and `@MapField` (on properties in annotated classes). These are the recommended approaches for new code.
 
-> **Note:** `@MapNested` is **deprecated** — nested data classes are auto-detected when their types differ, and renamed nested pairs should use `@MapField` / `FieldMapping`. The `@MapNested` examples later on this page are kept for reference only and should not be used in new code.
+> **Note:** `@MapNested` is **deprecated** — nested data classes are auto-detected when their types differ, and renamed nested pairs should use `@MapField` / `FieldMapping`. See the [migration note](#migration-note-replacing-mapnested) below.
 
 ## FieldMapping (in @MapConfig)
 

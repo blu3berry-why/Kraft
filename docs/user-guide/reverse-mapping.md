@@ -162,6 +162,44 @@ public fun AddressDto.toAddress(): Address = Address(
 
 This also works for collection nested properties (e.g. `List<Item>` mapped to `List<ItemDto>`).
 
+## Enum Mappers in Reverse
+
+`@MapReverse` also works on `@MapEnum` declarations. The reverse direction inverts any explicit `FieldMapping` entries and fills the rest by name matching:
+
+```kotlin
+import com.blu3berry.kraft.config.MapReverse
+import com.blu3berry.kraft.config.MapEnum
+
+enum class Status    { ACTIVE, DISABLED }
+enum class StatusDto { ACTIVE, INACTIVE }
+
+@MapReverse
+@MapEnum(
+    source = Status::class,
+    target = StatusDto::class,
+    fieldMappings = [FieldMapping(source = "DISABLED", target = "INACTIVE")]
+)
+object StatusMapping
+```
+
+**Generated output:**
+
+```kotlin
+// Forward
+public fun Status.toStatusDto(): StatusDto = when (this) {
+  Status.ACTIVE -> StatusDto.ACTIVE
+  Status.DISABLED -> StatusDto.INACTIVE
+}
+
+// Reverse (fieldMappings inverted automatically)
+public fun StatusDto.toStatus(): Status = when (this) {
+  StatusDto.ACTIVE -> Status.ACTIVE
+  StatusDto.INACTIVE -> Status.DISABLED
+}
+```
+
+Exhaustiveness is enforced in both directions: if a reverse-source entry (i.e. a target-enum entry) is covered neither by an inverted `FieldMapping` nor by a same-named source entry, Kraft reports the usual "unmapped source entries" compile-time error for the reverse mapper. See [Enum Mapping](enum-mapping.md) for the forward-direction rules.
+
 ## Converters in Reverse
 
 If the forward mapping uses `@MapUsing` converters, you must provide a corresponding reverse converter in the same config object. The reverse converter maps from the target property back to the source property.
@@ -273,7 +311,7 @@ object UserMapper
 
 | Scenario | Result |
 |----------|--------|
-| `@MapReverse` without `@MapFrom`, `@MapTo`, or `@MapConfig` on the same declaration | Compile-time error: must be paired with a mapping annotation |
+| `@MapReverse` without `@MapFrom`, `@MapTo`, `@MapConfig`, or `@MapEnum` on the same declaration | Compile-time error: must be paired with a mapping annotation |
 | Forward converter exists but no reverse converter is defined | Compile-time error: `no reverse converter` message |
 | Ignored property without a default value | Compile-time error (same as without `@MapReverse`) |
 | Explicit `direction` mismatches the converter's types | Compile-time error: type mismatch |
