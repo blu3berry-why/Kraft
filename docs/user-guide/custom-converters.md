@@ -324,12 +324,17 @@ Because `@MapUsing` runs first, you can always override a globally-registered co
 
 ### Cross-module discovery
 
-When KSP processes a module that contains `@KraftConverter` functions, it generates a small wrapper file at `kraft.generated.registry.Converters_<moduleId>.kt`. Each wrapper is annotated with `@KraftConverterDelegate` and trampolines to your original function. Consuming compilations enumerate that package via KSP's classpath index and merge the discovered converters into their lookup table — no full classpath scan, no service-loader files.
+When KSP processes a module that contains `@KraftConverter` functions, it generates a small wrapper file at `kraft.generated.registry.Converters_<moduleId>.kt`. Each wrapper is annotated with `@KraftConverterDelegate`, is named deterministically after its source/target type pair, and trampolines to your original function. Consuming compilations discover the wrappers in two ways — no full classpath scan, no service-loader files:
+
+- **JVM compilations** enumerate the reserved package via KSP's classpath index.
+- **KMP metadata compilations** (`kspCommonMainKotlinMetadata`) cannot enumerate packages inside klib dependencies, so the consumer instead *constructs* the expected wrapper name for each unresolved type pair and resolves it by qualified name. This is why the wrapper names are derived from the type pair rather than from your function's name.
 
 You generally do not need to think about the delegate file. Two things to know:
 
 - The wrapper is generated automatically; do not write `@KraftConverterDelegate` yourself.
 - If multiple modules contribute converters that all end up on the same compile classpath, set the [`kraft.moduleId`](ksp-options.md#kraftmoduleid) processor option in each producing module so the delegate file names do not collide.
+
+> **Version note:** KMP (klib) cross-module discovery requires both the producing and consuming module to build with a Kraft version that ships pair-derived wrapper names. Modules published with older Kraft versions remain discoverable from JVM compilations only.
 
 ### Disabling for a single config
 

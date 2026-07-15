@@ -18,6 +18,7 @@ import com.blu3berry.kraft.processor.codegen.generator.enumMappingsToConverterEn
 import com.blu3berry.kraft.processor.codegen.generator.mergeWithEnumAmbiguityCheck
 import com.blu3berry.kraft.processor.descriptor.DescriptorBuilder
 import com.blu3berry.kraft.processor.scanner.AutoEnumMappingDeriver
+import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.scanner.ClassAnnotationScanner
 import com.blu3berry.kraft.processor.scanner.ClasspathConverterScanner
 import com.blu3berry.kraft.processor.scanner.ConfigObjectScanner
@@ -95,9 +96,7 @@ class AutoMapperProcessor(
             handWrittenConverters, syntheticEnumConverters, logger
         )
 
-        val classpathConverters = ClasspathConverterScanner(resolver, logger)
-            .scan(sameModuleKeys = sameModuleConverters.entries.keys)
-        val mergedConverters = sameModuleConverters.mergeAsFallback(classpathConverters)
+        val mergedConverters = mergeWithClasspathConverters(resolver, sameModuleConverters)
 
         DelegateRegistryGenerator(
             logger = logger,
@@ -119,6 +118,24 @@ class AutoMapperProcessor(
         }
 
         return deferred
+    }
+
+    /**
+     * Folds classpath-published `@KraftConverterDelegate` converters underneath the
+     * same-module registry: the eager package-enumeration scan covers JVM classpaths,
+     * and the by-name fallback covers KMP metadata compilations, where klib
+     * dependencies can't be package-enumerated. Same-module entries always win.
+     */
+    private fun mergeWithClasspathConverters(
+        resolver: Resolver,
+        sameModuleConverters: GlobalConverterRegistry
+    ): GlobalConverterRegistry {
+        val classpathScanner = ClasspathConverterScanner(resolver, logger)
+        val classpathConverters = classpathScanner.scan(sameModuleKeys = sameModuleConverters.entries.keys)
+        return GlobalConverterRegistry(
+            entries = sameModuleConverters.mergeAsFallback(classpathConverters).entries,
+            classpathFallback = classpathScanner::lookupByName
+        )
     }
 
     /**
