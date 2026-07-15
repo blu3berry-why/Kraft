@@ -48,6 +48,25 @@ jobs:
       - name: KMP cross-module integration test
         run: ./gradlew :integration-tests:kmp-consumer:jvmTest :integration-tests:kmp-consumer:compileKotlinJs
 
+      # Expected-failure counterpart: two producer klibs publish the same converter
+      # pair, so the consumer's KSP run MUST fail with the classpath ambiguity error.
+      # Asserts both the failure and the user-facing message.
+      - name: KMP cross-module ambiguity error test
+        run: |
+          set +e
+          out=$(./gradlew -PkraftAmbiguityFixture=true :integration-tests:kmp-consumer-ambiguous:kspCommonMainKotlinMetadata --console=plain 2>&1)
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "Expected the ambiguous-consumer build to fail, but it succeeded."
+            exit 1
+          fi
+          echo "$out" | grep -q "Ambiguous @KraftConverter on the classpath for (kotlin.Int → kotlin.String)" || {
+            echo "Build failed but without the expected ambiguity message. Output tail:"
+            echo "$out" | tail -40
+            exit 1
+          }
+
       - name: Publish test results
         uses: actions/upload-artifact@v7
         if: always()

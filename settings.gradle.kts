@@ -47,3 +47,10 @@ include(":kraft-core")
 include(":kraft-ksp")
 include(":integration-tests:kmp-producer")
 include(":integration-tests:kmp-consumer")
+// Expected-failure fixture: two producers publish the same converter pair, the consumer
+// must fail with the classpath ambiguity error. Gated behind a property so the regular
+// build graph (root `build`, sonar) stays green; CI runs it explicitly and asserts failure.
+if (providers.gradleProperty("kraftAmbiguityFixture").isPresent) {
+    include(":integration-tests:kmp-producer2")
+    include(":integration-tests:kmp-consumer-ambiguous")
+}

@@ -70,24 +70,49 @@ object TestKspRunner {
         consumerSources: List<SourceFile>,
         upstreamKspOptions: Map<String, String> = emptyMap(),
         consumerKspOptions: Map<String, String> = emptyMap()
-    ): TwoStageResult {
-        val upstream = prepareCompilation(upstreamSources, upstreamKspOptions).compile()
+    ): TwoStageResult = compileWithUpstreams(
+        upstreamModules = listOf(UpstreamModule(upstreamSources, upstreamKspOptions)),
+        consumerSources = consumerSources,
+        consumerKspOptions = consumerKspOptions
+    )
 
-        require(upstream.exitCode == KotlinCompilation.ExitCode.OK) {
-            "Upstream compilation failed:\n${upstream.messages}"
+    /**
+     * Like [compileWithUpstream] but with several independent upstream modules, each
+     * compiled separately and all placed on the consumer's classpath. Used to exercise
+     * upstream-vs-upstream converter ambiguity, which needs at least two modules
+     * publishing a delegate for the same type pair.
+     */
+    @OptIn(ExperimentalCompilerApi::class)
+    fun compileWithUpstreams(
+        upstreamModules: List<UpstreamModule>,
+        consumerSources: List<SourceFile>,
+        consumerKspOptions: Map<String, String> = emptyMap()
+    ): TwoStageResult {
+        val upstreams = upstreamModules.map { module ->
+            val result = prepareCompilation(module.sources, module.kspOptions).compile()
+            require(result.exitCode == KotlinCompilation.ExitCode.OK) {
+                "Upstream compilation failed:\n${result.messages}"
+            }
+            result
         }
 
         val consumer = prepareCompilation(
             sources = consumerSources,
             kspOptions = consumerKspOptions,
-            extraClasspath = listOf(upstream.outputDirectory)
+            extraClasspath = upstreams.map { it.outputDirectory }
         ).compile()
 
         return TwoStageResult(
-            upstream = upstream,
+            upstream = upstreams.first(),
             consumer = consumer,
             consumerGeneratedFiles = consumer.sourcesGeneratedBySymbolProcessor.filter { it.extension == "kt" }.toList()
         )
     }
 }
+
+/** One upstream module for [TestKspRunner.compileWithUpstreams]. */
+data class UpstreamModule(
+    val sources: List<SourceFile>,
+    val kspOptions: Map<String, String> = emptyMap()
+)
 
