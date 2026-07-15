@@ -61,7 +61,7 @@ class ClasspathConverterScanner(
             .toList()
 
         if (matches.size > 1) {
-            reportClasspathAmbiguity(key, matches[0], matches[1])
+            reportClasspathAmbiguity(key, matches)
         }
         return matches.firstOrNull()?.let(ConverterEntry::Real)
     }
@@ -83,18 +83,19 @@ class ClasspathConverterScanner(
         return buildConverterTypeKey(receiver, returnType)
     }
 
+    /** Reports every conflicting module at once so the user fixes the conflict in one pass. */
     private fun reportClasspathAmbiguity(
         key: ConverterTypeKey,
-        existing: KSFunctionDeclaration,
-        duplicate: KSFunctionDeclaration
+        matches: List<KSFunctionDeclaration>
     ) {
         val source = "${key.sourceFqName}${if (key.sourceNullable) "?" else ""}"
         val target = "${key.targetFqName}${if (key.targetNullable) "?" else ""}"
+        val registeredBy = matches.joinToString(" and ") { describeDelegate(it) }
         logger.error(
             "Ambiguous @KraftConverter on the classpath for ($source → $target): " +
-                "registered by ${describeDelegate(existing)} and ${describeDelegate(duplicate)}. " +
+                "registered by $registeredBy. " +
                 "Disambiguate by adding a same-module @KraftConverter or a per-property @MapUsing.",
-            duplicate
+            matches.last()
         )
     }
 

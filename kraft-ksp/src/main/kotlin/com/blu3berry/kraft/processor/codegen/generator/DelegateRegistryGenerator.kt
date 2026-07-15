@@ -58,6 +58,7 @@ class DelegateRegistryGenerator(
         val converters = registry.entries
             .toSortedMap(converterKeyComparator)
             .toList()
+        if (reportDelegateNameCollisions(converters)) return
         val moduleSuffix = moduleIdOption?.let(::sanitize)
             ?: contentHash(converters.map { (_, entry) -> entry })
         val fileName = "Converters_$moduleSuffix"
@@ -77,6 +78,33 @@ class DelegateRegistryGenerator(
                 "${KraftKspConstants.GENERATED_REGISTRY_PACKAGE}.$fileName " +
                 "(${converters.size} converters)"
         )
+    }
+
+    /**
+     * Guards against the astronomically unlikely case of two *different* type pairs in
+     * the same module hashing to the same delegate name. Without this check the
+     * generated file would contain two same-named functions and fail with a raw Kotlin
+     * redeclaration error that gives the user no clue about the cause. Returns true
+     * (and reports a KSP error) when a collision was found — the registry file is then
+     * not generated at all.
+     */
+    private fun reportDelegateNameCollisions(
+        converters: List<Pair<ConverterTypeKey, ConverterEntry>>
+    ): Boolean {
+        val collisions = converters
+            .groupBy { (key, _) -> DelegateNaming.delegateNameFor(key) }
+            .filterValues { it.size > 1 }
+        for ((name, colliding) in collisions) {
+            val pairs = colliding.joinToString(" and ") { (key, _) ->
+                "(${key.sourceFqName} → ${key.targetFqName})"
+            }
+            logger.error(
+                "Kraft delegate name collision: converters for $pairs both derive the " +
+                    "generated name '$name'. This is a hash collision between distinct type " +
+                    "pairs — please report it to the Kraft issue tracker with these type names."
+            )
+        }
+        return collisions.isNotEmpty()
     }
 
     private fun collectOriginatingFiles(entries: List<ConverterEntry>): List<KSFile> {

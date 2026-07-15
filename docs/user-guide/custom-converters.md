@@ -334,6 +334,8 @@ You generally do not need to think about the delegate file. Two things to know:
 - If multiple modules contribute converters that all end up on the same compile classpath, set the [`kraft.moduleId`](ksp-options.md#kraftmoduleid) processor option in each producing module so the delegate file names do not collide (the id is also embedded in the delegate and used to name the conflicting modules in ambiguity errors).
 
 > **Version rule:** every module on a compile classpath — converter producers and consumers alike — must build with the **same Kraft version**. The wrapper naming scheme is internal wiring and may change between releases; a version mismatch (including artifacts published with Kraft ≤ 0.10.x) makes upstream converters invisible, and the build fails with the normal "no converter found" type-mismatch error — never with wrong generated code. Rebuild the producing module on the current Kraft version, or declare a local converter copy.
+>
+> Kraft **cannot distinguish** a version-mismatched delegate from a converter that simply doesn't exist — by-name lookup either finds the expected name or it doesn't, and enumerating the registry package to look for old-style names is not supported on klib classpaths (it's the API limitation that motivated by-name discovery in the first place). So if a converter you *know* an upstream module declares comes up "missing", check the Kraft versions on both sides before anything else.
 
 ### Disabling for a single config
 
