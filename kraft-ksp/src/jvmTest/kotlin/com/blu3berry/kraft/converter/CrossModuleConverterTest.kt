@@ -4,8 +4,6 @@ import com.google.common.truth.Truth.assertThat
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import com.blu3berry.kraft.TestKspRunner
-import com.blu3berry.kraft.model.scan.ConverterTypeKey
-import com.blu3berry.kraft.processor.util.DelegateNaming
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 
@@ -73,16 +71,8 @@ class CrossModuleConverterTest {
         // The mapper must invoke the upstream delegate by its generated FQN so a
         // looser substring (e.g. "count = this.count.") can't pass while still
         // pointing at, say, a same-module fallback.
-        val delegateName = DelegateNaming.delegateNameFor(
-            ConverterTypeKey(
-                sourceFqName = "kotlin.Int",
-                sourceNullable = false,
-                targetFqName = "kotlin.String",
-                targetNullable = false
-            )
-        )
-        assertThat(text).contains("count = this.count.$delegateName()")
-        assertThat(text).contains("import kraft.generated.registry.$delegateName")
+        assertThat(text).contains("count = this.count.toLabel__kraft_delegate_0()")
+        assertThat(text).contains("import kraft.generated.registry.toLabel__kraft_delegate_0")
     }
 
     @Test

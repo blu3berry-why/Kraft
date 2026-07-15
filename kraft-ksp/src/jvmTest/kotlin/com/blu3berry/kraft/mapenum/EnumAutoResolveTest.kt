@@ -4,8 +4,6 @@ import com.google.common.truth.Truth.assertThat
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import com.blu3berry.kraft.TestKspRunner
-import com.blu3berry.kraft.model.scan.ConverterTypeKey
-import com.blu3berry.kraft.processor.util.DelegateNaming
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 
@@ -149,15 +147,7 @@ class EnumAutoResolveTest {
         // upstream-published @KraftConverterDelegate trampoline. The exact
         // delegate FQN proves we're going through the registry, not a stray
         // same-name fallback.
-        val delegateName = DelegateNaming.delegateNameFor(
-            ConverterTypeKey(
-                sourceFqName = "upstream.Status",
-                sourceNullable = false,
-                targetFqName = "upstream.StatusDto",
-                targetNullable = false
-            )
-        )
-        assertThat(mapper).contains("status = this.status.$delegateName()")
-        assertThat(mapper).contains("import kraft.generated.registry.$delegateName")
+        assertThat(mapper).contains("status = this.status.toStatusDto__kraft_delegate_0()")
+        assertThat(mapper).contains("import kraft.generated.registry.toStatusDto__kraft_delegate_0")
     }
 }
