@@ -143,13 +143,25 @@ class ClasspathConverterScanner(
     ) {
         val source = "${key.sourceFqName}${if (key.sourceNullable) "?" else ""}"
         val target = "${key.targetFqName}${if (key.targetNullable) "?" else ""}"
-        val existingName = existing.qualifiedName?.asString() ?: existing.simpleName.asString()
-        val duplicateName = duplicate.qualifiedName?.asString() ?: duplicate.simpleName.asString()
         logger.error(
             "Ambiguous @KraftConverter on the classpath for ($source → $target): " +
-                "registered by '$existingName' and '$duplicateName'. " +
+                "registered by ${describeDelegate(existing)} and ${describeDelegate(duplicate)}. " +
                 "Disambiguate by adding a same-module @KraftConverter or a per-property @MapUsing.",
             duplicate
         )
+    }
+
+    /**
+     * Names the delegate's producing module when the delegate carries one. Delegates
+     * for the same pair share the same function name by design, so the module id is
+     * the only thing that distinguishes the two sides of an ambiguity report.
+     */
+    private fun describeDelegate(fn: KSFunctionDeclaration): String {
+        val moduleId = fn.annotations.firstOrNull(::isDelegateAnnotation)
+            ?.arguments
+            ?.firstOrNull { it.name?.asString() == "moduleId" }
+            ?.value as? String
+        val fqName = fn.qualifiedName?.asString() ?: fn.simpleName.asString()
+        return if (moduleId.isNullOrBlank()) "'$fqName'" else "Kraft module '$moduleId' ('$fqName')"
     }
 }

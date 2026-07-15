@@ -91,12 +91,13 @@ class GlobalConverterRegistry(
      * classpath default.
      */
     fun mergeAsFallback(other: GlobalConverterRegistry): GlobalConverterRegistry {
-        if (other.entries.isEmpty()) return this
-        if (entries.isEmpty()) return other
+        if (other.isEmpty()) return this
+        if (isEmpty()) return other
         val merged = LinkedHashMap<ConverterTypeKey, ConverterEntry>(entries.size + other.entries.size)
         merged.putAll(other.entries)
         merged.putAll(entries) // same-module overrides classpath
-        return GlobalConverterRegistry(merged)
+        // Higher-priority fallback wins, mirroring the entry merge above.
+        return GlobalConverterRegistry(merged, classpathFallback ?: other.classpathFallback)
     }
 
     companion object {

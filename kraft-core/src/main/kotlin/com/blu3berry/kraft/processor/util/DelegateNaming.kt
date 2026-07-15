@@ -18,8 +18,16 @@ import com.blu3berry.kraft.model.scan.ConverterTypeKey
  * names are cosmetic; the hash carries the identity. Two modules declaring a converter
  * for the same pair therefore emit the same delegate FQN, which is how consumers
  * detect upstream-vs-upstream ambiguity (the by-name lookup returns both).
+ *
+ * Compatibility contract: the name format is Kraft-internal wiring, not public API,
+ * and may change between Kraft releases. Producer and consumer modules must build
+ * with the same Kraft version for KMP cross-module discovery; a mismatch degrades to
+ * "no converter found" (the consumer computes a name the producer never emitted) —
+ * never to wrong generated code.
  */
 object DelegateNaming {
+
+    private val UNSAFE_IDENTIFIER_CHARS = Regex("[^A-Za-z0-9_]")
 
     fun delegateNameFor(key: ConverterTypeKey): String {
         val sourceSimple = identifierSafe(key.sourceFqName.substringAfterLast('.'))
@@ -28,7 +36,7 @@ object DelegateNaming {
     }
 
     private fun identifierSafe(raw: String): String =
-        raw.replace(Regex("[^A-Za-z0-9_]"), "_")
+        raw.replace(UNSAFE_IDENTIFIER_CHARS, "_")
 
     /**
      * Stable across JVM runs: `String.hashCode` is specified by contract, and the
