@@ -88,6 +88,9 @@ object TestKspRunner {
         consumerSources: List<SourceFile>,
         consumerKspOptions: Map<String, String> = emptyMap()
     ): TwoStageResult {
+        require(upstreamModules.isNotEmpty()) {
+            "compileWithUpstreams needs at least one upstream module; use compile() for single-stage runs."
+        }
         val upstreams = upstreamModules.map { module ->
             val result = prepareCompilation(module.sources, module.kspOptions).compile()
             require(result.exitCode == KotlinCompilation.ExitCode.OK) {
