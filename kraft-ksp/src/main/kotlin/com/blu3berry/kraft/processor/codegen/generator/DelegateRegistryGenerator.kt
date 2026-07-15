@@ -32,13 +32,12 @@ import com.blu3berry.kraft.processor.util.KraftKspConstants
  * `@KraftConverterDelegate` thin wrapper.
  *
  * The wrapper exists purely so consuming KSP runs can discover the converters —
- * KSP can't iterate `@KraftConverter` annotations across the classpath. JVM consumers
- * enumerate the reserved package via `Resolver.getDeclarationsFromPackage(...)`; KMP
- * consumers can't (that API returns nothing for klib dependencies), so each delegate's
- * *name* is derived deterministically from its source/target type pair via
- * [DelegateNaming] and consumers resolve it directly with
- * `Resolver.getFunctionDeclarationsByName`. Each delegate trampolines to the user's
- * original function so call sites get the same runtime behavior.
+ * KSP can't iterate `@KraftConverter` annotations across the classpath, and package
+ * enumeration returns nothing for klib dependencies. Instead each delegate's *name*
+ * is derived deterministically from its source/target type pair via [DelegateNaming],
+ * and consumers resolve it directly with `Resolver.getFunctionDeclarationsByName`,
+ * which works on both JVM class-file and klib classpaths. Each delegate trampolines
+ * to the user's original function so call sites get the same runtime behavior.
  *
  * The file name suffix is `kraft.moduleId` when the processor option is set,
  * otherwise a deterministic hash of the sorted converter FQN list. Set the option in

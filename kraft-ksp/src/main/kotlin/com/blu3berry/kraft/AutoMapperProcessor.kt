@@ -96,7 +96,13 @@ class AutoMapperProcessor(
             handWrittenConverters, syntheticEnumConverters, logger
         )
 
-        val mergedConverters = mergeWithClasspathConverters(resolver, sameModuleConverters)
+        // Classpath delegates are resolved lazily by name (klib classpaths can't be
+        // package-enumerated); eager same-module entries win, so a local
+        // @KraftConverter shadows a classpath delegate by resolving first.
+        val mergedConverters = GlobalConverterRegistry(
+            entries = sameModuleConverters.entries,
+            classpathFallback = ClasspathConverterScanner(resolver, logger)::lookupByName
+        )
 
         DelegateRegistryGenerator(
             logger = logger,
@@ -118,24 +124,6 @@ class AutoMapperProcessor(
         }
 
         return deferred
-    }
-
-    /**
-     * Folds classpath-published `@KraftConverterDelegate` converters underneath the
-     * same-module registry: the eager package-enumeration scan covers JVM classpaths,
-     * and the by-name fallback covers KMP metadata compilations, where klib
-     * dependencies can't be package-enumerated. Same-module entries always win.
-     */
-    private fun mergeWithClasspathConverters(
-        resolver: Resolver,
-        sameModuleConverters: GlobalConverterRegistry
-    ): GlobalConverterRegistry {
-        val classpathScanner = ClasspathConverterScanner(resolver, logger)
-        val classpathConverters = classpathScanner.scan(sameModuleKeys = sameModuleConverters.entries.keys)
-        return GlobalConverterRegistry(
-            entries = sameModuleConverters.mergeAsFallback(classpathConverters).entries,
-            classpathFallback = classpathScanner::lookupByName
-        )
     }
 
     /**

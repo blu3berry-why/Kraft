@@ -84,22 +84,6 @@ class GlobalConverterRegistry(
     /** True when no converter can possibly resolve — no entries and no lazy fallback. */
     fun isEmpty(): Boolean = entries.isEmpty() && classpathFallback == null
 
-    /**
-     * Returns a new registry with [other] merged in at lower priority — entries
-     * already present in `this` win. Used to fold classpath-discovered delegates
-     * underneath same-module declarations so a local override silently shadows a
-     * classpath default.
-     */
-    fun mergeAsFallback(other: GlobalConverterRegistry): GlobalConverterRegistry {
-        if (other.isEmpty()) return this
-        if (isEmpty()) return other
-        val merged = LinkedHashMap<ConverterTypeKey, ConverterEntry>(entries.size + other.entries.size)
-        merged.putAll(other.entries)
-        merged.putAll(entries) // same-module overrides classpath
-        // Higher-priority fallback wins, mirroring the entry merge above.
-        return GlobalConverterRegistry(merged, classpathFallback ?: other.classpathFallback)
-    }
-
     companion object {
         val EMPTY = GlobalConverterRegistry(emptyMap())
     }

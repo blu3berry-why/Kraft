@@ -6,10 +6,9 @@ package com.blu3berry.kraft.config
  * For every `@KraftConverter`-annotated function the user writes, the Kraft KSP
  * processor emits a `public` thin extension wrapper in package
  * `kraft.generated.registry`. The wrapper is annotated with `@KraftConverterDelegate`
- * so the consuming compilation can discover it — via package enumeration on JVM
- * classpaths, or by constructing the delegate's deterministic per-type-pair name on
- * KMP metadata (klib) classpaths — and re-build the (sourceType → targetType)
- * registry without having to scan the entire classpath.
+ * so the consuming compilation can discover it by constructing the delegate's
+ * deterministic per-type-pair name and resolving it by qualified name — the only
+ * lookup that works on both JVM class-file and klib (KMP metadata) classpaths.
  *
  * Users should not apply this annotation manually — declare your converters with
  * `@KraftConverter` and let the processor generate the delegates.
