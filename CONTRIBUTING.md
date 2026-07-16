@@ -53,11 +53,18 @@ Kraft uses [Conventional Commits](https://www.conventionalcommits.org/). The com
 |--------|---------|-------------|
 | `fix:` | Bug fix | Patch (0.0.X) |
 | `feat:` | New feature | Minor (0.X.0) |
-| `feat!:` or `BREAKING CHANGE:` | Breaking change | Major (X.0.0) |
+| `feat!:` or `BREAKING CHANGE:` | Breaking change | Major (X.0.0) — **minor while pre-1.0, see below** |
 | `docs:` | Documentation only | No release |
 | `refactor:` | Code restructuring | No release |
 | `test:` | Adding/fixing tests | No release |
 | `ci:` | CI/CD changes | No release |
+
+> **Pre-1.0 rule:** while the project version is `0.x`, breaking changes (`!` suffix or
+> `BREAKING CHANGE:`) bump the **minor** version, not the major — per semver, 0.x makes
+> no stability promise, and 1.0.0 must never happen as a side effect of a commit marker.
+> Cutting `1.0.0` (or any later major ahead of schedule) is a deliberate act: dispatch
+> the **Create Release** workflow with its `version-override` input set to the exact
+> version. After 1.0, breaking changes bump the major version as the table says.
 
 Examples:
 ```text
