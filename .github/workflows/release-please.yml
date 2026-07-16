@@ -1,0 +1,29 @@
+# Watches main and maintains a rolling release PR (version bump + CHANGELOG).
+# Merging that PR creates the tag + GitHub Release, which triggers publish.yml
+# (release: published) to push artifacts to Maven Central.
+#
+# Versioning policy (mirrors CONTRIBUTING.md):
+# - pre-1.0: breaking changes bump MINOR (bump-minor-pre-major in
+#   release-please-config.json); feat bumps minor, fix bumps patch
+# - an exact version can be forced with a "Release-As: x.y.z" commit footer
+#
+# Note: release PRs are opened with GITHUB_TOKEN, so pull_request CI does not
+# run on them by design — they only touch version files + CHANGELOG.
+name: Release Please
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
