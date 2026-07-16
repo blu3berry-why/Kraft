@@ -2,6 +2,16 @@ name: Create Release
 
 on:
   workflow_dispatch:
+    inputs:
+      version-override:
+        description: >-
+          Exact version to release (MAJOR.MINOR.PATCH), skipping the
+          conventional-commit bump computation. Required to cut 1.0.0:
+          while the current version is 0.x, breaking changes only bump
+          the minor version, so a major release is always a deliberate,
+          manually-typed act.
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -50,8 +60,22 @@ jobs:
             COMMITS=$(git log --pretty=format:'%s%n%b')
           fi
 
-          if echo "$COMMITS" | grep -qE '^\* [a-z]+(\([^)]+\))?!:|^[a-z]+(\([^)]+\))?!:|BREAKING CHANGE'; then
-            NEXT="$((MAJOR+1)).0.0${SUFFIX}"
+          OVERRIDE="${{ github.event.inputs.version-override }}"
+          if [ -n "$OVERRIDE" ]; then
+            if ! echo "$OVERRIDE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "version-override '$OVERRIDE' is not MAJOR.MINOR.PATCH" >&2
+              exit 1
+            fi
+            NEXT="$OVERRIDE"
+          elif echo "$COMMITS" | grep -qE '^\* [a-z]+(\([^)]+\))?!:|^[a-z]+(\([^)]+\))?!:|BREAKING CHANGE'; then
+            if [ "$MAJOR" -eq 0 ]; then
+              # Pre-1.0 (semver 0.x: "anything may change"): breaking changes
+              # bump MINOR. Cutting 1.0.0 is a deliberate act via the
+              # version-override input above, never an accident of a `!` marker.
+              NEXT="${MAJOR}.$((MINOR+1)).0${SUFFIX}"
+            else
+              NEXT="$((MAJOR+1)).0.0${SUFFIX}"
+            fi
           elif echo "$COMMITS" | grep -qE '^\* feat(\([^)]+\))?:|^feat(\([^)]+\))?:'; then
             NEXT="${MAJOR}.$((MINOR+1)).0${SUFFIX}"
           else
