@@ -324,12 +324,18 @@ Because `@MapUsing` runs first, you can always override a globally-registered co
 
 ### Cross-module discovery
 
-When KSP processes a module that contains `@KraftConverter` functions, it generates a small wrapper file at `kraft.generated.registry.Converters_<moduleId>.kt`. Each wrapper is annotated with `@KraftConverterDelegate` and trampolines to your original function. Consuming compilations enumerate that package via KSP's classpath index and merge the discovered converters into their lookup table — no full classpath scan, no service-loader files.
+When KSP processes a module that contains `@KraftConverter` functions, it generates a small wrapper file at `kraft.generated.registry.Converters_<moduleId>.kt`. Each wrapper is annotated with `@KraftConverterDelegate`, is named deterministically after its source/target type pair, and trampolines to your original function.
+
+Consuming compilations discover the wrappers **by name**: for each type pair that no same-module converter resolved, the consumer constructs the expected wrapper name from the pair and resolves it by qualified name. This is the only lookup that works on both JVM class-file classpaths and klib (KMP metadata) classpaths — package enumeration returns nothing for klib dependencies — and it is why the wrapper names are derived from the type pair rather than from your function's name. No full classpath scan, no service-loader files.
 
 You generally do not need to think about the delegate file. Two things to know:
 
 - The wrapper is generated automatically; do not write `@KraftConverterDelegate` yourself.
-- If multiple modules contribute converters that all end up on the same compile classpath, set the [`kraft.moduleId`](ksp-options.md#kraftmoduleid) processor option in each producing module so the delegate file names do not collide.
+- If multiple modules contribute converters that all end up on the same compile classpath, set the [`kraft.moduleId`](ksp-options.md#kraftmoduleid) processor option in each producing module so the delegate file names do not collide (the id is also embedded in the delegate and used to name the conflicting modules in ambiguity errors).
+
+> **Version rule:** every module on a compile classpath — converter producers and consumers alike — must build with the **same Kraft version**. The wrapper naming scheme is internal wiring and may change between releases; a version mismatch (including artifacts published with Kraft ≤ 0.10.x) makes upstream converters invisible, and the build fails with the normal "no converter found" type-mismatch error — never with wrong generated code. Rebuild the producing module on the current Kraft version, or declare a local converter copy.
+>
+> Kraft **cannot distinguish** a version-mismatched delegate from a converter that simply doesn't exist — by-name lookup either finds the expected name or it doesn't, and enumerating the registry package to look for old-style names is not supported on klib classpaths (it's the API limitation that motivated by-name discovery in the first place). So if a converter you *know* an upstream module declares comes up "missing", check the Kraft versions on both sides before anything else.
 
 ### Disabling for a single config
 

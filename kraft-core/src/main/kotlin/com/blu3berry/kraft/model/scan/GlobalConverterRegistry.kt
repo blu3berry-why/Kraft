@@ -67,26 +67,22 @@ sealed class ConverterEntry {
  *
  * @param entries Map keyed by source/target type pair → entry describing where
  *                to find or how to call the converter.
+ * @param classpathFallback Lazy by-name lookup consulted only when [entries] has no
+ *                match. Needed on KMP metadata compilations, where klib dependencies
+ *                cannot be package-enumerated upfront — the fallback constructs the
+ *                delegate's deterministic name from the key and resolves it directly.
+ *                Eager [entries] always win, so a same-module `@KraftConverter`
+ *                shadows a classpath delegate exactly as it does on the JVM path.
  */
-data class GlobalConverterRegistry(
-    val entries: Map<ConverterTypeKey, ConverterEntry>
+class GlobalConverterRegistry(
+    val entries: Map<ConverterTypeKey, ConverterEntry>,
+    private val classpathFallback: ((ConverterTypeKey) -> ConverterEntry?)? = null
 ) {
-    fun lookup(key: ConverterTypeKey): ConverterEntry? = entries[key]
+    fun lookup(key: ConverterTypeKey): ConverterEntry? =
+        entries[key] ?: classpathFallback?.invoke(key)
 
-    /**
-     * Returns a new registry with [other] merged in at lower priority — entries
-     * already present in `this` win. Used to fold classpath-discovered delegates
-     * underneath same-module declarations so a local override silently shadows a
-     * classpath default.
-     */
-    fun mergeAsFallback(other: GlobalConverterRegistry): GlobalConverterRegistry {
-        if (other.entries.isEmpty()) return this
-        if (entries.isEmpty()) return other
-        val merged = LinkedHashMap<ConverterTypeKey, ConverterEntry>(entries.size + other.entries.size)
-        merged.putAll(other.entries)
-        merged.putAll(entries) // same-module overrides classpath
-        return GlobalConverterRegistry(merged)
-    }
+    /** True when no converter can possibly resolve — no entries and no lazy fallback. */
+    fun isEmpty(): Boolean = entries.isEmpty() && classpathFallback == null
 
     companion object {
         val EMPTY = GlobalConverterRegistry(emptyMap())

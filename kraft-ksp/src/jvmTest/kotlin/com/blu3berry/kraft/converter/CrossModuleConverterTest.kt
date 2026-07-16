@@ -4,6 +4,9 @@ import com.google.common.truth.Truth.assertThat
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import com.blu3berry.kraft.TestKspRunner
+import com.blu3berry.kraft.UpstreamModule
+import com.blu3berry.kraft.model.scan.ConverterTypeKey
+import com.blu3berry.kraft.processor.util.DelegateNaming
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 
@@ -71,8 +74,16 @@ class CrossModuleConverterTest {
         // The mapper must invoke the upstream delegate by its generated FQN so a
         // looser substring (e.g. "count = this.count.") can't pass while still
         // pointing at, say, a same-module fallback.
-        assertThat(text).contains("count = this.count.toLabel__kraft_delegate_0()")
-        assertThat(text).contains("import kraft.generated.registry.toLabel__kraft_delegate_0")
+        val delegateName = DelegateNaming.delegateNameFor(
+            ConverterTypeKey(
+                sourceFqName = "kotlin.Int",
+                sourceNullable = false,
+                targetFqName = "kotlin.String",
+                targetNullable = false
+            )
+        )
+        assertThat(text).contains("count = this.count.$delegateName()")
+        assertThat(text).contains("import kraft.generated.registry.$delegateName")
     }
 
     @Test
@@ -169,6 +180,60 @@ class CrossModuleConverterTest {
         val text = registry.readText()
 
         assertThat(text).contains("@OptIn(ExperimentalThing::class)")
+    }
+
+    @Test
+    fun `two upstream modules registering the same pair is a classpath ambiguity error`() {
+        val upstreamA = SourceFile.kotlin(
+            "ConvertersA.kt",
+            """
+            package upstreama
+
+            @com.blu3berry.kraft.config.KraftConverter
+            fun Int.toLabelA(): String = "a=" + this
+            """
+        )
+        val upstreamB = SourceFile.kotlin(
+            "ConvertersB.kt",
+            """
+            package upstreamb
+
+            @com.blu3berry.kraft.config.KraftConverter
+            fun Int.toLabelB(): String = "b=" + this
+            """
+        )
+        val consumer = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package consumer
+
+            data class Src(val count: Int)
+            data class Dst(val count: String)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+            object SrcMapper
+            """
+        )
+
+        val result = TestKspRunner.compileWithUpstreams(
+            upstreamModules = listOf(
+                UpstreamModule(listOf(upstreamA), mapOf("kraft.moduleId" to "upstreamA")),
+                UpstreamModule(listOf(upstreamB), mapOf("kraft.moduleId" to "upstreamB"))
+            ),
+            consumerSources = listOf(consumer),
+            consumerKspOptions = mapOf("kraft.moduleId" to "consumer")
+        )
+
+        assertThat(result.consumer.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        // The error must name the conflicting pair, identify BOTH producing modules
+        // (delegates for the same pair share a function name, so the module ids are
+        // the only distinguishing information), and tell the user how to resolve it.
+        assertThat(result.consumer.messages)
+            .contains("Ambiguous @KraftConverter on the classpath for (kotlin.Int → kotlin.String)")
+        assertThat(result.consumer.messages).contains("Kraft module 'upstreamA'")
+        assertThat(result.consumer.messages).contains("Kraft module 'upstreamB'")
+        assertThat(result.consumer.messages)
+            .contains("Disambiguate by adding a same-module @KraftConverter or a per-property @MapUsing.")
     }
 
     @Test

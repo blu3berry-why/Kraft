@@ -18,6 +18,7 @@ import com.blu3berry.kraft.processor.codegen.generator.enumMappingsToConverterEn
 import com.blu3berry.kraft.processor.codegen.generator.mergeWithEnumAmbiguityCheck
 import com.blu3berry.kraft.processor.descriptor.DescriptorBuilder
 import com.blu3berry.kraft.processor.scanner.AutoEnumMappingDeriver
+import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.scanner.ClassAnnotationScanner
 import com.blu3berry.kraft.processor.scanner.ClasspathConverterScanner
 import com.blu3berry.kraft.processor.scanner.ConfigObjectScanner
@@ -95,9 +96,13 @@ class AutoMapperProcessor(
             handWrittenConverters, syntheticEnumConverters, logger
         )
 
-        val classpathConverters = ClasspathConverterScanner(resolver, logger)
-            .scan(sameModuleKeys = sameModuleConverters.entries.keys)
-        val mergedConverters = sameModuleConverters.mergeAsFallback(classpathConverters)
+        // Classpath delegates are resolved lazily by name (klib classpaths can't be
+        // package-enumerated); eager same-module entries win, so a local
+        // @KraftConverter shadows a classpath delegate by resolving first.
+        val mergedConverters = GlobalConverterRegistry(
+            entries = sameModuleConverters.entries,
+            classpathFallback = ClasspathConverterScanner(resolver, logger)::lookupByName
+        )
 
         DelegateRegistryGenerator(
             logger = logger,

@@ -43,7 +43,7 @@ class GlobalConverterRule : MappingRule {
         target: PropertyInfo,
         ctx: MappingContext
     ): PropertyMappingStrategy? {
-        if (ctx.globalConverters.entries.isEmpty()) return null
+        if (ctx.globalConverters.isEmpty()) return null
 
         // 1. Direct property-type converter (e.g. Status → StatusDto).
         val directMatch = findDirectMatch(target, ctx)
