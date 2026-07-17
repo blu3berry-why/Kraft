@@ -47,7 +47,7 @@ Detekt runs automatically on every pull request via GitHub Actions. PRs with vio
 
 ## Commit Conventions
 
-Kraft uses [Conventional Commits](https://www.conventionalcommits.org/). The commit message drives automated versioning via the project's `create-release.yml` workflow.
+Kraft uses [Conventional Commits](https://www.conventionalcommits.org/). The commit message drives automated versioning via the project's `release-please.yml` workflow.
 
 | Prefix | Meaning | Version bump |
 |--------|---------|-------------|
@@ -62,9 +62,9 @@ Kraft uses [Conventional Commits](https://www.conventionalcommits.org/). The com
 > **Pre-1.0 rule:** while the project version is `0.x`, breaking changes (`!` suffix or
 > `BREAKING CHANGE:`) bump the **minor** version, not the major — per semver, 0.x makes
 > no stability promise, and 1.0.0 must never happen as a side effect of a commit marker.
-> Cutting `1.0.0` (or any later major ahead of schedule) is a deliberate act: dispatch
-> the **Create Release** workflow with its `version-override` input set to the exact
-> version. After 1.0, breaking changes bump the major version as the table says.
+> Cutting `1.0.0` (or any later major ahead of schedule) is a deliberate act: land a
+> commit whose body contains `Release-As: 1.0.0` and release-please retargets the
+> release PR to it. After 1.0, breaking changes bump the major version as the table says.
 
 Examples:
 ```text
@@ -179,11 +179,13 @@ For the current rule chain order, see [Architecture: Property Resolver Rule Chai
 
 ## Release Process
 
-Releases are driven by two GitHub Actions workflows. The version is stored in `gradle.properties` as `kraft.version` (and mirrored in `.release-please-manifest.json`) and shared across all modules.
+Releases are driven by [release-please](https://github.com/googleapis/release-please). The version is stored in `gradle.properties` as `kraft.version` (kept in sync by release-please via the `x-release-please-*` markers around it — do not remove them) and mirrored in `.release-please-manifest.json`.
 
-1. A maintainer manually triggers the **Create Release** workflow (`create-release.yml`) via `workflow_dispatch`.
-2. The workflow reads the current version from `.release-please-manifest.json`, then walks commits since the last `MAJOR.MINOR.PATCH` tag — inspecting both commit subjects and bodies — and computes the next version: a `BREAKING CHANGE` or `!`-suffix commit triggers a major bump, a `feat:` commit triggers a minor bump, anything else triggers a patch bump.
-3. A `release/<version>` branch is created; `.release-please-manifest.json` and `gradle.properties` are bumped, committed, and pushed; a PR targeting `release-branch` is opened automatically.
-4. A maintainer reviews and merges the PR into `release-branch`.
-5. The push to `release-branch` triggers the **Publish** workflow (`publish.yml`), which validates GPG and Maven Central secrets, signs the artifacts, and publishes all modules to Maven Central.
-6. After publishing, a GitHub Release is created with auto-generated notes (`gh release create --generate-notes`), and the updated version files are synced back to `main`.
+The workflow authenticates with the `RELEASE_PLEASE_TOKEN` repository secret — a fine-grained PAT with **contents: write** and **pull-requests: write** on this repo. The default `GITHUB_TOKEN` cannot be used: releases it creates never trigger other workflows, so `publish.yml` would not fire.
+
+1. Every push to `main` runs the **Release Please** workflow (`release-please.yml`), which maintains a rolling release PR containing the version bump and CHANGELOG, computed from conventional commits since the last release. Pre-1.0, breaking changes bump **minor** (`bump-minor-pre-major`); `feat:` bumps minor; `fix:` bumps patch; docs/refactor/test/ci accumulate without forcing a release.
+2. When you want to release, review and merge the release PR. Nothing publishes before that merge — the release PR is the dry run.
+3. Merging it creates the git tag and the GitHub Release, which triggers the **Publish** workflow (`publish.yml`) to sign and publish all modules to Maven Central.
+4. To force an exact version (e.g. the deliberate `1.0.0`), land a commit on `main` whose body contains `Release-As: 1.0.0` — release-please retargets the release PR to that version.
+
+> **Transition note:** the legacy `create-release.yml` + `release-branch` flow is still present but dormant; it will be deleted after the first verified release-please release. Its `version-override` dispatch input is superseded by the `Release-As:` footer. Release PRs are opened by the `RELEASE_PLEASE_TOKEN` PAT's user, so PR CI runs on them like any other PR — they only touch version files and CHANGELOG.

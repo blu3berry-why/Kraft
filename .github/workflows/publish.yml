@@ -1,8 +1,15 @@
 name: Publish
 
 on:
+  # Legacy flow (create-release.yml → release/<v> PR → release-branch merge).
+  # Dormant since the release-please migration; delete together with
+  # create-release.yml after the first verified release-please release.
   push:
     branches: [ release-branch ]
+  # Release-please flow: merging the rolling release PR creates the tag and
+  # GitHub Release; this trigger publishes the tagged commit to Maven Central.
+  release:
+    types: [ published ]
 
 permissions:
   contents: write
@@ -67,6 +74,9 @@ jobs:
           ./gradlew publishAggregationToCentralPortal --no-configuration-cache
 
   create-release:
+    # Legacy path only: on the release-please flow the GitHub Release already
+    # exists (it's what triggered this run), so creating it again would fail.
+    if: github.event_name == 'push'
     needs: [ publish ]
     runs-on: ubuntu-latest
 
