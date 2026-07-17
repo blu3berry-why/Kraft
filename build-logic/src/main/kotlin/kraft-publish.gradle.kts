@@ -40,10 +40,20 @@ publishing {
     }
 }
 
-signing {
-    useGpgCmd()
-    isRequired = findProperty("signing.gnupg.keyName") != null
-    sign(publishing.publications)
+// Sign only when a real (Central) publish was requested: local publishes for
+// testing (mavenLocal, the plugin's functional-test repo) must not hang on a
+// gpg passphrase prompt in non-interactive shells.
+val realPublishRequested = gradle.startParameter.taskNames.any {
+    it.contains("publish", ignoreCase = true) &&
+        !it.contains("MavenLocal") &&
+        !it.contains("TestRepository")
+}
+if (realPublishRequested) {
+    signing {
+        useGpgCmd()
+        isRequired = findProperty("signing.gnupg.keyName") != null
+        sign(publishing.publications)
+    }
 }
 
 tasks.withType<AbstractPublishToMaven>().configureEach {

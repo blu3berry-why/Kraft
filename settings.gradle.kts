@@ -45,6 +45,7 @@ include(":composeApp")
 include(":kraft-annotations")
 include(":kraft-core")
 include(":kraft-ksp")
+include(":kraft-gradle-plugin")
 include(":integration-tests:kmp-producer")
 include(":integration-tests:kmp-consumer")
 // Expected-failure fixture: two producers publish the same converter pair, the consumer
