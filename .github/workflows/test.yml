@@ -78,10 +78,14 @@ jobs:
         if: always()
         with:
           name: test-results
-          path: kraft-ksp/build/reports/tests/jvmTest/
+          path: |
+            kraft-ksp/build/reports/tests/jvmTest/
+            kraft-gradle-plugin/build/reports/tests/test/
 
       - name: Publish JUnit report
         uses: mikepenz/action-junit-report@v6
         if: always()
         with:
-          report_paths: kraft-ksp/build/test-results/jvmTest/**/*.xml
+          report_paths: |
+            kraft-ksp/build/test-results/jvmTest/**/*.xml
+            kraft-gradle-plugin/build/test-results/test/**/*.xml

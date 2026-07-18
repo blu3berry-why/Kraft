@@ -94,7 +94,8 @@ class KraftGradlePluginFunctionalTest {
         )
 
         val result = runner("kraftProbe").build()
-        val output = result.output
+        // Normalize path separators so the srcDir assertion holds on Windows.
+        val output = result.output.replace('\\', '/')
 
         assertThat(output).contains("com.blu3berry.kraft:kraft-ksp:$pluginVersion")
         assertThat(output).contains("com.blu3berry.kraft:kraft-annotations:$pluginVersion")
