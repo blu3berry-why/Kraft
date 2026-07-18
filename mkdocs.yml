@@ -70,3 +70,4 @@ nav:
       - Contributing: developer-guide/contributing.md
       - Custom Code Generator: developer-guide/custom-code-generator.md
       - Testing the Processor: developer-guide/ksp-compile-testing-gotchas.md
+      - Gradle Plugin Gotchas: developer-guide/gradle-plugin-gotchas.md
