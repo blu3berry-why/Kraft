@@ -84,6 +84,13 @@ tasks.test {
     val catalog = project.extensions.getByType<VersionCatalogsExtension>().named("libs")
     systemProperty("kraft.test.kotlinVersion", catalog.findVersion("kotlin").get().requiredVersion)
     systemProperty("kraft.test.kspVersion", catalog.findVersion("ksp").get().requiredVersion)
+    // Overridable from CI to matrix-test other AGP versions without test changes.
+    systemProperty(
+        "kraft.test.agpVersion",
+        (findProperty("kraft.test.agpVersion") as? String)
+            ?: catalog.findVersion("agp").get().requiredVersion
+    )
+    systemProperty("kraft.test.compileSdk", catalog.findVersion("android-compileSdk").get().requiredVersion)
     systemProperty("kraft.test.pluginVersion", version.toString())
     systemProperty("kraft.test.repo", testRepoDir.get().asFile.absolutePath)
     systemProperty(

@@ -18,6 +18,8 @@ class KraftGradlePluginFunctionalTest {
     private val pluginVersion = System.getProperty("kraft.test.pluginVersion")
     private val testRepo = System.getProperty("kraft.test.repo").replace('\\', '/')
     private val libsRepo = System.getProperty("kraft.test.libsRepo").replace('\\', '/')
+    private val agpVersion = System.getProperty("kraft.test.agpVersion")
+    private val compileSdk = System.getProperty("kraft.test.compileSdk")
 
     @TempDir
     lateinit var projectDir: File
@@ -283,9 +285,9 @@ class KraftGradlePluginFunctionalTest {
         assertThat(output).contains("kraft.side.dto.name=Dto")
     }
 
-    private fun writeE2eSources() {
+    private fun writeE2eSources(sourceRoot: String = "src/commonMain/kotlin") {
         fun src(path: String, content: String) {
-            File(projectDir, "src/commonMain/kotlin/$path")
+            File(projectDir, "$sourceRoot/$path")
                 .apply { parentFile.mkdirs() }
                 .writeText(content.trimIndent())
         }
@@ -400,12 +402,12 @@ class KraftGradlePluginFunctionalTest {
     }
 
     @Test
-    fun `fails with actionable message on a non-KMP module`() {
+    fun `fails with actionable message when no Kotlin plugin is applied`() {
         writeSettings()
         File(projectDir, "build.gradle.kts").writeText(
             """
             plugins {
-                id("org.jetbrains.kotlin.jvm") version "$kotlinVersion"
+                `java-library`
                 id("com.blu3berry.kraft") version "$pluginVersion"
             }
             """.trimIndent()
@@ -413,7 +415,82 @@ class KraftGradlePluginFunctionalTest {
 
         val result = runner("help").buildAndFail()
 
-        assertThat(result.output).contains("does not apply the Kotlin Multiplatform plugin")
-        assertThat(result.output).contains("supports Kotlin Multiplatform modules only")
+        assertThat(result.output).contains("does not apply a supported Kotlin plugin")
+        assertThat(result.output).contains("org.jetbrains.kotlin.multiplatform")
+        assertThat(result.output).contains("org.jetbrains.kotlin.jvm")
+        assertThat(result.output).contains("org.jetbrains.kotlin.android")
+    }
+
+    @Test
+    fun `end to end - kotlin-jvm module generates and compiles side-aliased mappers`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                id("org.jetbrains.kotlin.jvm") version "$kotlinVersion"
+                id("com.google.devtools.ksp") version "$kspVersion"
+                id("com.blu3berry.kraft") version "$pluginVersion"
+            }
+
+            kraft {
+                functionNameFormat.set("into\${'$'}{target}")
+                side("domain") { packagePattern.set("com.example.domain.**") }
+            }
+            """.trimIndent()
+        )
+        writeE2eSources(sourceRoot = "src/main/kotlin")
+
+        // On kotlin-jvm KSP wires generated sources and task ordering itself; the
+        // plugin only pins the deps and emits the args — a green compile plus the
+        // side alias proves the whole single-target chain.
+        runner("compileKotlin", "--configuration-cache").build()
+
+        val generated = File(projectDir, "build/generated/ksp/main/kotlin")
+            .walkTopDown().filter { it.isFile && it.name.endsWith(".kt") }
+            .joinToString("\n") { it.readText() }
+
+        assertThat(generated).contains("fun CategoryDto.intoCategory(")
+        assertThat(generated).contains("fun CategoryDto.toDomain(")
+        assertThat(generated).contains("toCreatedAtString(")
+    }
+
+    @Test
+    fun `end to end - kotlin-android module generates and compiles side-aliased mappers`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.android.library") version "$agpVersion"
+                id("org.jetbrains.kotlin.android") version "$kotlinVersion"
+                id("com.google.devtools.ksp") version "$kspVersion"
+                id("com.blu3berry.kraft") version "$pluginVersion"
+            }
+
+            android {
+                namespace = "com.example.kraft"
+                compileSdk = $compileSdk
+            }
+
+            kotlin {
+                jvmToolchain(17)
+            }
+
+            kraft {
+                functionNameFormat.set("into\${'$'}{target}")
+                side("domain") { packagePattern.set("com.example.domain.**") }
+            }
+            """.trimIndent()
+        )
+        writeE2eSources(sourceRoot = "src/main/kotlin")
+
+        runner("compileDebugKotlin").build()
+
+        val generated = File(projectDir, "build/generated/ksp/debug/kotlin")
+            .walkTopDown().filter { it.isFile && it.name.endsWith(".kt") }
+            .joinToString("\n") { it.readText() }
+
+        assertThat(generated).contains("fun CategoryDto.intoCategory(")
+        assertThat(generated).contains("fun CategoryDto.toDomain(")
+        assertThat(generated).contains("toCreatedAtString(")
     }
 }

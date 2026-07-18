@@ -21,9 +21,11 @@ dependencies {
 }
 ```
 
-### Kotlin Multiplatform — the Gradle plugin (recommended)
+### The Gradle plugin (recommended)
 
-For KMP modules, the Kraft Gradle plugin replaces all of the wiring below with one line:
+The Kraft Gradle plugin supports Kotlin Multiplatform, Kotlin JVM, and Kotlin Android modules — apply it after the Kotlin plugin of your module's flavor and the KSP plugin, and it wires everything below automatically. On Kotlin JVM (`org.jetbrains.kotlin.jvm`) and Kotlin Android (`org.jetbrains.kotlin.android`) modules it adds the version-pinned `ksp`/`implementation` dependencies and the KSP options (KSP itself handles generated sources and task ordering there); the plugin touches no Android Gradle Plugin APIs, so it is insensitive to your AGP version.
+
+For KMP modules, it replaces all of the wiring below with one line:
 
 ```kotlin
 plugins {
