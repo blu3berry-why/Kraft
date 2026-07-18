@@ -90,16 +90,25 @@ class KraftGradlePlugin : Plugin<Project> {
      */
     private fun kraftVersion(): String {
         val resource = javaClass.classLoader.getResourceAsStream(VERSION_RESOURCE)
-            ?: throw GradleException("Kraft Gradle Plugin: missing $VERSION_RESOURCE on the plugin classpath.")
+            ?: throw GradleException(
+                "Kraft Gradle Plugin: missing $VERSION_RESOURCE on the plugin classpath. " +
+                    BROKEN_DISTRIBUTION_HINT
+            )
         val properties = Properties()
         resource.use(properties::load)
         return properties.getProperty("version")
-            ?: throw GradleException("Kraft Gradle Plugin: no 'version' entry in $VERSION_RESOURCE.")
+            ?: throw GradleException(
+                "Kraft Gradle Plugin: no 'version' entry in $VERSION_RESOURCE. " +
+                    BROKEN_DISTRIBUTION_HINT
+            )
     }
 
     private companion object {
         const val KOTLIN_MULTIPLATFORM_ID = "org.jetbrains.kotlin.multiplatform"
         const val KSP_ID = "com.google.devtools.ksp"
         const val VERSION_RESOURCE = "kraft-plugin.properties"
+        const val BROKEN_DISTRIBUTION_HINT =
+            "This is a broken plugin artifact, not a configuration problem on your side — " +
+                "please report it at https://github.com/blu3berry-why/Kraft/issues."
     }
 }

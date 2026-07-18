@@ -230,6 +230,56 @@ class KraftGradlePluginFunctionalTest {
 
         assertThat(result.output).contains("side 'dto'")
         assertThat(result.output).contains("packagePattern")
+        assertThat(result.output).contains("How to fix")
+    }
+
+    @Test
+    fun `kraft DSL invalid emitMode fails in DSL terms with the valid values`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            ${buildScriptHeader()}
+
+            kraft {
+                side("dto") {
+                    packagePattern.set("com.example.dto.**")
+                    emitMode.set("EVERYTHING")
+                }
+            }
+            """.trimIndent()
+        )
+
+        val result = runner("help").buildAndFail()
+
+        assertThat(result.output).contains("emitMode \"EVERYTHING\"")
+        assertThat(result.output).contains("not a valid AliasEmitMode")
+        assertThat(result.output).contains("BOTH, FULL_NAME_ONLY")
+    }
+
+    @Test
+    fun `warns when a side option is set both via raw ksp arg and the DSL`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            ${buildScriptHeader()}
+
+            ksp {
+                arg("kraft.side.dto.name", "RawDto")
+            }
+
+            kraft {
+                side("dto") { packagePattern.set("com.example.dto.**") }
+            }
+
+            ${probeTask()}
+            """.trimIndent()
+        )
+
+        val output = runner("kraftArgsProbe").build().output
+
+        assertThat(output).contains("the DSL value wins")
+        // And the DSL value did win.
+        assertThat(output).contains("kraft.side.dto.name=Dto")
     }
 
     private fun writeE2eSources() {
