@@ -1,11 +1,16 @@
 name: Deploy Docs
 
+# Docs deploy on release (not on every main push): the site documents released
+# artifacts, and deploying docs for merged-but-unreleased features would
+# advertise APIs that aren't on Maven Central yet. The release event checks out
+# the tagged commit, so the site always matches the released code.
+# workflow_dispatch stays as the escape hatch for urgent docs-only fixes
+# between releases (deploys main HEAD — check it doesn't document unreleased
+# features first).
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'docs/**'
-      - 'mkdocs.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
