@@ -25,9 +25,10 @@ gradlePlugin {
             id = "com.blu3berry.kraft"
             implementationClass = "com.blu3berry.kraft.gradle.KraftGradlePlugin"
             displayName = "Kraft"
-            description = "Applies the Kraft KSP automapper to a Kotlin Multiplatform module: " +
-                "adds version-aligned kraft-ksp/kraft-annotations dependencies, wires generated " +
-                "sources and task dependencies, and defaults kraft.moduleId to the project path."
+            description = "Applies the Kraft KSP automapper to a Kotlin Multiplatform, JVM, or " +
+                "Android module: adds version-aligned kraft-ksp/kraft-annotations dependencies, " +
+                "wires generated sources and task ordering where needed, and provides the typed " +
+                "kraft { } configuration DSL."
         }
     }
 }
@@ -130,12 +131,24 @@ publishing {
             }
         }
     }
-    // Javadoc jar only on the real plugin artifact, never on the marker.
+    // pluginMaven-only additions, never on the marker: the javadoc jar, and the
+    // POM name/description Central validation requires — the marker POM gets its
+    // own from the gradlePlugin { } displayName/description, pluginMaven doesn't.
     // (matching{} instead of named(): java-gradle-plugin registers pluginMaven
     // lazily in afterEvaluate, so it isn't addressable by name yet.)
     publications.withType<MavenPublication>()
         .matching { it.name == "pluginMaven" }
-        .configureEach { artifact(javadocJar) }
+        .configureEach {
+            artifact(javadocJar)
+            pom {
+                name.set("kraft-gradle-plugin")
+                description.set(
+                    "Gradle plugin for the Kraft KSP automapper: one-line setup for Kotlin " +
+                        "Multiplatform, JVM, and Android modules with version-aligned dependencies " +
+                        "and a typed kraft { } configuration DSL."
+                )
+            }
+        }
 }
 
 // Sign only when a real publish was requested. The functional tests publish to
