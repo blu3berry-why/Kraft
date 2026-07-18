@@ -117,7 +117,7 @@ Disambiguates the generated `@KraftConverterDelegate` registry file when multipl
 
 **With the Gradle plugin:** the project path (e.g. `:feature:auth`) — cross-module diagnostics name real modules with no configuration.
 
-**Without the plugin:** unset. Kraft falls back to a deterministic content hash of the module's converter FQN list. The hash is unique per converter set, but two unrelated modules that happen to declare the same converter signatures would still collide. Setting an explicit module ID is recommended for any manually-wired project with more than one converter-producing module.
+**Without the plugin:** unset. Kraft falls back to a deterministic content hash of the module's converter FQN list — the same converter set always produces the same hash, but collisions remain possible (two modules declaring identical converter signatures hash identically). Setting an explicit module ID is recommended for any manually-wired project with more than one converter-producing module.
 
 ### Configuration
 

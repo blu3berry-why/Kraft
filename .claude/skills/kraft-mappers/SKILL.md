@@ -104,7 +104,7 @@ Mappers belong in the data layer, in a `mapper/` subpackage. One file per featur
 **Don't:**
 - Don't put `@KraftConverter` extensions in `commonMain` if the receiver type is platform-only — it must be visible in the same source set as `@MapConfig` consumers.
 - Don't import Kraft annotations from random places — they live in `com.blu3berry.kraft.config.*`.
-- Cross-module `@KraftConverter` discovery works on Kraft **0.11.0+** (delegates resolved by name from the classpath): a converter declared in module A IS visible to module B's KSP run, as long as every module on the classpath uses the **same Kraft version**. On older Kraft (<0.11.0), re-declare or use `@MapUsing` on the consumer side. If the same converter pair exists in two classpath modules, the build fails with an ambiguity error — delete one.
+- Cross-module `@KraftConverter` discovery works on Kraft **0.11.0+** (delegates resolved by name from the classpath): a converter declared in module A IS visible to module B's KSP run, as long as every module on the classpath uses the **same Kraft version**. On older Kraft (<0.11.0), re-declare or use `@MapUsing` on the consumer side. If the same converter pair exists in two classpath modules, the build fails with an ambiguity error; resolve it by deleting the duplicate, declaring a same-module `@KraftConverter` (local converters win over classpath delegates), or using a per-property `@MapUsing` on the affected mapper.
 
 ---
 

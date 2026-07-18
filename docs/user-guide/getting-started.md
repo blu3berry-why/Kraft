@@ -4,22 +4,7 @@ Kraft is a Kotlin Symbol Processing (KSP) plugin that generates type-safe mappin
 
 ## Installation
 
-Kraft is built and tested with **Kotlin 2.2.21** and **KSP 2.3.3**, and the processor runs on a **JDK 17** build toolchain (Kotlin 2.2+ recommended — see [Compatibility and legacy projects](#compatibility-and-legacy-projects) below). It is published to **Maven Central** under the `com.blu3berry.kraft` group, so make sure `mavenCentral()` is in your `repositories { }` block. Add the following to your `build.gradle.kts` (replace `<version>` with the [latest release](https://central.sonatype.com/namespace/com.blu3berry.kraft)):
-
-```kotlin
-plugins {
-    id("com.google.devtools.ksp") version "<ksp-version>"
-}
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation("com.blu3berry.kraft:kraft-annotations:<version>")
-    ksp("com.blu3berry.kraft:kraft-ksp:<version>")
-}
-```
+Kraft is built and tested with **Kotlin 2.2.21** and **KSP 2.3.3**, and the processor runs on a **JDK 17** build toolchain (Kotlin 2.2+ recommended — see [Compatibility and legacy projects](#compatibility-and-legacy-projects) below). It is published to **Maven Central** under the `com.blu3berry.kraft` group, so make sure `mavenCentral()` is in your `repositories { }` block. Replace `<version>` with the [latest release](https://central.sonatype.com/namespace/com.blu3berry.kraft) in the snippets below.
 
 ### The Gradle plugin (recommended)
 
@@ -89,6 +74,21 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().all {
 ```
 
 The `kotlin.srcDir` line adds the KSP output directory to your common source set so the IDE and all platform compilations can see the generated mappers. The `dependsOn` block ensures `kspCommonMainKotlinMetadata` runs before any Kotlin compilation task, so generated code is always up to date.
+
+### JVM / Android — manual wiring
+
+On single-target modules KSP wires generated sources and task ordering itself, so the manual alternative is just the dependencies (keep both on the **same Kraft version** as every other module):
+
+```kotlin
+plugins {
+    id("com.google.devtools.ksp") version "<ksp-version>"
+}
+
+dependencies {
+    implementation("com.blu3berry.kraft:kraft-annotations:<version>")
+    ksp("com.blu3berry.kraft:kraft-ksp:<version>")
+}
+```
 
 ## Compatibility and legacy projects
 
