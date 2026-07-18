@@ -53,45 +53,49 @@ internal object KraftKmpWiring {
                     ksp.arg("kraft.moduleId", extension.moduleId.getOrElse(project.path))
                 }
                 extension.functionNameFormat.orNull?.let { ksp.arg("kraft.functionNameFormat", it) }
-
-                for (side in extension.sides) {
-                    val slot = side.name
-                    require(slot.isNotBlank()) {
-                        """
-                        Kraft: a side in the kraft { } block of '${project.path}' has a blank slot name.
-
-                        How to fix:
-                          Give every side a non-blank slot, e.g. side("dto") { … } — the slot
-                          becomes the kraft.side.<slot>.* option key and the default alias name.
-                        """.trimIndent()
-                    }
-                    val displayName = side.sideName.getOrElse(slot.replaceFirstChar { it.uppercase() })
-                    val pattern = requireNotNull(side.packagePattern.orNull) {
-                        """
-                        Kraft: side '$slot' in the kraft { } block of '${project.path}' is missing `packagePattern`.
-
-                        How to fix:
-                          side("$slot") { packagePattern.set("com.example.$slot.**") }
-                          The pattern is a package glob matching the classes that belong to this side.
-                        """.trimIndent()
-                    }
-                    val emitMode = side.emitMode.orNull
-                    require(emitMode == null || emitMode in VALID_EMIT_MODES) {
-                        """
-                        Kraft: side '$slot' in the kraft { } block of '${project.path}' has emitMode "$emitMode",
-                        which is not a valid AliasEmitMode.
-
-                        How to fix:
-                          Use one of: ${VALID_EMIT_MODES.joinToString()} — e.g. side("$slot") { emitMode.set("BOTH") }
-                          (INHERIT is only valid per-mapper via @MapConfig(aliasEmitMode = …).)
-                        """.trimIndent()
-                    }
-                    emitSideArg(project, ksp, "$SIDE_PREFIX$slot.name", displayName)
-                    emitSideArg(project, ksp, "$SIDE_PREFIX$slot.packagePattern", pattern)
-                    side.template.orNull?.let { emitSideArg(project, ksp, "$SIDE_PREFIX$slot.template", it) }
-                    emitMode?.let { emitSideArg(project, ksp, "$SIDE_PREFIX$slot.emitMode", it) }
-                }
+                emitSides(project, ksp, extension)
             }
+        }
+    }
+
+    /** Validates each DSL side and emits its `kraft.side.<slot>.*` options. */
+    private fun emitSides(project: Project, ksp: KspExtension, extension: KraftExtension) {
+        for (side in extension.sides) {
+            val slot = side.name
+            require(slot.isNotBlank()) {
+                """
+                Kraft: a side in the kraft { } block of '${project.path}' has a blank slot name.
+
+                How to fix:
+                  Give every side a non-blank slot, e.g. side("dto") { … } — the slot
+                  becomes the kraft.side.<slot>.* option key and the default alias name.
+                """.trimIndent()
+            }
+            val displayName = side.sideName.getOrElse(slot.replaceFirstChar { it.uppercase() })
+            val pattern = requireNotNull(side.packagePattern.orNull) {
+                """
+                Kraft: side '$slot' in the kraft { } block of '${project.path}' is missing `packagePattern`.
+
+                How to fix:
+                  side("$slot") { packagePattern.set("com.example.$slot.**") }
+                  The pattern is a package glob matching the classes that belong to this side.
+                """.trimIndent()
+            }
+            val emitMode = side.emitMode.orNull
+            require(emitMode == null || emitMode in VALID_EMIT_MODES) {
+                """
+                Kraft: side '$slot' in the kraft { } block of '${project.path}' has emitMode "$emitMode",
+                which is not a valid AliasEmitMode.
+
+                How to fix:
+                  Use one of: ${VALID_EMIT_MODES.joinToString()} — e.g. side("$slot") { emitMode.set("BOTH") }
+                  (INHERIT is only valid per-mapper via @MapConfig(aliasEmitMode = …).)
+                """.trimIndent()
+            }
+            emitSideArg(project, ksp, "$SIDE_PREFIX$slot.name", displayName)
+            emitSideArg(project, ksp, "$SIDE_PREFIX$slot.packagePattern", pattern)
+            side.template.orNull?.let { emitSideArg(project, ksp, "$SIDE_PREFIX$slot.template", it) }
+            emitMode?.let { emitSideArg(project, ksp, "$SIDE_PREFIX$slot.emitMode", it) }
         }
     }
 
