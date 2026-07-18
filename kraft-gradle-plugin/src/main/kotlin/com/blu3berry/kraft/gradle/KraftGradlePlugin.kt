@@ -6,7 +6,8 @@ import org.gradle.api.Project
 import java.util.Properties
 
 /**
- * One-line Kraft setup for Kotlin Multiplatform modules.
+ * One-line Kraft setup for Kotlin Multiplatform, Kotlin JVM, and Kotlin Android
+ * modules.
  *
  * ```kotlin
  * plugins {
@@ -41,30 +42,41 @@ class KraftGradlePlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
         val extension = project.extensions.create("kraft", KraftExtension::class.java)
-        var multiplatformSeen = false
+        var kotlinPluginSeen = false
         project.pluginManager.withPlugin(KOTLIN_MULTIPLATFORM_ID) {
-            multiplatformSeen = true
+            kotlinPluginSeen = true
             project.pluginManager.withPlugin(KSP_ID) {
                 KraftKmpWiring.configure(project, kraftVersion(), extension)
             }
         }
+        // kotlin-jvm and kotlin-android are mutually exclusive with each other and
+        // with KMP, so at most one of these three branches fires.
+        for (id in listOf(KOTLIN_JVM_ID, KOTLIN_ANDROID_ID)) {
+            project.pluginManager.withPlugin(id) {
+                kotlinPluginSeen = true
+                project.pluginManager.withPlugin(KSP_ID) {
+                    KraftSingleTargetWiring.configure(project, kraftVersion(), extension)
+                }
+            }
+        }
         project.afterEvaluate {
-            checkRequiredPlugins(project, multiplatformSeen)
+            checkRequiredPlugins(project, kotlinPluginSeen)
         }
     }
 
-    private fun checkRequiredPlugins(project: Project, multiplatformSeen: Boolean) {
-        if (!multiplatformSeen) {
+    private fun checkRequiredPlugins(project: Project, kotlinPluginSeen: Boolean) {
+        if (!kotlinPluginSeen) {
             throw GradleException(
                 """
-                Kraft Gradle Plugin: '${project.path}' does not apply the Kotlin Multiplatform plugin.
+                Kraft Gradle Plugin: '${project.path}' does not apply a supported Kotlin plugin.
 
-                The plugin currently supports Kotlin Multiplatform modules only.
-                How to fix:
-                  1. Add `alias(libs.plugins.kotlinMultiplatform)` (id "$KOTLIN_MULTIPLATFORM_ID")
-                     to this module's plugins block, before id("com.blu3berry.kraft"), or
-                  2. For a single-platform JVM/Android module, apply Kraft manually for now:
-                     see https://blu3berry-why.github.io/Kraft/user-guide/getting-started/
+                Kraft wires itself into one of these, applied in this module's plugins block
+                before id("com.blu3berry.kraft"):
+                How to fix, add one of:
+                  1. Kotlin Multiplatform — `alias(libs.plugins.kotlinMultiplatform)` (id "$KOTLIN_MULTIPLATFORM_ID")
+                  2. Kotlin JVM — `alias(libs.plugins.kotlinJvm)` (id "$KOTLIN_JVM_ID")
+                  3. Kotlin Android — `alias(libs.plugins.kotlinAndroid)` (id "$KOTLIN_ANDROID_ID")
+                Details: https://blu3berry-why.github.io/Kraft/user-guide/getting-started/
                 """.trimIndent()
             )
         }
@@ -105,6 +117,8 @@ class KraftGradlePlugin : Plugin<Project> {
 
     private companion object {
         const val KOTLIN_MULTIPLATFORM_ID = "org.jetbrains.kotlin.multiplatform"
+        const val KOTLIN_JVM_ID = "org.jetbrains.kotlin.jvm"
+        const val KOTLIN_ANDROID_ID = "org.jetbrains.kotlin.android"
         const val KSP_ID = "com.google.devtools.ksp"
         const val VERSION_RESOURCE = "kraft-plugin.properties"
         const val BROKEN_DISTRIBUTION_HINT =
