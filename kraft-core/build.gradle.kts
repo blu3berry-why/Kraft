@@ -30,7 +30,10 @@ publishing {
         withType<MavenPublication> {
             if (name != "jvm") {
                 tasks.withType<PublishToMavenRepository>().configureEach {
-                    onlyIf { publication.name == "jvm" }
+                    // Capture at configuration time: reading task.publication
+                    // inside onlyIf breaks under the configuration cache.
+                    val publicationName = publication.name
+                    onlyIf { publicationName == "jvm" }
                 }
             }
             artifactId = "kraft-core"

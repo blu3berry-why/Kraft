@@ -41,7 +41,12 @@ internal object KraftKmpWiring {
         // by hand in `ksp { arg(...) }` (which still coexists — both write one map).
         project.afterEvaluate {
             project.extensions.configure(KspExtension::class.java) { ksp ->
-                ksp.arg("kraft.moduleId", extension.moduleId.getOrElse(project.path))
+                // The project-path default must not clobber a moduleId the user
+                // already set via a raw `ksp { arg(...) }` block; an explicit
+                // `kraft { moduleId = … }` still wins over both.
+                if (extension.moduleId.isPresent || "kraft.moduleId" !in ksp.arguments) {
+                    ksp.arg("kraft.moduleId", extension.moduleId.getOrElse(project.path))
+                }
                 extension.functionNameFormat.orNull?.let { ksp.arg("kraft.functionNameFormat", it) }
 
                 for (side in extension.sides) {

@@ -12,6 +12,13 @@ kotlin {
     jvmToolchain(17)
 }
 
+// Central Portal validation requires a sources jar on jar-packaged artifacts
+// (the POM-only plugin marker is exempt). KMP modules publish sources
+// automatically; this kotlin-jvm module must opt in.
+java {
+    withSourcesJar()
+}
+
 gradlePlugin {
     plugins {
         create("kraft") {
@@ -63,6 +70,14 @@ publishing {
 tasks.test {
     useJUnitPlatform()
     dependsOn("publishAllPublicationsToTestRepository")
+    // The end-to-end functional test compiles a real consumer project, which
+    // must resolve kraft-ksp/kraft-annotations (and kraft-core, ksp's runtime
+    // dep) at the in-dev version — publish them to the shared local test repo.
+    dependsOn(
+        ":kraft-annotations:publishAllPublicationsToKraftTestRepository",
+        ":kraft-core:publishAllPublicationsToKraftTestRepository",
+        ":kraft-ksp:publishAllPublicationsToKraftTestRepository",
+    )
     // Functional tests generate small Gradle projects that apply real Kotlin/KSP
     // plugin versions; keep them aligned with the catalog. (Explicit catalog API:
     // `libs.versions.kotlin` would resolve against the `kotlin {}` DSL accessor here.)
@@ -71,6 +86,10 @@ tasks.test {
     systemProperty("kraft.test.kspVersion", catalog.findVersion("ksp").get().requiredVersion)
     systemProperty("kraft.test.pluginVersion", version.toString())
     systemProperty("kraft.test.repo", testRepoDir.get().asFile.absolutePath)
+    systemProperty(
+        "kraft.test.libsRepo",
+        rootProject.layout.buildDirectory.dir("kraft-test-repo").get().asFile.absolutePath
+    )
 }
 
 val javadocJar by tasks.registering(Jar::class) {
@@ -115,6 +134,9 @@ publishing {
 // Sign only when a real publish was requested. The functional tests publish to
 // the local test repo on every `test` run, and wiring signing there makes the
 // build hang on a gpg passphrase prompt in non-interactive shells.
+// Caveat: matching is on literal task names, so an abbreviated invocation
+// (e.g. `gradlew pubAgg…`) skips signing — Central then rejects the upload
+// loudly. Always use full task names for release publishes (CI does).
 val realPublishRequested = gradle.startParameter.taskNames.any {
     it.contains("publish", ignoreCase = true) &&
         !it.contains("MavenLocal") &&

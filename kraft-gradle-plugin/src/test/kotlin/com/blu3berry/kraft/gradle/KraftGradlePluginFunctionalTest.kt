@@ -17,6 +17,7 @@ class KraftGradlePluginFunctionalTest {
     private val kspVersion = System.getProperty("kraft.test.kspVersion")
     private val pluginVersion = System.getProperty("kraft.test.pluginVersion")
     private val testRepo = System.getProperty("kraft.test.repo").replace('\\', '/')
+    private val libsRepo = System.getProperty("kraft.test.libsRepo").replace('\\', '/')
 
     @TempDir
     lateinit var projectDir: File
@@ -34,6 +35,7 @@ class KraftGradlePluginFunctionalTest {
             }
             dependencyResolutionManagement {
                 repositories {
+                    maven(url = "file://$libsRepo")
                     google()
                     mavenCentral()
                 }
@@ -157,6 +159,97 @@ class KraftGradlePluginFunctionalTest {
         assertThat(output).contains("kraft.side.domain.name=Domain")
         assertThat(output).contains("kraft.side.domain.packagePattern=com.example.domain.**")
         assertThat(output).contains("kraft.side.domain.emitMode=FULL_NAME_ONLY")
+    }
+
+    private fun writeE2eSources() {
+        fun src(path: String, content: String) {
+            File(projectDir, "src/commonMain/kotlin/$path")
+                .apply { parentFile.mkdirs() }
+                .writeText(content.trimIndent())
+        }
+        src(
+            "com/example/domain/Category.kt",
+            """
+            package com.example.domain
+            data class Category(val id: Int, val label: String, val createdAt: String)
+            """
+        )
+        src(
+            "com/example/dto/CategoryDto.kt",
+            """
+            package com.example.dto
+            data class CategoryDto(val id: Int, val label: String, val createdAt: Long)
+            """
+        )
+        src(
+            "com/example/mapper/CategoryMapper.kt",
+            """
+            package com.example.mapper
+            import com.example.domain.Category
+            import com.example.dto.CategoryDto
+            import com.blu3berry.kraft.config.KraftConverter
+            import com.blu3berry.kraft.config.MapConfig
+
+            // Global converter: resolves the Long -> String mismatch on createdAt
+            // and makes the processor emit this module's converter registry.
+            @KraftConverter
+            fun Long.toCreatedAtString(): String = toString()
+
+            @MapConfig(source = CategoryDto::class, target = Category::class)
+            object CategoryMapper
+            """
+        )
+    }
+
+    @Test
+    fun `end to end - plugin-wired project generates and compiles side-aliased mappers`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform") version "$kotlinVersion"
+                id("com.google.devtools.ksp") version "$kspVersion"
+                id("com.blu3berry.kraft") version "$pluginVersion"
+            }
+
+            kotlin {
+                jvm()
+                js { nodejs() }
+            }
+
+            kraft {
+                functionNameFormat.set("into\${'$'}{target}")
+                side("dto") { packagePattern.set("com.example.dto.**") }
+                side("domain") { packagePattern.set("com.example.domain.**") }
+            }
+
+            // A raw KSP arg must coexist with the DSL (and the plugin's
+            // moduleId default must not clobber it).
+            ksp {
+                arg("kraft.moduleId", "e2eModule")
+            }
+            """.trimIndent()
+        )
+        writeE2eSources()
+
+        // compileKotlinJvm exercises the whole chain: the plugin's task
+        // ordering pulls kspCommonMainKotlinMetadata first, the processor runs
+        // with the DSL-emitted options, and the generated mapper must compile.
+        runner("compileKotlinJvm").build()
+
+        val generatedFiles = File(projectDir, "build/generated/ksp/metadata/commonMain/kotlin")
+            .walkTopDown().filter { it.isFile && it.name.endsWith(".kt") }.toList()
+        val generated = generatedFiles.joinToString("\n") { it.readText() }
+
+        // functionNameFormat drives the verbose mapper name.
+        assertThat(generated).contains("fun CategoryDto.intoCategory(")
+        // The domain side (from the DSL) produces the short alias delegate.
+        assertThat(generated).contains("fun CategoryDto.toDomain(")
+        assertThat(generated).containsMatch("fun CategoryDto\\.toDomain\\([^)]*\\)[^=]*=\\s*intoCategory\\(")
+        // The @KraftConverter resolved the Long -> String property mismatch.
+        assertThat(generated).contains("toCreatedAtString(")
+        // The raw ksp { arg("kraft.moduleId", …) } named the converter registry.
+        assertThat(generatedFiles.map { it.name }.filter { it.contains("e2eModule") }).isNotEmpty()
     }
 
     @Test
