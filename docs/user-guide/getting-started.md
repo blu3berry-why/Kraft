@@ -21,7 +21,40 @@ dependencies {
 }
 ```
 
-For Kotlin Multiplatform projects:
+### Kotlin Multiplatform — the Gradle plugin (recommended)
+
+For KMP modules, the Kraft Gradle plugin replaces all of the wiring below with one line:
+
+```kotlin
+plugins {
+    alias(libs.plugins.kotlinMultiplatform)
+    id("com.google.devtools.ksp") version "<ksp-version>"
+    id("com.blu3berry.kraft") version "<version>"
+}
+```
+
+It adds the `kraft-ksp` and `kraft-annotations` dependencies pinned to its own version — so every module that applies the plugin automatically satisfies Kraft's same-version rule (modules wired manually must still match that version themselves) — wires the generated sources into `commonMain`, orders KSP before compilation, and sets `kraft.moduleId` to the project path so cross-module diagnostics name real modules. The Kotlin Multiplatform and KSP plugins are required alongside it — Kraft deliberately doesn't force their versions onto your build; if either is missing, the build fails with instructions.
+
+#### Configuring sides and naming with the `kraft { }` DSL
+
+Instead of hand-writing raw `ksp { arg("kraft.side.…", …) }` options, configure Kraft through the typed extension the plugin registers:
+
+```kotlin
+kraft {
+    // Custom generated function name (optional; default is `to${target}`).
+    functionNameFormat = "to\${target}From\${source}"
+
+    // Named sides: a class in a side's package gets a short alias (e.g. `toDomain`).
+    side("dto")    { packagePattern = "com.example.dto.**" }      // name defaults to "Dto"
+    side("domain") { packagePattern = "com.example.domain.**" }   // name defaults to "Domain"
+}
+```
+
+Each `side("<slot>")` maps to the `kraft.side.<slot>.*` options: `packagePattern` is required, `name` defaults to the slot capitalized, and `template` / `emitMode` are overridable. `moduleId` is also settable here but defaults to the project path. Everything the DSL sets is translated 1:1 into KSP options. A raw `ksp { arg(...) }` block still works alongside the DSL, but when both set the same option the DSL value wins (with a build warning). The one exception is `kraft.moduleId`: a raw value is kept unless the DSL sets `moduleId` explicitly.
+
+### Kotlin Multiplatform — manual wiring
+
+Equivalent manual setup, if you prefer explicit control:
 
 ```kotlin
 kotlin {
