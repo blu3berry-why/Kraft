@@ -42,6 +42,12 @@ jobs:
       - name: Run tests
         run: ./gradlew :kraft-ksp:jvmTest --continue
 
+      # Gradle plugin functional tests: real TestKit builds covering the
+      # wiring, the kraft { } DSL and raw-KSP-args drift pair, error paths,
+      # and an end-to-end mapper compile against the in-dev kraft artifacts.
+      - name: Gradle plugin functional tests
+        run: ./gradlew :kraft-gradle-plugin:test
+
       # Real two-module KMP build: the consumer's converter only exists in the
       # producer's klib, so a green build proves cross-module @KraftConverter
       # discovery works under kspCommonMainKotlinMetadata (klib classpath).

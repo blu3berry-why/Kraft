@@ -103,62 +103,133 @@ class KraftGradlePluginFunctionalTest {
         assertThat(output).contains("kraft.moduleId")
     }
 
+    /** Common plugins + kotlin header for probe-based test projects. */
+    private fun buildScriptHeader(): String =
+        """
+        plugins {
+            id("org.jetbrains.kotlin.multiplatform") version "$kotlinVersion"
+            id("com.google.devtools.ksp") version "$kspVersion"
+            id("com.blu3berry.kraft") version "$pluginVersion"
+        }
+
+        kotlin {
+            jvm()
+            js { nodejs() }
+        }
+        """.trimIndent()
+
+    /** Task that prints the effective KSP arguments map. */
+    private fun probeTask(): String =
+        """
+        tasks.register("kraftArgsProbe") {
+            // Capture at configuration time (task realization runs after the
+            // plugin's afterEvaluate, which is where the DSL emits its args).
+            val kspExt = project.extensions.getByName("ksp")
+            val kspArgs = kspExt.javaClass.methods
+                .firstOrNull { it.name == "getArguments" }
+                ?.invoke(kspExt)
+                .toString()
+            doLast {
+                println("KSPARGS=" + kspArgs)
+            }
+        }
+        """.trimIndent()
+
+    /**
+     * The one expected-args contract shared by the DSL test and the raw-KSP-args
+     * test. Both configuration styles must land on exactly these processor
+     * options — if either path drifts, exactly one of the two tests breaks.
+     */
+    private fun assertEffectiveKraftArgs(output: String, expectedModuleId: String) {
+        assertThat(output).contains("kraft.moduleId=$expectedModuleId")
+        assertThat(output).contains("kraft.functionNameFormat=to\${target}From\${source}")
+        assertThat(output).contains("kraft.side.dto.name=Dto")
+        assertThat(output).contains("kraft.side.dto.packagePattern=com.example.dto.**")
+        assertThat(output).contains("kraft.side.domain.name=Domain")
+        assertThat(output).contains("kraft.side.domain.packagePattern=com.example.domain.**")
+        assertThat(output).contains("kraft.side.domain.emitMode=FULL_NAME_ONLY")
+        assertThat(output).contains("kraft.side.domain.template=map{side}")
+    }
+
     @Test
     fun `kraft DSL translates sides, functionNameFormat and moduleId override into KSP args`() {
         writeSettings()
         File(projectDir, "build.gradle.kts").writeText(
             """
-            plugins {
-                id("org.jetbrains.kotlin.multiplatform") version "$kotlinVersion"
-                id("com.google.devtools.ksp") version "$kspVersion"
-                id("com.blu3berry.kraft") version "$pluginVersion"
-            }
-
-            kotlin {
-                jvm()
-                js { nodejs() }
-            }
+            ${buildScriptHeader()}
 
             kraft {
                 moduleId.set("customModuleId")
                 functionNameFormat.set("to\${'$'}{target}From\${'$'}{source}")
                 side("dto") {
+                    // sideName omitted: defaults to the slot capitalized ("Dto").
                     packagePattern.set("com.example.dto.**")
                 }
                 side("domain") {
                     sideName.set("Domain")
                     packagePattern.set("com.example.domain.**")
                     emitMode.set("FULL_NAME_ONLY")
+                    template.set("map{side}")
                 }
             }
 
-            tasks.register("kraftArgsProbe") {
-                // Capture at configuration time (task realization runs after the
-                // plugin's afterEvaluate, which is where the DSL emits its args).
-                val kspExt = project.extensions.getByName("ksp")
-                val kspArgs = kspExt.javaClass.methods
-                    .firstOrNull { it.name == "getArguments" }
-                    ?.invoke(kspExt)
-                    .toString()
-                doLast {
-                    println("KSPARGS=" + kspArgs)
-                }
-            }
+            ${probeTask()}
             """.trimIndent()
         )
 
         val output = runner("kraftArgsProbe").build().output
 
-        // moduleId override wins over the project-path default.
-        assertThat(output).contains("kraft.moduleId=customModuleId")
-        assertThat(output).contains("kraft.functionNameFormat=to\${target}From\${source}")
-        // dto side: name defaults to the slot capitalized.
-        assertThat(output).contains("kraft.side.dto.name=Dto")
-        assertThat(output).contains("kraft.side.dto.packagePattern=com.example.dto.**")
-        // domain side: explicit name + emitMode carried through.
-        assertThat(output).contains("kraft.side.domain.name=Domain")
-        assertThat(output).contains("kraft.side.domain.packagePattern=com.example.domain.**")
-        assertThat(output).contains("kraft.side.domain.emitMode=FULL_NAME_ONLY")
+        assertEffectiveKraftArgs(output, expectedModuleId = "customModuleId")
+    }
+
+    @Test
+    fun `raw ksp args pass through the plugin unchanged`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            ${buildScriptHeader()}
+
+            // Same effective configuration as the DSL test, written the raw way.
+            // No kraft { } block: the plugin must not touch user-set kraft.* args
+            // (moduleId is the exception — left unset here, so the plugin's
+            // project-path default applies).
+            ksp {
+                arg("kraft.functionNameFormat", "to\${'$'}{target}From\${'$'}{source}")
+                arg("kraft.side.dto.name", "Dto")
+                arg("kraft.side.dto.packagePattern", "com.example.dto.**")
+                arg("kraft.side.domain.name", "Domain")
+                arg("kraft.side.domain.packagePattern", "com.example.domain.**")
+                arg("kraft.side.domain.emitMode", "FULL_NAME_ONLY")
+                arg("kraft.side.domain.template", "map{side}")
+            }
+
+            ${probeTask()}
+            """.trimIndent()
+        )
+
+        val output = runner("kraftArgsProbe").build().output
+
+        // Root project path is ":" — the plugin's moduleId default.
+        assertEffectiveKraftArgs(output, expectedModuleId = ":")
+    }
+
+    @Test
+    fun `kraft DSL side without packagePattern fails with actionable message`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            ${buildScriptHeader()}
+
+            kraft {
+                side("dto") { }
+            }
+            """.trimIndent()
+        )
+
+        val result = runner("help").buildAndFail()
+
+        assertThat(result.output).contains("side 'dto'")
+        assertThat(result.output).contains("packagePattern")
     }
 
     private fun writeE2eSources() {
@@ -235,7 +306,9 @@ class KraftGradlePluginFunctionalTest {
         // compileKotlinJvm exercises the whole chain: the plugin's task
         // ordering pulls kspCommonMainKotlinMetadata first, the processor runs
         // with the DSL-emitted options, and the generated mapper must compile.
-        runner("compileKotlinJvm").build()
+        // --configuration-cache guards the plugin's afterEvaluate/provider
+        // wiring against config-cache regressions before release.
+        runner("compileKotlinJvm", "--configuration-cache").build()
 
         val generatedFiles = File(projectDir, "build/generated/ksp/metadata/commonMain/kotlin")
             .walkTopDown().filter { it.isFile && it.name.endsWith(".kt") }.toList()
