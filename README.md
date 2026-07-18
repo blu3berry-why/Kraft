@@ -52,7 +52,7 @@ That's the whole mapper. Kraft is a KSP processor that generates type-safe exten
 - **Global converters** — `@KraftConverter` on a top-level extension is auto-discovered across the module and the classpath, with `@OptIn` markers propagated onto the generated mapper
 - **Ignore rules** — `@MapIgnore` and `@MapIgnoreField` with directional control
 - **Configuration objects** — `@MapConfig` for mapping without modifying data classes
-- **Layer-aware aliases** — register `Dto` / `Domain` / `Entity` sides via Gradle to emit short `.toDomain()` / `.toEntity()` extensions alongside the verbose mappers
+- **Layer-aware aliases** — register `Dto` / `Domain` / `Entity` sides via the `kraft { }` Gradle DSL to emit short `.toDomain()` / `.toEntity()` extensions alongside the verbose mappers
 
 ### Platform & tooling
 
@@ -69,42 +69,39 @@ Kraft runs entirely at build time; the generated mappers are plain Kotlin and th
 
 ## Installation
 
-Kraft is published to **Maven Central** under the `com.blu3berry.kraft` group (latest version shown in the badge above). Make sure `mavenCentral()` is in your `repositories { }` block, then add the dependencies below — replace `<version>` with the current release.
+Kraft is published to **Maven Central** under the `com.blu3berry.kraft` group (latest version shown in the badge above). Make sure `mavenCentral()` is in your `repositories { }` block.
 
-### Kotlin Multiplatform
-
-```kotlin
-// build.gradle.kts
-plugins {
-    id("com.google.devtools.ksp") version "<ksp-version>"
-}
-
-kotlin {
-    sourceSets {
-        commonMain.dependencies {
-            implementation("com.blu3berry.kraft:kraft-annotations:<version>")
-        }
-    }
-}
-
-dependencies {
-    add("kspCommonMainMetadata", "com.blu3berry.kraft:kraft-ksp:<version>")
-}
-```
-
-### JVM / Android
+The Gradle plugin is the one-line setup for Kotlin Multiplatform, JVM, and Android modules — it adds the version-aligned dependencies and all wiring:
 
 ```kotlin
 // build.gradle.kts
 plugins {
+    kotlin("multiplatform") // or kotlin("jvm") / kotlin("android")
     id("com.google.devtools.ksp") version "<ksp-version>"
-}
-
-dependencies {
-    implementation("com.blu3berry.kraft:kraft-annotations:<version>")
-    ksp("com.blu3berry.kraft:kraft-ksp:<version>")
+    id("com.blu3berry.kraft") version "<version>"
 }
 ```
+
+Optional configuration goes through the typed `kraft { }` extension:
+
+```kotlin
+kraft {
+    side("dto")    { packagePattern = "com.example.dto.**" }     // emits .toDto() aliases
+    side("domain") { packagePattern = "com.example.domain.**" }  // emits .toDomain() aliases
+}
+```
+
+Prefer explicit control, or need the legacy-project integration patterns? See [Getting Started](https://blu3berry-why.github.io/Kraft/user-guide/getting-started/) for manual wiring.
+
+## Documentation
+
+Full guides for every feature live on the docs site:
+
+- [Getting Started](https://blu3berry-why.github.io/Kraft/user-guide/getting-started/) — install, first mapper, legacy-project patterns
+- [User Guide](https://blu3berry-why.github.io/Kraft/user-guide/basic-mapping/) — every feature with examples ([KSP options & `kraft { }` DSL](https://blu3berry-why.github.io/Kraft/user-guide/ksp-options/), [side aliases](https://blu3berry-why.github.io/Kraft/user-guide/side-aliases/))
+- [Architecture & SPI](https://blu3berry-why.github.io/Kraft/developer-guide/architecture/)
+- [AI Integration](https://blu3berry-why.github.io/Kraft/user-guide/ai-integration/) — ship the Kraft skill to your coding agent
+- [Contributing](CONTRIBUTING.md)
 
 ## Quick Reference
 
@@ -126,14 +123,6 @@ dependencies {
 | `@FieldMapping` | Config-level rename | In `@MapConfig.fieldMappings` |
 | `@NestedMapping` | ~~Deprecated~~ — auto-detected | In `@MapConfig.nestedMappings` |
 | `@MapIgnoreField` | Config-level ignore | In `@MapConfig.ignoredMappings` |
-
-## Documentation
-
-- [Getting Started](https://blu3berry-why.github.io/Kraft/user-guide/getting-started/)
-- [User Guide](https://blu3berry-why.github.io/Kraft/user-guide/basic-mapping/)
-- [Architecture & SPI](https://blu3berry-why.github.io/Kraft/developer-guide/architecture/)
-- [AI Integration](https://blu3berry-why.github.io/Kraft/user-guide/ai-integration/)
-- [Contributing](CONTRIBUTING.md)
 
 ## License
 

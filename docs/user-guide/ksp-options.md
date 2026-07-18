@@ -1,6 +1,9 @@
 # KSP Options
 
-Kraft supports KSP processor options to customize code generation behavior. These options are set in your `build.gradle.kts` file inside the `ksp` block.
+Kraft supports KSP processor options to customize code generation behavior. There are two ways to set them in `build.gradle.kts`:
+
+- **The `kraft { }` DSL** (recommended) — the typed extension registered by the [Kraft Gradle plugin](getting-started.md#the-gradle-plugin-recommended). Everything it sets is translated 1:1 into the raw options below.
+- **Raw `ksp { arg(...) }`** — works with or without the plugin (required for manual wiring). If both set the same option, the DSL value wins with a build warning; a raw `kraft.moduleId` is kept unless the DSL sets `moduleId` explicitly.
 
 ## kraft.functionNameFormat
 
@@ -19,7 +22,16 @@ Customize the generated extension function name pattern.
 
 ### Configuration
 
-Set the option in your module's `build.gradle.kts`:
+With the Gradle plugin:
+
+```kotlin
+// build.gradle.kts
+kraft {
+    functionNameFormat = "map\${source}To\${target}"
+}
+```
+
+Or as a raw KSP arg:
 
 ```kotlin
 // build.gradle.kts — default behavior
@@ -103,11 +115,21 @@ Disambiguates the generated `@KraftConverterDelegate` registry file when multipl
 
 ### Default
 
-Unset. Kraft falls back to a deterministic content hash of the module's converter FQN list. The hash is unique per converter set, but two unrelated modules that happen to declare the same converter signatures would still collide. Setting an explicit module ID is recommended for any project with more than one converter-producing module.
+**With the Gradle plugin:** the project path (e.g. `:feature:auth`) — cross-module diagnostics name real modules with no configuration.
+
+**Without the plugin:** unset. Kraft falls back to a deterministic content hash of the module's converter FQN list. The hash is unique per converter set, but two unrelated modules that happen to declare the same converter signatures would still collide. Setting an explicit module ID is recommended for any manually-wired project with more than one converter-producing module.
 
 ### Configuration
 
-Set the option in each producing module's `build.gradle.kts`:
+Override with the DSL:
+
+```kotlin
+kraft {
+    moduleId = "upstream"
+}
+```
+
+Or set the raw option in each producing module's `build.gradle.kts`:
 
 ```kotlin
 // upstream/build.gradle.kts
@@ -153,6 +175,22 @@ Each side is identified by a slot key (your choice of lowercase identifier — e
 | `kraft.side.<slot>.emitMode` | no | `BOTH` | `BOTH` or `FULL_NAME_ONLY` |
 
 ### Configuration
+
+With the DSL, each `side("<slot>")` block maps to the four keys — `sideName` → `name` (defaults to the slot capitalized), `packagePattern`, `template`, `emitMode`:
+
+```kotlin
+// build.gradle.kts
+kraft {
+    side("dto")    { packagePattern = "com.example.**.dto.**" }
+    side("domain") {
+        packagePattern = "com.example.**.domain.**"
+        template = "into{side}"          // optional
+        emitMode = "FULL_NAME_ONLY"      // optional
+    }
+}
+```
+
+Or as raw KSP args:
 
 ```kotlin
 // build.gradle.kts

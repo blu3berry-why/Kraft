@@ -1,7 +1,7 @@
 ---
 name: kraft-mappers
 description: |
-  Authoring guide for the Kraft KSP automapper library (com.blu3berry.kraft) in Kotlin/KMP. Covers the decision tree for @MapConfig, @MapEnum, @KraftConverter, and @MapUsing (including whole-source mode for decompose/compose/constant/default patterns); reverse mapping with @MapReverse; placement and naming conventions; and the kmpgen-DTO interaction gotchas (K1, K-A1). Use this skill whenever writing or reviewing mappers in a project that depends on Kraft. Trigger on phrases like "Kraft mapper", "@MapConfig", "@KraftConverter", "@MapEnum", "@MapReverse", "DTO mapper", "auto-mapper", or anytime a `*Mappers.kt` file is being authored.
+  Authoring guide for the Kraft KSP automapper library (com.blu3berry.kraft) in Kotlin/KMP. Covers the decision tree for @MapConfig, @MapEnum, @KraftConverter, and @MapUsing (including whole-source mode for decompose/compose/constant/default patterns); reverse mapping with @MapReverse; the Gradle plugin and kraft { } DSL (side aliases, functionNameFormat, moduleId); placement and naming conventions; and the kmpgen-DTO interaction gotchas (K1, K-A1). Use this skill whenever writing or reviewing mappers in a project that depends on Kraft. Trigger on phrases like "Kraft mapper", "@MapConfig", "@KraftConverter", "@MapEnum", "@MapReverse", "DTO mapper", "auto-mapper", "side alias", "kraft plugin", or anytime a `*Mappers.kt` file is being authored.
 ---
 
 # Kraft Mappers — Authoring Guide
@@ -28,6 +28,25 @@ When you call those functions, they try to resolve every property of `Target` fr
 - **Enum mapper** — if both enums have a `@MapEnum` registered (or auto-derive when entries align by name)
 
 If none resolves, Kraft fails compilation with a `Type mismatch` or `Required property has no mapping source` error.
+
+---
+
+## Build setup (Gradle plugin, Kraft 0.12.0+)
+
+A module uses either the Kraft Gradle plugin (preferred) or manual wiring — recognize both:
+
+- **Plugin:** `id("com.blu3berry.kraft")` in the plugins block, after the Kotlin (multiplatform/jvm/android) and KSP plugins. It adds version-pinned `kraft-ksp`/`kraft-annotations` and all wiring — do NOT also add those dependencies by hand in a plugin-applied module.
+- **Configuration** goes through the typed `kraft { }` extension, not raw `ksp { arg("kraft.…") }`:
+
+  ```kotlin
+  kraft {
+      functionNameFormat = "to\${target}"                          // optional
+      side("domain") { packagePattern = "com.example.domain.**" }  // side aliases
+  }
+  ```
+
+- **Side aliases:** a registered side gives every mapper whose target matches its `packagePattern` a short alias (`fun XDto.toDomain()` delegating to the verbose mapper). NEVER hand-write those one-line wrapper extensions (`fun XDto.toDomain() = toX()`) — register a side instead.
+- **moduleId** defaults to the project path under the plugin; only set it (DSL `moduleId`) to pin a stable id.
 
 ---
 
@@ -85,7 +104,7 @@ Mappers belong in the data layer, in a `mapper/` subpackage. One file per featur
 **Don't:**
 - Don't put `@KraftConverter` extensions in `commonMain` if the receiver type is platform-only — it must be visible in the same source set as `@MapConfig` consumers.
 - Don't import Kraft annotations from random places — they live in `com.blu3berry.kraft.config.*`.
-- Don't expect a `@KraftConverter` declared in module A to be visible to module B's KSP run. KSP processes one compilation unit at a time. Re-declare or use `@MapUsing` on the consumer side. (See K-N5.)
+- Cross-module `@KraftConverter` discovery works on Kraft **0.11.0+** (delegates resolved by name from the classpath): a converter declared in module A IS visible to module B's KSP run, as long as every module on the classpath uses the **same Kraft version**. On older Kraft (<0.11.0), re-declare or use `@MapUsing` on the consumer side. If the same converter pair exists in two classpath modules, the build fails with an ambiguity error — delete one.
 
 ---
 

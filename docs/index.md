@@ -84,44 +84,18 @@ That's the whole mapper. Kraft is a KSP processor that generates type-safe exten
 
 ## Install
 
-Kraft is on **Maven Central** (`com.blu3berry.kraft`) — ensure `mavenCentral()` is in your `repositories { }` block, then replace `<version>` with the release shown in the badge above.
+Kraft is on **Maven Central** (`com.blu3berry.kraft`) — ensure `mavenCentral()` is in your `repositories { }` block, then replace `<version>` with the release shown in the badge above. The Gradle plugin wires everything (dependencies, generated sources, task ordering) on Kotlin Multiplatform, JVM, and Android modules:
 
-=== "Kotlin Multiplatform"
+```kotlin
+// build.gradle.kts
+plugins {
+    kotlin("multiplatform") // or kotlin("jvm") / kotlin("android")
+    id("com.google.devtools.ksp") version "2.3.3"
+    id("com.blu3berry.kraft") version "<version>"
+}
+```
 
-    ```kotlin
-    // build.gradle.kts
-    plugins {
-        id("com.google.devtools.ksp") version "2.3.3"
-    }
-
-    kotlin {
-        sourceSets {
-            commonMain.dependencies {
-                implementation("com.blu3berry.kraft:kraft-annotations:<version>")
-            }
-        }
-    }
-
-    dependencies {
-        add("kspCommonMainMetadata", "com.blu3berry.kraft:kraft-ksp:<version>")
-    }
-    ```
-
-=== "JVM / Android"
-
-    ```kotlin
-    // build.gradle.kts
-    plugins {
-        id("com.google.devtools.ksp") version "2.3.3"
-    }
-
-    dependencies {
-        implementation("com.blu3berry.kraft:kraft-annotations:<version>")
-        ksp("com.blu3berry.kraft:kraft-ksp:<version>")
-    }
-    ```
-
-See [Getting Started](user-guide/getting-started.md) for requirements, KSP version matching, and legacy-project compatibility.
+See [Getting Started](user-guide/getting-started.md) for manual wiring, requirements, KSP version matching, and legacy-project compatibility.
 
 ## Where next
 

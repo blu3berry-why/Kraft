@@ -13,7 +13,17 @@ fun Category.toEntity(): CategoryEntity         = toCategoryEntity()
 
 ## Quick Start
 
-Register sides as KSP processor arguments in the module that applies the KSP plugin:
+With the [Kraft Gradle plugin](getting-started.md#the-gradle-plugin-recommended), register sides through the typed `kraft { }` DSL (the side name defaults to the slot capitalized — `dto` → `Dto`):
+
+```kotlin
+// build.gradle.kts
+kraft {
+    side("dto")    { packagePattern = "com.example.**.dto.**" }
+    side("domain") { packagePattern = "com.example.**.domain.**" }
+}
+```
+
+Without the plugin, register the same sides as raw KSP processor arguments in the module that applies the KSP plugin:
 
 ```kotlin
 // build.gradle.kts
