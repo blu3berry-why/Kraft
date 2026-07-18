@@ -4,7 +4,7 @@ Kraft is a Kotlin Symbol Processing (KSP) plugin that generates type-safe mappin
 
 ## Installation
 
-Kraft is built and tested with **Kotlin 2.2.21** and **KSP 2.3.3**, and the processor runs on a **JDK 17** build toolchain (Kotlin 2.2+ recommended — see [Compatibility and legacy projects](#compatibility-and-legacy-projects) below). It is published to **Maven Central** under the `com.blu3berry.kraft` group, so make sure `mavenCentral()` is in your `repositories { }` block. Replace `<version>` with the [latest release](https://central.sonatype.com/namespace/com.blu3berry.kraft) in the snippets below.
+Kraft is built and tested with **Kotlin 2.2.21** and **KSP 2.3.3** (the tested reference), and the processor runs on a **JDK 17** build toolchain. Other **KSP 2** releases are not CI-tested, but the processor is compiled against the stable KSP 2.3.x API, so a newer KSP 2 release matching *your* Kotlin version is expected to work (KSP 1-era versions are not supported). Kotlin 2.2+ recommended — see [Compatibility and legacy projects](#compatibility-and-legacy-projects) below. It is published to **Maven Central** under the `com.blu3berry.kraft` group, so make sure `mavenCentral()` is in your `repositories { }` block. Replace `<version>` with the [latest release](https://central.sonatype.com/namespace/com.blu3berry.kraft) in the snippets below.
 
 ### The Gradle plugin (recommended)
 
@@ -92,7 +92,7 @@ dependencies {
 
 ## Compatibility and legacy projects
 
-Kraft runs entirely at **build time**. The toolchain it needs — Kotlin 2.2.21, KSP 2.3.3, JDK 17 — is only used to *generate* the mappers. It is never required at runtime:
+Kraft runs entirely at **build time**. The toolchain it needs — Kotlin 2.2+, a matching KSP 2 release, JDK 17 — is only used to *generate* the mappers. It is never required at runtime:
 
 - **Generated mappers are plain Kotlin.** Kraft emits trivial extension functions with no modern-only language features, e.g.:
   ```kotlin
