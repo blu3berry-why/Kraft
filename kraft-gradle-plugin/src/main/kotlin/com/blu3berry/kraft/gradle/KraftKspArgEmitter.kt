@@ -33,9 +33,11 @@ internal object KraftKspArgEmitter {
                 // already set via a raw `ksp { arg(...) }` block; an explicit
                 // `kraft { moduleId = … }` still wins over both.
                 if (extension.moduleId.isPresent || "kraft.moduleId" !in ksp.arguments) {
-                    ksp.arg("kraft.moduleId", extension.moduleId.getOrElse(project.path))
+                    emitArg(project, ksp, "kraft.moduleId", extension.moduleId.getOrElse(project.path))
                 }
-                extension.functionNameFormat.orNull?.let { ksp.arg("kraft.functionNameFormat", it) }
+                extension.functionNameFormat.orNull?.let {
+                    emitArg(project, ksp, "kraft.functionNameFormat", it)
+                }
                 emitSides(project, ksp, extension)
             }
         }
@@ -75,19 +77,19 @@ internal object KraftKspArgEmitter {
                   (INHERIT is only valid per-mapper via @MapConfig(aliasEmitMode = …).)
                 """.trimIndent()
             }
-            emitSideArg(project, ksp, "$SIDE_PREFIX$slot.name", displayName)
-            emitSideArg(project, ksp, "$SIDE_PREFIX$slot.packagePattern", pattern)
-            side.template.orNull?.let { emitSideArg(project, ksp, "$SIDE_PREFIX$slot.template", it) }
-            emitMode?.let { emitSideArg(project, ksp, "$SIDE_PREFIX$slot.emitMode", it) }
+            emitArg(project, ksp, "$SIDE_PREFIX$slot.name", displayName)
+            emitArg(project, ksp, "$SIDE_PREFIX$slot.packagePattern", pattern)
+            side.template.orNull?.let { emitArg(project, ksp, "$SIDE_PREFIX$slot.template", it) }
+            emitMode?.let { emitArg(project, ksp, "$SIDE_PREFIX$slot.emitMode", it) }
         }
     }
 
     /**
-     * Writes one DSL-derived side option, warning when it overwrites a value the
+     * Writes one DSL-derived option, warning when it overwrites a value the
      * user also set via a raw `ksp { arg(...) }` block — the DSL runs later
      * (afterEvaluate) and wins, which should never happen silently.
      */
-    private fun emitSideArg(project: Project, ksp: KspExtension, key: String, value: String) {
+    private fun emitArg(project: Project, ksp: KspExtension, key: String, value: String) {
         val existing = ksp.arguments[key]
         if (existing != null && existing != value) {
             project.logger.warn(

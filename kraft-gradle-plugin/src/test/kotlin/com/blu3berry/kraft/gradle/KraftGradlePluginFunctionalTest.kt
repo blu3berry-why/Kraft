@@ -268,9 +268,11 @@ class KraftGradlePluginFunctionalTest {
 
             ksp {
                 arg("kraft.side.dto.name", "RawDto")
+                arg("kraft.functionNameFormat", "rawFormat")
             }
 
             kraft {
+                functionNameFormat.set("dslFormat")
                 side("dto") { packagePattern.set("com.example.dto.**") }
             }
 
@@ -280,9 +282,13 @@ class KraftGradlePluginFunctionalTest {
 
         val output = runner("kraftArgsProbe").build().output
 
+        // Both the side key and the top-level key warn on collision.
+        assertThat(output).contains("'kraft.side.dto.name' is set to \"RawDto\"")
+        assertThat(output).contains("'kraft.functionNameFormat' is set to \"rawFormat\"")
         assertThat(output).contains("the DSL value wins")
-        // And the DSL value did win.
+        // And the DSL values did win.
         assertThat(output).contains("kraft.side.dto.name=Dto")
+        assertThat(output).contains("kraft.functionNameFormat=dslFormat")
     }
 
     private fun writeE2eSources(sourceRoot: String = "src/commonMain/kotlin") {
