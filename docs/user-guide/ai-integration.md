@@ -10,6 +10,7 @@ The skill covers:
 
 - The **decision tree** for choosing between `@MapConfig`, `@MapFrom`/`@MapTo`, `@MapEnum`, `@KraftConverter`, and `@MapUsing` (including whole-source mode for decompose / compose / constant / default patterns)
 - Reverse mapping with `@MapReverse` and converter direction inference
+- The **Gradle plugin** and `kraft { }` DSL — build setup, side aliases (never hand-write `.toDomain()` wrapper extensions), `functionNameFormat`, `moduleId`
 - Placement and naming conventions for mapper objects and converter functions
 - **Known gotchas** with generated API-client DTOs (nested `$ref` copies, enum filename collisions, type-aliased properties) and which Kraft version fixes each
 - A common-errors table mapping processor messages to fixes

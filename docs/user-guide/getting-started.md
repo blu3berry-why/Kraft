@@ -4,42 +4,30 @@ Kraft is a Kotlin Symbol Processing (KSP) plugin that generates type-safe mappin
 
 ## Installation
 
-Kraft is built and tested with **Kotlin 2.2.21** and **KSP 2.3.3**, and the processor runs on a **JDK 17** build toolchain (Kotlin 2.2+ recommended — see [Compatibility and legacy projects](#compatibility-and-legacy-projects) below). It is published to **Maven Central** under the `com.blu3berry.kraft` group, so make sure `mavenCentral()` is in your `repositories { }` block. Add the following to your `build.gradle.kts` (replace `<version>` with the [latest release](https://central.sonatype.com/namespace/com.blu3berry.kraft)):
-
-```kotlin
-plugins {
-    id("com.google.devtools.ksp") version "<ksp-version>"
-}
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation("com.blu3berry.kraft:kraft-annotations:<version>")
-    ksp("com.blu3berry.kraft:kraft-ksp:<version>")
-}
-```
+Kraft is built and tested with **Kotlin 2.2.21** and **KSP 2.3.3**, and the processor runs on a **JDK 17** build toolchain (Kotlin 2.2+ recommended — see [Compatibility and legacy projects](#compatibility-and-legacy-projects) below). It is published to **Maven Central** under the `com.blu3berry.kraft` group, so make sure `mavenCentral()` is in your `repositories { }` block. Replace `<version>` with the [latest release](https://central.sonatype.com/namespace/com.blu3berry.kraft) in the snippets below.
 
 ### The Gradle plugin (recommended)
 
-The Kraft Gradle plugin supports Kotlin Multiplatform, Kotlin JVM, and Kotlin Android modules — apply it after the Kotlin plugin of your module's flavor and the KSP plugin, and it wires everything below automatically. On Kotlin JVM (`org.jetbrains.kotlin.jvm`) and Kotlin Android (`org.jetbrains.kotlin.android`) modules it adds the version-pinned `ksp`/`implementation` dependencies and the KSP options (KSP itself handles generated sources and task ordering there); the plugin touches no Android Gradle Plugin APIs, so it is insensitive to your AGP version.
-
-For KMP modules, it replaces all of the wiring below with one line:
+One plugin line sets up Kraft on Kotlin Multiplatform, Kotlin JVM, and Kotlin Android modules:
 
 ```kotlin
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
+    kotlin("multiplatform") // or kotlin("jvm") / kotlin("android")
     id("com.google.devtools.ksp") version "<ksp-version>"
     id("com.blu3berry.kraft") version "<version>"
 }
 ```
 
-It adds the `kraft-ksp` and `kraft-annotations` dependencies pinned to its own version — so every module that applies the plugin automatically satisfies Kraft's same-version rule (modules wired manually must still match that version themselves) — wires the generated sources into `commonMain`, orders KSP before compilation, and sets `kraft.moduleId` to the project path so cross-module diagnostics name real modules. The Kotlin Multiplatform and KSP plugins are required alongside it — Kraft deliberately doesn't force their versions onto your build; if either is missing, the build fails with instructions.
+What it does:
+
+- **Adds the dependencies** — `kraft-ksp` and `kraft-annotations`, pinned to the plugin's own version, so every plugin-applied module automatically satisfies Kraft's same-version rule.
+- **Wires KMP builds** — generated sources into `commonMain`, KSP ordered before every compilation. (On JVM/Android, KSP handles this itself; the plugin touches no AGP APIs, so your AGP version doesn't matter.)
+- **Names your module** — `kraft.moduleId` defaults to the project path, so cross-module diagnostics name real modules.
+- **Fails helpfully** — the Kotlin and KSP plugins are required but never auto-applied (their versions stay yours); if one is missing, the build error tells you exactly what to add.
 
 #### Configuring sides and naming with the `kraft { }` DSL
 
-Instead of hand-writing raw `ksp { arg("kraft.side.…", …) }` options, configure Kraft through the typed extension the plugin registers:
+The plugin registers a typed extension so you don't hand-write raw `ksp { arg(...) }` options:
 
 ```kotlin
 kraft {
@@ -52,7 +40,8 @@ kraft {
 }
 ```
 
-Each `side("<slot>")` maps to the `kraft.side.<slot>.*` options: `packagePattern` is required, `name` defaults to the slot capitalized, and `template` / `emitMode` are overridable. `moduleId` is also settable here but defaults to the project path. Everything the DSL sets is translated 1:1 into KSP options. A raw `ksp { arg(...) }` block still works alongside the DSL, but when both set the same option the DSL value wins (with a build warning). The one exception is `kraft.moduleId`: a raw value is kept unless the DSL sets `moduleId` explicitly.
+- Each `side("<slot>")` maps 1:1 to the [`kraft.side.<slot>.*` options](ksp-options.md#kraftside): `packagePattern` required, `name` defaults to the slot capitalized, `template` / `emitMode` overridable.
+- A raw `ksp { arg(...) }` block still works alongside the DSL; on the same key the DSL wins with a build warning (`kraft.moduleId` is the exception — a raw value is kept unless the DSL sets `moduleId` explicitly).
 
 ### Kotlin Multiplatform — manual wiring
 
@@ -85,6 +74,21 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().all {
 ```
 
 The `kotlin.srcDir` line adds the KSP output directory to your common source set so the IDE and all platform compilations can see the generated mappers. The `dependsOn` block ensures `kspCommonMainKotlinMetadata` runs before any Kotlin compilation task, so generated code is always up to date.
+
+### JVM / Android — manual wiring
+
+On single-target modules KSP wires generated sources and task ordering itself, so the manual alternative is just the dependencies (keep both on the **same Kraft version** as every other module):
+
+```kotlin
+plugins {
+    id("com.google.devtools.ksp") version "<ksp-version>"
+}
+
+dependencies {
+    implementation("com.blu3berry.kraft:kraft-annotations:<version>")
+    ksp("com.blu3berry.kraft:kraft-ksp:<version>")
+}
+```
 
 ## Compatibility and legacy projects
 
