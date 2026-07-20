@@ -195,7 +195,9 @@ Pre-fix behavior: Kraft derived the generated mapper's filename from `<sourceSim
 
 **Status:** Fixed in Kraft 0.10.1 (PR #74). On older Kraft, any DTO property declared through a `typealias` (common in generated API clients that attach serializers via annotated aliases, e.g. kmpgen ≥1.5.0's date-time fields) crashes the processor with `expected KSClassDeclaration for [typealias ...]` — or silently skips properties, converters, and enum derivations on scanner paths.
 
-**Fix:** upgrade Kraft to ≥0.10.1 — aliases resolve to their underlying type everywhere (property types, converter signatures, `Alias::class` annotation arguments, collection elements), with use-site nullability preserved. **Remaining limitation:** parameterized aliases (`typealias X<T> = ...`) are unsupported; Kraft reports a clear error — declare the property with the underlying type.
+**Fix:** upgrade Kraft to ≥0.10.1 — aliases resolve to their underlying type everywhere (property types, converter signatures, `Alias::class` annotation arguments, collection elements, aliases whose expansion is itself nullable), with use-site nullability preserved. **Remaining limitation:** parameterized aliases (`typealias X<T> = ...`) are unsupported; Kraft reports a clear error — declare the property with the underlying type.
+
+**Generator versions checked:** kmpgen 1.5.0 and 1.6.0-RC01. The alias mechanism is identical in both; 1.6.0-RC01 adds nullable-expansion aliases (`typealias NullableRefTypealias = NullableInlineObject?`) for nullable `$ref`s, covered by the fix. kmpgen's one parameterized alias (`SerializableImmutableList<T>`) is not used for generated model properties.
 
 ### Don't run mappers on JVM-only paths in `commonMain`
 

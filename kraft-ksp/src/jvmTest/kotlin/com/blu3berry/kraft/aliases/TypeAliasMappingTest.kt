@@ -74,6 +74,35 @@ class TypeAliasMappingTest {
     }
 
     @Test
+    fun `alias whose expansion is nullable maps to the nullable underlying type`() {
+        // kmpgen 1.6.0-RC01 emits these for nullable $refs:
+        // `typealias NullableRefTypealias = NullableInlineObject?`
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            data class Stamp(val epochMillis: Long)
+
+            typealias NullableStamp = Stamp?
+
+            data class EventDto(val name: String, val updatedAt: NullableStamp)
+            data class Event(val name: String, val updatedAt: Stamp?)
+
+            @com.blu3berry.kraft.config.MapConfig(
+                source = EventDto::class,
+                target = Event::class
+            )
+            object EventMapper
+            """
+        )
+
+        val generated = TestKspRunner.compileAndReturnGenerated(source)
+        val file = generated.first().readText()
+
+        assertThat(file).contains("fun EventDto.toEvent()")
+        assertThat(file).contains("updatedAt = this.updatedAt")
+    }
+
+    @Test
     fun `chained aliases unwrap to the underlying type`() {
         val source = SourceFile.kotlin(
             "Models.kt",
