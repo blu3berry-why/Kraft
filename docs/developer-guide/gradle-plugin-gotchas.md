@@ -1,6 +1,6 @@
-# Gradle Plugin — Authoring Gotchas
+# Writing the Gradle Plugin
 
-Traps hit while building and releasing `kraft-gradle-plugin`. Each is enforced by a code comment at the site; this page is the central index so the next contributor recognizes the pattern before rediscovering it.
+What bit us while building and releasing `kraft-gradle-plugin`. Each one is enforced by a code comment at the site; this page is the central index so the next contributor recognizes the pattern before rediscovering it.
 
 ## Configuration-time vs execution-time
 
