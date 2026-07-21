@@ -137,11 +137,11 @@ jobs:
   # builds on the Gradle running the tests unless kraft.test.gradleVersion says
   # otherwise, so without this every run only ever proved Gradle 8.13 works.
   #
-  # 9.6.x drops the Android leg, and that limitation is not Kraft's: AGP (both
-  # 8.11.2 and the latest 8.13.2) calls org.gradle.api.problems.internal
-  # .InternalProblems, removed in Gradle 9.6.0, so the Android plugin cannot load
-  # at all. AGP 9.x fixes it but requires a Kotlin newer than Kraft's floor.
-  # 9.5.1 is the last Gradle before that removal, so it still covers Android.
+  # 9.6.x drops the Android leg: AGP 8.x (both 8.11.2 and the latest 8.13.2)
+  # calls org.gradle.api.problems.internal.InternalProblems, removed in Gradle
+  # 9.6.0, so the Android plugin cannot load. AGP 9.x fixes that, but it ships
+  # built-in Kotlin and Kraft does not detect that setup yet (F-17). 9.5.1 is
+  # the last Gradle before the removal, so it still covers Android on AGP 8.x.
   gradle-compat:
     name: Gradle ${{ matrix.gradle }}
     runs-on: ubuntu-latest
@@ -185,10 +185,12 @@ jobs:
   # its own 2.2.21 floor. This is the job that backs the claim that a Kotlin or
   # KSP upgrade does not strand consumers -- it is tested, not assumed.
   #
-  # Android is excluded here because the Kotlin Android plugin does not apply
-  # against AGP 9.x (verified with AGP 9.0.1 and 9.3.0 on Kotlin 2.4.10), and
-  # AGP 8.x cannot load on Gradle >= 9.6.0 at all. Both are ecosystem
-  # constraints between AGP, KGP and Gradle -- no Kraft code is involved.
+  # Android is excluded here for two separate reasons, neither of them a bug:
+  #   1. AGP 8.x cannot load on Gradle >= 9.6.0 (removed Problems internals).
+  #   2. Moving to AGP 9.x is not a drop-in for this fixture: AGP 9 ships
+  #      built-in Kotlin, so applying org.jetbrains.kotlin.android alongside it
+  #      is an error. The fixture (and Kraft's own plugin detection) still
+  #      assume the kotlin-android plugin -- tracked as F-17.
   # Android coverage lives on the gradle-compat 8.13 and 9.5.1 legs.
   modern-stack:
     name: Kotlin 2.4.10 / KSP 2.3.9 / Gradle 9.6.1
