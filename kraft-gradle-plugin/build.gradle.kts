@@ -69,7 +69,16 @@ publishing {
 }
 
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        // Lets CI drop tags on toolchain combinations that cannot run there
+        // (e.g. -PkraftExcludeTags=agp9 where AGP 9 is not exercised).
+        (findProperty("kraftExcludeTags") as? String)
+            ?.split(',')
+            ?.map(String::trim)
+            ?.filter(String::isNotEmpty)
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { excludeTags(*it.toTypedArray()) }
+    }
     dependsOn("publishAllPublicationsToTestRepository")
     // The end-to-end functional test compiles a real consumer project, which
     // must resolve kraft-ksp/kraft-annotations (and kraft-core, ksp's runtime
@@ -90,6 +99,16 @@ tasks.test {
         "kraft.test.agpVersion",
         (findProperty("kraft.test.agpVersion") as? String)
             ?: catalog.findVersion("agp").get().requiredVersion
+    )
+    // AGP 9 line, used by the built-in-Kotlin functional test. Separate from
+    // kraft.test.agpVersion so the AGP 8 tests keep their own version.
+    systemProperty(
+        "kraft.test.agp9GradleVersion",
+        (findProperty("kraft.test.agp9GradleVersion") as? String)?.takeIf { it.isNotBlank() } ?: "9.6.1"
+    )
+    systemProperty(
+        "kraft.test.agp9Version",
+        (findProperty("kraft.test.agp9Version") as? String)?.takeIf { it.isNotBlank() } ?: "9.3.0"
     )
     systemProperty("kraft.test.compileSdk", catalog.findVersion("android-compileSdk").get().requiredVersion)
     systemProperty("kraft.test.pluginVersion", version.toString())

@@ -90,6 +90,28 @@ dependencies {
 }
 ```
 
+### Android with AGP 9 (built-in Kotlin)
+
+AGP 9 compiles Kotlin itself, so an Android module applies **only** the AGP plugin — applying `org.jetbrains.kotlin.android` alongside it is an error, because the `kotlin` extension already exists. Kraft recognises that shape:
+
+```kotlin
+plugins {
+    id("com.android.library") version "<agp-9-version>"   // or com.android.application
+    id("com.google.devtools.ksp") version "<ksp-version>"
+    id("com.blu3berry.kraft") version "<version>"
+}
+```
+
+One extra line is needed today, in `gradle.properties`:
+
+```properties
+android.disallowKotlinSourceSets=false
+```
+
+KSP still registers its generated output directory through the `kotlin.sourceSets` DSL, which built-in Kotlin rejects by default. The flag is AGP's own opt-out for exactly this case, and it is unrelated to Kraft — Kraft adds no source directories on single-target modules, only dependencies and KSP arguments. It can be dropped once KSP registers generated sources through `android.sourceSets`.
+
+AGP 9 also requires Gradle 9.5+. On AGP 8 nothing changes: keep applying `org.jetbrains.kotlin.android` as before.
+
 ## Compatibility and legacy projects
 
 Kraft runs entirely at **build time**. The toolchain it needs — Kotlin 2.2+, a matching KSP 2 release, JDK 17 — is only used to *generate* the mappers. It is never required at runtime:

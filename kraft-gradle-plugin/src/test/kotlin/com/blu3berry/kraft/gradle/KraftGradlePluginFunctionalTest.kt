@@ -2,6 +2,7 @@ package com.blu3berry.kraft.gradle
 
 import com.google.common.truth.Truth.assertThat
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -19,6 +20,10 @@ class KraftGradlePluginFunctionalTest {
     private val testRepo = System.getProperty("kraft.test.repo").replace('\\', '/')
     private val libsRepo = System.getProperty("kraft.test.libsRepo").replace('\\', '/')
     private val agpVersion = System.getProperty("kraft.test.agpVersion")
+    private val agp9Version = System.getProperty("kraft.test.agp9Version")
+    // AGP 9 requires Gradle >= 9.5.0, above the wrapper this build runs on, so
+    // the built-in-Kotlin test drives TestKit on its own Gradle distribution.
+    private val agp9GradleVersion = System.getProperty("kraft.test.agp9GradleVersion")
     private val compileSdk = System.getProperty("kraft.test.compileSdk")
 
     @TempDir
@@ -498,5 +503,94 @@ class KraftGradlePluginFunctionalTest {
         assertThat(generated).contains("fun CategoryDto.intoCategory(")
         assertThat(generated).contains("fun CategoryDto.toDomain(")
         assertThat(generated).contains("toCreatedAtString(")
+    }
+
+    /**
+     * AGP 9 ships built-in Kotlin: an Android module applies only
+     * com.android.library (no org.jetbrains.kotlin.android -- applying it there
+     * is an error, the kotlin extension already exists). Kraft must recognise
+     * that shape as a Kotlin-bearing module and wire itself the same way.
+     */
+    @Tag("agp9")
+    @Test
+    fun `end to end - AGP 9 built-in Kotlin module generates and compiles side-aliased mappers`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.android.library") version "$agp9Version"
+                id("com.google.devtools.ksp") version "$kspVersion"
+                id("com.blu3berry.kraft") version "$pluginVersion"
+            }
+
+            android {
+                namespace = "com.example.kraft"
+                compileSdk = $compileSdk
+            }
+
+            kraft {
+                functionNameFormat.set("into\${'$'}{target}")
+                side("domain") { packagePattern.set("com.example.domain.**") }
+            }
+            """.trimIndent()
+        )
+        // KSP still registers its generated dir through kotlin.sourceSets, which
+        // built-in Kotlin rejects; AGP ships this opt-out for exactly that case.
+        File(projectDir, "gradle.properties").writeText("android.disallowKotlinSourceSets=false\n")
+        writeE2eSources(sourceRoot = "src/main/kotlin")
+
+        runner("compileDebugKotlin").withGradleVersion(agp9GradleVersion).build()
+
+        val generated = File(projectDir, "build/generated/ksp/debug/kotlin")
+            .walkTopDown().filter { it.isFile && it.name.endsWith(".kt") }
+            .joinToString("\n") { it.readText() }
+
+        assertThat(generated).contains("fun CategoryDto.intoCategory(")
+        assertThat(generated).contains("fun CategoryDto.toDomain(")
+        assertThat(generated).contains("toCreatedAtString(")
+    }
+
+    /**
+     * Regression guard for the idempotence fix: on AGP 8 a module applies BOTH
+     * com.android.library and org.jetbrains.kotlin.android. Recognising the AGP
+     * ids must not make Kraft wire itself twice and add duplicate dependencies.
+     */
+    @Tag("android")
+    @Test
+    fun `AGP 8 module with kotlin-android wires kraft dependencies exactly once`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.android.library") version "$agpVersion"
+                id("org.jetbrains.kotlin.android") version "$kotlinVersion"
+                id("com.google.devtools.ksp") version "$kspVersion"
+                id("com.blu3berry.kraft") version "$pluginVersion"
+            }
+
+            android {
+                namespace = "com.example.kraft"
+                compileSdk = $compileSdk
+            }
+
+            tasks.register("kraftDepProbe") {
+                val ksp = configurations.getByName("ksp")
+                    .dependencies.filter { it.group == "com.blu3berry.kraft" }
+                    .map { "${'$'}{it.group}:${'$'}{it.name}:${'$'}{it.version}" }
+                val impl = configurations.getByName("implementation")
+                    .dependencies.filter { it.group == "com.blu3berry.kraft" }
+                    .map { "${'$'}{it.group}:${'$'}{it.name}:${'$'}{it.version}" }
+                doLast {
+                    println("KSPCOUNT=" + ksp.size)
+                    println("IMPLCOUNT=" + impl.size)
+                }
+            }
+            """.trimIndent()
+        )
+
+        val output = runner("kraftDepProbe").build().output
+
+        assertThat(output).contains("KSPCOUNT=1")
+        assertThat(output).contains("IMPLCOUNT=1")
     }
 }

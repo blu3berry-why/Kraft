@@ -49,13 +49,21 @@ class KraftGradlePlugin : Plugin<Project> {
                 KraftKmpWiring.configure(project, kraftVersion(), extension)
             }
         }
-        // kotlin-jvm and kotlin-android are mutually exclusive with each other and
-        // with KMP, so at most one of these three branches fires.
-        for (id in listOf(KOTLIN_JVM_ID, KOTLIN_ANDROID_ID)) {
+        // Single-target Kotlin comes from one of two shapes:
+        //   - kotlin-jvm / kotlin-android, applied explicitly, or
+        //   - AGP 9's built-in Kotlin, where com.android.application/library
+        //     compiles Kotlin itself and applying kotlin-android is an error.
+        // On AGP 8 both an AGP id and kotlin-android are present, so the wiring
+        // is guarded to run once -- otherwise the dependencies land twice.
+        var singleTargetConfigured = false
+        for (id in listOf(KOTLIN_JVM_ID, KOTLIN_ANDROID_ID, ANDROID_APPLICATION_ID, ANDROID_LIBRARY_ID)) {
             project.pluginManager.withPlugin(id) {
                 kotlinPluginSeen = true
                 project.pluginManager.withPlugin(KSP_ID) {
-                    KraftSingleTargetWiring.configure(project, kraftVersion(), extension)
+                    if (!singleTargetConfigured) {
+                        singleTargetConfigured = true
+                        KraftSingleTargetWiring.configure(project, kraftVersion(), extension)
+                    }
                 }
             }
         }
@@ -76,6 +84,8 @@ class KraftGradlePlugin : Plugin<Project> {
                   1. Kotlin Multiplatform — `alias(libs.plugins.kotlinMultiplatform)` (id "$KOTLIN_MULTIPLATFORM_ID")
                   2. Kotlin JVM — `alias(libs.plugins.kotlinJvm)` (id "$KOTLIN_JVM_ID")
                   3. Kotlin Android — `alias(libs.plugins.kotlinAndroid)` (id "$KOTLIN_ANDROID_ID")
+                  4. Android with AGP 9 built-in Kotlin — id "$ANDROID_APPLICATION_ID" or
+                     "$ANDROID_LIBRARY_ID" on their own (do not also apply "$KOTLIN_ANDROID_ID")
                 Details: https://blu3berry-why.github.io/Kraft/user-guide/getting-started/
                 """.trimIndent()
             )
@@ -119,6 +129,10 @@ class KraftGradlePlugin : Plugin<Project> {
         const val KOTLIN_MULTIPLATFORM_ID = "org.jetbrains.kotlin.multiplatform"
         const val KOTLIN_JVM_ID = "org.jetbrains.kotlin.jvm"
         const val KOTLIN_ANDROID_ID = "org.jetbrains.kotlin.android"
+        // AGP 9 compiles Kotlin itself (built-in Kotlin), so these ids mark a
+        // Kotlin-bearing module even with no org.jetbrains.kotlin.* plugin.
+        const val ANDROID_APPLICATION_ID = "com.android.application"
+        const val ANDROID_LIBRARY_ID = "com.android.library"
         const val KSP_ID = "com.google.devtools.ksp"
         const val VERSION_RESOURCE = "kraft-plugin.properties"
         const val BROKEN_DISTRIBUTION_HINT =
