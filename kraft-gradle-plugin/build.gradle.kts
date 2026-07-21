@@ -93,17 +93,22 @@ tasks.test {
     // plugin versions; keep them aligned with the catalog. (Explicit catalog API:
     // `libs.versions.kotlin` would resolve against the `kotlin {}` DSL accessor here.)
     val catalog = project.extensions.getByType<VersionCatalogsExtension>().named("libs")
-    systemProperty("kraft.test.kotlinVersion", catalog.findVersion("kotlin").get().requiredVersion)
+    // Overridable from CI to matrix-test other Kotlin versions without test changes.
+    systemProperty(
+        "kraft.test.kotlinVersion",
+        (findProperty("kraft.test.kotlinVersion") as? String)?.takeIf { it.isNotBlank() }
+            ?: catalog.findVersion("kotlin").get().requiredVersion
+    )
     // Overridable from CI to matrix-test other KSP versions without test changes.
     systemProperty(
         "kraft.test.kspVersion",
-        (findProperty("kraft.test.kspVersion") as? String)
+        (findProperty("kraft.test.kspVersion") as? String)?.takeIf { it.isNotBlank() }
             ?: catalog.findVersion("ksp").get().requiredVersion
     )
     // Overridable from CI to matrix-test other AGP versions without test changes.
     systemProperty(
         "kraft.test.agpVersion",
-        (findProperty("kraft.test.agpVersion") as? String)
+        (findProperty("kraft.test.agpVersion") as? String)?.takeIf { it.isNotBlank() }
             ?: catalog.findVersion("agp").get().requiredVersion
     )
     // Unset by default: TestKit then runs the generated builds on the Gradle

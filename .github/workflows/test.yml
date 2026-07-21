@@ -181,6 +181,46 @@ jobs:
           name: test-results-gradle-${{ matrix.gradle }}
           path: kraft-gradle-plugin/build/reports/tests/test/
 
+  # CI-10: the newest stack Kraft is known to work on, two Kotlin minors above
+  # its own 2.2.21 floor. This is the job that backs the claim that a Kotlin or
+  # KSP upgrade does not strand consumers -- it is tested, not assumed.
+  #
+  # Android is excluded here because the Kotlin Android plugin does not apply
+  # against AGP 9.x (verified with AGP 9.0.1 and 9.3.0 on Kotlin 2.4.10), and
+  # AGP 8.x cannot load on Gradle >= 9.6.0 at all. Both are ecosystem
+  # constraints between AGP, KGP and Gradle -- no Kraft code is involved.
+  # Android coverage lives on the gradle-compat 8.13 and 9.5.1 legs.
+  modern-stack:
+    name: Kotlin 2.4.10 / KSP 2.3.9 / Gradle 9.6.1
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Gradle plugin functional tests (newest stack)
+        run: >-
+          ./gradlew :kraft-gradle-plugin:test
+          -Pkraft.test.kotlinVersion=2.4.10
+          -Pkraft.test.kspVersion=2.3.9
+          -Pkraft.test.gradleVersion=9.6.1
+          -PkraftExcludeTags=android
+
+      - name: Publish test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results-modern-stack
+          path: kraft-gradle-plugin/build/reports/tests/test/
+
   # The pinned matrix above goes stale the moment a new KSP ships. This job
   # resolves whatever is newest on Maven Central at run time, so a KSP release
   # that breaks Kraft surfaces on the next weekly run instead of in an issue.
