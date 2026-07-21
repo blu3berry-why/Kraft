@@ -50,6 +50,12 @@ class KraftGradlePluginFunctionalTest {
             rootProject.name = "kraft-plugin-test"
             """.trimIndent()
         )
+        // Each generated build forks its own daemon, and several tests apply the
+        // Kotlin/AGP plugins in the same run; the default metaspace is not enough
+        // and exhausting it surfaces as an unrelated-looking plugin-apply failure.
+        File(projectDir, "gradle.properties").writeText(
+            "org.gradle.jvmargs=-Xmx1g -XX:MaxMetaspaceSize=768m\n"
+        )
     }
 
     private fun runner(vararg arguments: String): GradleRunner = GradleRunner.create()
@@ -536,7 +542,7 @@ class KraftGradlePluginFunctionalTest {
         )
         // KSP still registers its generated dir through kotlin.sourceSets, which
         // built-in Kotlin rejects; AGP ships this opt-out for exactly that case.
-        File(projectDir, "gradle.properties").writeText("android.disallowKotlinSourceSets=false\n")
+        File(projectDir, "gradle.properties").appendText("android.disallowKotlinSourceSets=false\n")
         writeE2eSources(sourceRoot = "src/main/kotlin")
 
         runner("compileDebugKotlin").withGradleVersion(agp9GradleVersion).build()
@@ -551,19 +557,20 @@ class KraftGradlePluginFunctionalTest {
     }
 
     /**
-     * Regression guard for the idempotence fix: on AGP 8 a module applies BOTH
-     * com.android.library and org.jetbrains.kotlin.android. Recognising the AGP
-     * ids must not make Kraft wire itself twice and add duplicate dependencies.
+     * A KMP module that targets Android applies com.android.library in the same
+     * module, so both the KMP branch and the AGP-id branch match it. Only the KMP
+     * wiring may run: the flat `ksp` / `implementation` dependencies would make
+     * KSP process the platform compilations on top of the metadata one.
      */
     @Tag("android")
     @Test
-    fun `AGP 8 module with kotlin-android wires kraft dependencies exactly once`() {
+    fun `KMP module targeting Android is wired through the KMP path only`() {
         writeSettings()
         File(projectDir, "build.gradle.kts").writeText(
             """
             plugins {
                 id("com.android.library") version "$agpVersion"
-                id("org.jetbrains.kotlin.android") version "$kotlinVersion"
+                id("org.jetbrains.kotlin.multiplatform") version "$kotlinVersion"
                 id("com.google.devtools.ksp") version "$kspVersion"
                 id("com.blu3berry.kraft") version "$pluginVersion"
             }
@@ -573,24 +580,32 @@ class KraftGradlePluginFunctionalTest {
                 compileSdk = $compileSdk
             }
 
-            tasks.register("kraftDepProbe") {
-                val ksp = configurations.getByName("ksp")
-                    .dependencies.filter { it.group == "com.blu3berry.kraft" }
-                    .map { "${'$'}{it.group}:${'$'}{it.name}:${'$'}{it.version}" }
-                val impl = configurations.getByName("implementation")
-                    .dependencies.filter { it.group == "com.blu3berry.kraft" }
-                    .map { "${'$'}{it.group}:${'$'}{it.name}:${'$'}{it.version}" }
+            kotlin {
+                jvm()
+                androidTarget()
+            }
+
+            tasks.register("kraftWiringProbe") {
+                val metadata = configurations.getByName("kspCommonMainMetadata")
+                    .dependencies.count { it.group == "com.blu3berry.kraft" }
+                // Only the single-target path adds to these.
+                val flatKsp = configurations.findByName("ksp")
+                    ?.dependencies?.count { it.group == "com.blu3berry.kraft" } ?: 0
+                val flatImpl = configurations.findByName("implementation")
+                    ?.dependencies?.count { it.group == "com.blu3berry.kraft" } ?: 0
                 doLast {
-                    println("KSPCOUNT=" + ksp.size)
-                    println("IMPLCOUNT=" + impl.size)
+                    println("METADATA=" + metadata)
+                    println("FLATKSP=" + flatKsp)
+                    println("FLATIMPL=" + flatImpl)
                 }
             }
             """.trimIndent()
         )
 
-        val output = runner("kraftDepProbe").build().output
+        val output = runner("kraftWiringProbe").build().output
 
-        assertThat(output).contains("KSPCOUNT=1")
-        assertThat(output).contains("IMPLCOUNT=1")
+        assertThat(output).contains("METADATA=1")
+        assertThat(output).contains("FLATKSP=0")
+        assertThat(output).contains("FLATIMPL=0")
     }
 }
