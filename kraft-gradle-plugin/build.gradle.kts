@@ -84,7 +84,12 @@ tasks.test {
     // `libs.versions.kotlin` would resolve against the `kotlin {}` DSL accessor here.)
     val catalog = project.extensions.getByType<VersionCatalogsExtension>().named("libs")
     systemProperty("kraft.test.kotlinVersion", catalog.findVersion("kotlin").get().requiredVersion)
-    systemProperty("kraft.test.kspVersion", catalog.findVersion("ksp").get().requiredVersion)
+    // Overridable from CI to matrix-test other KSP versions without test changes.
+    systemProperty(
+        "kraft.test.kspVersion",
+        (findProperty("kraft.test.kspVersion") as? String)
+            ?: catalog.findVersion("ksp").get().requiredVersion
+    )
     // Overridable from CI to matrix-test other AGP versions without test changes.
     systemProperty(
         "kraft.test.agpVersion",

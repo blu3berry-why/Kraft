@@ -6,6 +6,10 @@ on:
   # pull_request caches are scoped to their own PR and can't be shared.
   push:
     branches: [ main ]
+  # Weekly probe against whatever KSP is newest at the time — see ksp-latest.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
 
 permissions:
   checks: write
@@ -89,3 +93,87 @@ jobs:
           report_paths: |
             kraft-ksp/build/test-results/jvmTest/**/*.xml
             kraft-gradle-plugin/build/test-results/test/**/*.xml
+
+  # CI-10: KSP-version compatibility. The Gradle plugin functional tests generate
+  # real consumer projects that apply the KSP plugin, so overriding
+  # kraft.test.kspVersion exercises Kraft against a KSP other than the catalog's.
+  #
+  # Pinned legs: the floor Kraft is built on, plus the newest KSP known-good at
+  # the time of writing. Deterministic, so a PR that breaks either one fails here
+  # rather than in a consumer's build.
+  ksp-compat:
+    name: KSP ${{ matrix.ksp }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ksp:
+          - '2.3.3'   # floor - the version in gradle/libs.versions.toml
+          - '2.3.9'   # newest known-good at 2026-07-21
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Gradle plugin functional tests (KSP ${{ matrix.ksp }})
+        run: ./gradlew :kraft-gradle-plugin:test -Pkraft.test.kspVersion=${{ matrix.ksp }}
+
+      - name: Publish test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results-ksp-${{ matrix.ksp }}
+          path: kraft-gradle-plugin/build/reports/tests/test/
+
+  # The pinned matrix above goes stale the moment a new KSP ships. This job
+  # resolves whatever is newest on Maven Central at run time, so a KSP release
+  # that breaks Kraft surfaces on the next weekly run instead of in an issue.
+  # Schedule/manual only - never blocks a PR on an upstream release.
+  ksp-latest:
+    name: KSP latest (probe)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Resolve latest KSP version
+        id: ksp
+        run: |
+          set -euo pipefail
+          version=$(curl -sSf --max-time 30 \
+            'https://search.maven.org/solrsearch/select?q=g:com.google.devtools.ksp+AND+a:symbol-processing-api&core=gav&rows=1&wt=json' \
+            | python3 -c 'import sys,json; print(json.load(sys.stdin)["response"]["docs"][0]["v"])')
+          if [ -z "$version" ]; then
+            echo "Could not resolve the latest KSP version." >&2
+            exit 1
+          fi
+          echo "Latest KSP on Maven Central: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Gradle plugin functional tests (KSP ${{ steps.ksp.outputs.version }})
+        run: ./gradlew :kraft-gradle-plugin:test -Pkraft.test.kspVersion=${{ steps.ksp.outputs.version }}
+
+      - name: Publish test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results-ksp-latest
+          path: kraft-gradle-plugin/build/reports/tests/test/
