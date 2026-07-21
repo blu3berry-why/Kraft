@@ -133,6 +133,54 @@ jobs:
           name: test-results-ksp-${{ matrix.ksp }}
           path: kraft-gradle-plugin/build/reports/tests/test/
 
+  # CI-10: Gradle-version compatibility. TestKit runs the generated consumer
+  # builds on the Gradle running the tests unless kraft.test.gradleVersion says
+  # otherwise, so without this every run only ever proved Gradle 8.13 works.
+  #
+  # 9.6.x drops the Android leg, and that limitation is not Kraft's: AGP (both
+  # 8.11.2 and the latest 8.13.2) calls org.gradle.api.problems.internal
+  # .InternalProblems, removed in Gradle 9.6.0, so the Android plugin cannot load
+  # at all. AGP 9.x fixes it but requires a Kotlin newer than Kraft's floor.
+  # 9.5.1 is the last Gradle before that removal, so it still covers Android.
+  gradle-compat:
+    name: Gradle ${{ matrix.gradle }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - gradle: '8.13'    # floor - the wrapper version
+            excludeTags: ''
+          - gradle: '9.5.1'   # last Gradle 9 that can still load AGP 8.x
+            excludeTags: ''
+          - gradle: '9.6.1'   # newest; Android excluded (see above)
+            excludeTags: 'android'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Gradle plugin functional tests (Gradle ${{ matrix.gradle }})
+        run: >-
+          ./gradlew :kraft-gradle-plugin:test
+          -Pkraft.test.gradleVersion=${{ matrix.gradle }}
+          -PkraftExcludeTags=${{ matrix.excludeTags }}
+
+      - name: Publish test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results-gradle-${{ matrix.gradle }}
+          path: kraft-gradle-plugin/build/reports/tests/test/
+
   # The pinned matrix above goes stale the moment a new KSP ships. This job
   # resolves whatever is newest on Maven Central at run time, so a KSP release
   # that breaks Kraft surfaces on the next weekly run instead of in an issue.

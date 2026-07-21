@@ -69,7 +69,17 @@ publishing {
 }
 
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        // CI drops tagged tests on toolchain combinations the tag documents as
+        // unsupported (e.g. -PkraftExcludeTags=android on Gradle 9.x, which AGP
+        // 8.11.2 cannot load). Comma-separated.
+        (findProperty("kraftExcludeTags") as? String)
+            ?.split(',')
+            ?.map(String::trim)
+            ?.filter(String::isNotEmpty)
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { excludeTags(*it.toTypedArray()) }
+    }
     dependsOn("publishAllPublicationsToTestRepository")
     // The end-to-end functional test compiles a real consumer project, which
     // must resolve kraft-ksp/kraft-annotations (and kraft-core, ksp's runtime
@@ -96,6 +106,11 @@ tasks.test {
         (findProperty("kraft.test.agpVersion") as? String)
             ?: catalog.findVersion("agp").get().requiredVersion
     )
+    // Unset by default: TestKit then runs the generated builds on the Gradle
+    // version running this build. CI overrides it to matrix-test other Gradles.
+    (findProperty("kraft.test.gradleVersion") as? String)?.takeIf { it.isNotBlank() }?.let {
+        systemProperty("kraft.test.gradleVersion", it)
+    }
     systemProperty("kraft.test.compileSdk", catalog.findVersion("android-compileSdk").get().requiredVersion)
     systemProperty("kraft.test.pluginVersion", version.toString())
     systemProperty("kraft.test.repo", testRepoDir.get().asFile.absolutePath)
