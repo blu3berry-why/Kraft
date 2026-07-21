@@ -20,10 +20,10 @@ class KraftGradlePluginFunctionalTest {
     private val testRepo = System.getProperty("kraft.test.repo").replace('\\', '/')
     private val libsRepo = System.getProperty("kraft.test.libsRepo").replace('\\', '/')
     private val agpVersion = System.getProperty("kraft.test.agpVersion")
-    private val agp9Version = System.getProperty("kraft.test.agp9Version")
-    // AGP 9 requires Gradle >= 9.5.0, above the wrapper this build runs on, so
-    // the built-in-Kotlin test drives TestKit on its own Gradle distribution.
-    private val agp9GradleVersion = System.getProperty("kraft.test.agp9GradleVersion")
+    // AGP 9 line for the built-in-Kotlin test; AGP 9 needs Gradle 9.5+, above
+    // this build's wrapper, so that test drives its own Gradle distribution.
+    private val agp9Version = "9.3.0"
+    private val agp9GradleVersion = "9.6.1"
     private val compileSdk = System.getProperty("kraft.test.compileSdk")
 
     @TempDir
