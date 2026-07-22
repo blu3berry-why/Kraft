@@ -44,10 +44,29 @@ class KraftGradlePlugin : Plugin<Project> {
         val extension = project.extensions.create("kraft", KraftExtension::class.java)
         var kmpSeen = false
         var kotlinPluginSeen = false
+        var agpWired = false
         project.pluginManager.withPlugin(KOTLIN_MULTIPLATFORM_ID) {
             kmpSeen = true
             kotlinPluginSeen = true
             project.pluginManager.withPlugin(KSP_ID) {
+                // The AGP-id branch below may have single-target-wired the module
+                // already (KMP listed after both the Android plugin and KSP). That
+                // wiring cannot be undone, and stacking KMP wiring on top would
+                // make KSP process the platform compilations on top of the
+                // metadata one — fail with the reorder fix instead.
+                if (agpWired) {
+                    throw GradleException(
+                        """
+                        Kraft Gradle Plugin: '${project.path}' applies $KOTLIN_MULTIPLATFORM_ID after
+                        Kraft already wired it for the Android plugin ($ANDROID_APPLICATION_ID /
+                        $ANDROID_LIBRARY_ID + $KSP_ID applied first).
+
+                        How to fix:
+                          Reorder this module's plugins block so $KOTLIN_MULTIPLATFORM_ID
+                          comes before $KSP_ID and id("com.blu3berry.kraft").
+                        """.trimIndent()
+                    )
+                }
                 KraftKmpWiring.configure(project, kraftVersion(), extension)
             }
         }
@@ -59,7 +78,12 @@ class KraftGradlePlugin : Plugin<Project> {
                 singleTargetSeen = true
                 kotlinPluginSeen = true
                 project.pluginManager.withPlugin(KSP_ID) {
-                    KraftSingleTargetWiring.configure(project, kraftVersion(), extension)
+                    // Skip when the AGP-id branch already applied the identical
+                    // single-target wiring (kotlin-android listed after both the
+                    // Android plugin and KSP).
+                    if (!agpWired) {
+                        KraftSingleTargetWiring.configure(project, kraftVersion(), extension)
+                    }
                 }
             }
         }
@@ -73,15 +97,21 @@ class KraftGradlePlugin : Plugin<Project> {
         //     kotlin-android.
         // In both cases wiring from the AGP id as well would add the flat ksp and
         // implementation dependencies on top of the ones the owning branch added.
-        // The check runs inside the KSP callback, which is the last of the three
-        // plugins to be applied in any working build (KSP configures itself from
-        // the Kotlin plugin, so it must come after it), so by then the owning
-        // branch has claimed the module.
+        // Plugin application order inside a plugins block is user-controlled, so
+        // a Kotlin plugin listed after both the Android plugin and KSP has not
+        // applied yet when this check runs — wiring cannot simply be deferred to
+        // afterEvaluate either, because KSP consumes the ksp configuration during
+        // its own configuration lifecycle and late-added dependencies are ignored
+        // (proven by the agp9 end-to-end test). Instead this branch records that
+        // it claimed the module: a single-target plugin arriving later skips its
+        // (identical) wiring, and a KMP plugin arriving later fails loudly with
+        // the reorder fix.
         for (id in listOf(ANDROID_APPLICATION_ID, ANDROID_LIBRARY_ID)) {
             project.pluginManager.withPlugin(id) {
                 kotlinPluginSeen = true
                 project.pluginManager.withPlugin(KSP_ID) {
                     if (!kmpSeen && !singleTargetSeen) {
+                        agpWired = true
                         KraftSingleTargetWiring.configure(project, kraftVersion(), extension)
                     }
                 }

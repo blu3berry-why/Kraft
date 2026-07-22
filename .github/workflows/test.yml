@@ -48,6 +48,12 @@ jobs:
       - name: Gradle plugin functional tests
         run: ./gradlew :kraft-gradle-plugin:test
 
+      # AGP 9 built-in-Kotlin coverage lives in a dedicated task: the test
+      # drives its own Gradle distribution (9.x), which the default suite
+      # deliberately does not download.
+      - name: Gradle plugin AGP 9 functional tests
+        run: ./gradlew :kraft-gradle-plugin:agp9Test
+
       # Real two-module KMP build: the consumer's converter only exists in the
       # producer's klib, so a green build proves cross-module @KraftConverter
       # discovery works under kspCommonMainKotlinMetadata (klib classpath).
@@ -81,6 +87,7 @@ jobs:
           path: |
             kraft-ksp/build/reports/tests/jvmTest/
             kraft-gradle-plugin/build/reports/tests/test/
+            kraft-gradle-plugin/build/reports/tests/agp9Test/
 
       - name: Publish JUnit report
         uses: mikepenz/action-junit-report@v6
@@ -89,3 +96,4 @@ jobs:
           report_paths: |
             kraft-ksp/build/test-results/jvmTest/**/*.xml
             kraft-gradle-plugin/build/test-results/test/**/*.xml
+            kraft-gradle-plugin/build/test-results/agp9Test/**/*.xml

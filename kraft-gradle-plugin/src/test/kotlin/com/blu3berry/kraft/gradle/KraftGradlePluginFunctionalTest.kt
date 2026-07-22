@@ -608,4 +608,75 @@ class KraftGradlePluginFunctionalTest {
         assertThat(output).contains("FLATKSP=0")
         assertThat(output).contains("FLATIMPL=0")
     }
+
+    /**
+     * Plugin application order inside a plugins block is user-controlled. With
+     * kotlin-android listed last, the AGP-id branch claims the module before the
+     * Kotlin plugin applies; the single-target branch arriving later must
+     * recognise the module is already wired instead of adding the same
+     * dependencies a second time.
+     */
+    @Tag("android")
+    @Test
+    fun `kotlin-android applied after the Android plugin wires exactly once`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.android.library") version "$agpVersion"
+                id("com.google.devtools.ksp") version "$kspVersion"
+                id("com.blu3berry.kraft") version "$pluginVersion"
+                id("org.jetbrains.kotlin.android") version "$kotlinVersion"
+            }
+
+            android {
+                namespace = "com.example.kraft"
+                compileSdk = $compileSdk
+            }
+
+            kotlin {
+                jvmToolchain(17)
+            }
+
+            tasks.register("kraftWiringProbe") {
+                val flatKsp = configurations.getByName("ksp")
+                    .dependencies.count { it.group == "com.blu3berry.kraft" }
+                doLast {
+                    println("FLATKSP=" + flatKsp)
+                }
+            }
+            """.trimIndent()
+        )
+
+        val output = runner("kraftWiringProbe").build().output
+
+        assertThat(output).contains("FLATKSP=1")
+    }
+
+    /**
+     * With the KMP plugin listed after both the Android plugin and KSP, the
+     * AGP-id branch has already wired the module single-target by the time KMP
+     * applies — the wrong shape for KMP, and one that cannot be unwired. Kraft
+     * must fail loudly with the reorder fix instead of wiring both paths.
+     */
+    @Tag("android")
+    @Test
+    fun `KMP applied after the Android plugin fails with actionable reorder message`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.android.library") version "$agpVersion"
+                id("com.google.devtools.ksp") version "$kspVersion"
+                id("com.blu3berry.kraft") version "$pluginVersion"
+                id("org.jetbrains.kotlin.multiplatform") version "$kotlinVersion"
+            }
+            """.trimIndent()
+        )
+
+        val output = runner("help").buildAndFail().output
+
+        assertThat(output).contains("already wired it for the Android plugin")
+        assertThat(output).contains("org.jetbrains.kotlin.multiplatform")
+    }
 }
