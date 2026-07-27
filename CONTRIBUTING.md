@@ -188,4 +188,29 @@ The workflow authenticates with the `RELEASE_PLEASE_TOKEN` repository secret —
 3. Merging it creates the git tag and the GitHub Release, which triggers the **Publish** workflow (`publish.yml`) to sign and publish all modules to Maven Central.
 4. To force an exact version (e.g. the deliberate `1.0.0`), land a commit on `main` whose body contains `Release-As: 1.0.0` — release-please retargets the release PR to that version.
 
+### Pre-releases (RCs)
+
+Pre-release versions (e.g. `0.13.0-RC01`) exist to validate Kraft against a new
+Kotlin/KSP pair in a real consumer project before promoting to stable.
+
+The chosen path is the one-off `Release-As` footer — no release-please config
+change (a sustained `prerelease` config cannot be used while Kraft is pre-1.0:
+release-please's `prerelease` option also marks every pre-major `0.x` release
+as a GitHub pre-release):
+
+1. **Cut the RC:** land a commit on `main` whose body contains
+   `Release-As: 0.13.0-RC01`. Release-please retargets the release PR to that
+   version; merging it tags `0.13.0-RC01`, creates the GitHub Release, and
+   `publish.yml` publishes the artifacts to Maven Central as normal.
+2. **Docs stay stable:** `docs-deploy.yml` skips any release whose tag contains
+   `-`, so an RC never overwrites the stable GitHub Pages site.
+3. **Promote to stable:** after validation, land a commit with
+   `Release-As: 0.13.0` and merge the retargeted release PR. Use the explicit
+   footer for the promotion — do not rely on the automatic bump from an RC
+   version, which is not deterministic across release-please versions.
+
+Consumers on `latest.release` or version ranges may still resolve an RC from
+Maven Central (Gradle does not treat `-RC` as special in `latest.release`), so
+announce RCs as opt-in and keep their validation window short.
+
 > **Transition note:** the legacy `create-release.yml` + `release-branch` flow is still present but dormant; it will be deleted after the first verified release-please release. Its `version-override` dispatch input is superseded by the `Release-As:` footer. Release PRs are opened by the `RELEASE_PLEASE_TOKEN` PAT's user, so PR CI runs on them like any other PR — they only touch version files and CHANGELOG.
