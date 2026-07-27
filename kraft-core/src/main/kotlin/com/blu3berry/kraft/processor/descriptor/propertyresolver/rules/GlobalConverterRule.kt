@@ -71,8 +71,28 @@ class GlobalConverterRule : MappingRule {
         val source = ctx.sourceProps[effectiveSourceName] ?: return null
         if (source.type.ksType == target.type.ksType) return null
         val key = buildLookupKey(source, target) ?: return null
-        val entry = ctx.globalConverters.lookup(key) ?: return null
+        val entry = ctx.globalConverters.lookup(key)
+            ?: return findNullableLift(effectiveSourceName, source, key, ctx)
         return GlobalMatch(effectiveSourceName, source, entry)
+    }
+
+    /**
+     * Nullable-scalar lift (#105): for `X? → Y?` with only the non-null bridge
+     * `X → Y` registered, thread the bridge through a safe call — the scalar
+     * analogue of the `?.map { it.toY() }` collections already get. A nullable
+     * source with a NON-null target is deliberately not lifted: a safe call
+     * yields `Y?`, which has no scalar equivalent of `?: emptyList()`.
+     */
+    private fun findNullableLift(
+        effectiveSourceName: String,
+        source: PropertyInfo,
+        key: ConverterTypeKey,
+        ctx: MappingContext
+    ): GlobalMatch? {
+        if (!key.sourceNullable || !key.targetNullable) return null
+        val nonNullKey = key.copy(sourceNullable = false, targetNullable = false)
+        val entry = ctx.globalConverters.lookup(nonNullKey) ?: return null
+        return GlobalMatch(effectiveSourceName, source, entry, useSafeCall = true)
     }
 
     private fun buildConverterFunction(
@@ -102,7 +122,8 @@ class GlobalConverterRule : MappingRule {
                 sourcePropertyName = match.effectiveSourceName,
                 targetPropertyName = target.name,
                 sourceType = match.source.type,
-                targetType = target.type
+                targetType = target.type,
+                useSafeCall = match.useSafeCall
             )
         )
     }
@@ -195,7 +216,8 @@ class GlobalConverterRule : MappingRule {
     private data class GlobalMatch(
         val effectiveSourceName: String,
         val source: PropertyInfo,
-        val converter: ConverterEntry
+        val converter: ConverterEntry,
+        val useSafeCall: Boolean = false
     )
 
     private fun KSType.nullableFlag(): Boolean? = when (nullability) {
