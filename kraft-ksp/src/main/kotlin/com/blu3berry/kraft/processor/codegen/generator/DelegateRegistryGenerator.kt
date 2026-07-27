@@ -8,6 +8,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
@@ -25,6 +26,7 @@ import com.blu3berry.kraft.processor.codegen.OptInMarkerCollector
 import com.blu3berry.kraft.processor.codegen.className
 import com.blu3berry.kraft.processor.util.DelegateNaming
 import com.blu3berry.kraft.processor.util.KraftKspConstants
+import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 
 /**
  * Emits a single Kotlin file at `kraft.generated.registry.Converters_<moduleId>.kt`
@@ -186,9 +188,15 @@ class DelegateRegistryGenerator(
         receiverType: KSType,
         returnType: KSType
     ): List<OptInMarker> {
+        // KSP never auto-expands aliases: an aliased receiver/return resolves to
+        // the KSTypeAlias node, not the class, so markers must be collected from
+        // both the alias declaration (it can carry its own) and the unaliased
+        // class, or they are silently dropped (#104/#106).
         val targets = mutableListOf<KSAnnotated>(original)
-        (receiverType.declaration as? KSClassDeclaration)?.let(targets::add)
-        (returnType.declaration as? KSClassDeclaration)?.let(targets::add)
+        for (type in listOf(receiverType, returnType)) {
+            (type.declaration as? KSTypeAlias)?.let(targets::add)
+            (type.unwrapTypeAliases().declaration as? KSClassDeclaration)?.let(targets::add)
+        }
         return OptInMarkerCollector.collectFromAnnotated(targets)
     }
 
