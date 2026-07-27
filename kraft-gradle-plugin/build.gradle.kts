@@ -68,18 +68,10 @@ publishing {
     }
 }
 
-tasks.test {
-    useJUnitPlatform {
-        // CI drops tagged tests on toolchain combinations the tag documents as
-        // unsupported (e.g. -PkraftExcludeTags=android on Gradle 9.x, which AGP
-        // 8.11.2 cannot load). Comma-separated.
-        (findProperty("kraftExcludeTags") as? String)
-            ?.split(',')
-            ?.map(String::trim)
-            ?.filter(String::isNotEmpty)
-            ?.takeIf { it.isNotEmpty() }
-            ?.let { excludeTags(*it.toTypedArray()) }
-    }
+// Shared wiring for every functional-test task (`test` and `agp9Test`): the
+// generated consumer builds resolve the plugin and libraries from local repos,
+// located and versioned through these system properties.
+tasks.withType<Test>().configureEach {
     dependsOn("publishAllPublicationsToTestRepository")
     // The end-to-end functional test compiles a real consumer project, which
     // must resolve kraft-ksp/kraft-annotations (and kraft-core, ksp's runtime
@@ -126,10 +118,19 @@ tasks.test {
 }
 
 tasks.test {
-    // The agp9-tagged test drives its own Gradle distribution (a one-time
-    // ~150 MB download); keep it out of the default suite and run it via the
-    // dedicated agp9Test task instead (CI does).
     useJUnitPlatform {
+        // CI drops tagged tests on toolchain combinations the tag documents as
+        // unsupported (e.g. -PkraftExcludeTags=android on Gradle 9.x, which AGP
+        // 8.11.2 cannot load). Comma-separated.
+        (findProperty("kraftExcludeTags") as? String)
+            ?.split(',')
+            ?.map(String::trim)
+            ?.filter(String::isNotEmpty)
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { excludeTags(*it.toTypedArray()) }
+        // The agp9-tagged test drives its own Gradle distribution (a one-time
+        // ~150 MB download); keep it out of the default suite and run it via the
+        // dedicated agp9Test task instead (CI does).
         excludeTags("agp9")
     }
 }
