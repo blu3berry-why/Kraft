@@ -21,6 +21,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # None of these jobs push; don't leave the token in .git/config.
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -113,6 +116,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # None of these jobs push; don't leave the token in .git/config.
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -158,6 +164,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # None of these jobs push; don't leave the token in .git/config.
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -198,6 +207,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # None of these jobs push; don't leave the token in .git/config.
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -234,6 +246,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # None of these jobs push; don't leave the token in .git/config.
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -248,9 +263,11 @@ jobs:
         id: ksp
         run: |
           set -euo pipefail
+          # maven-metadata.xml's <release> is the authoritative newest release;
+          # search.maven.org's default result order is undocumented.
           version=$(curl -sSf --max-time 30 \
-            'https://search.maven.org/solrsearch/select?q=g:com.google.devtools.ksp+AND+a:symbol-processing-api&core=gav&rows=1&wt=json' \
-            | python3 -c 'import sys,json; print(json.load(sys.stdin)["response"]["docs"][0]["v"])')
+            'https://repo1.maven.org/maven2/com/google/devtools/ksp/symbol-processing-api/maven-metadata.xml' \
+            | python3 -c 'import sys, xml.etree.ElementTree as ET; print(ET.parse(sys.stdin).getroot().findtext("versioning/release") or "")')
           if [ -z "$version" ]; then
             echo "Could not resolve the latest KSP version." >&2
             exit 1
@@ -259,7 +276,11 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Gradle plugin functional tests (KSP ${{ steps.ksp.outputs.version }})
-        run: ./gradlew :kraft-gradle-plugin:test -Pkraft.test.kspVersion=${{ steps.ksp.outputs.version }}
+        # The resolved version comes from an external HTTP response; pass it as
+        # env data instead of splicing it into the script text.
+        env:
+          KSP_VERSION: ${{ steps.ksp.outputs.version }}
+        run: ./gradlew :kraft-gradle-plugin:test -Pkraft.test.kspVersion="$KSP_VERSION"
 
       - name: Publish test results
         uses: actions/upload-artifact@v7
