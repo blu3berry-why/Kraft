@@ -58,9 +58,16 @@ class KraftGradlePluginFunctionalTest {
         )
     }
 
+    /**
+     * Set from CI to run the generated builds on a Gradle other than the one
+     * running this test; unset locally, where TestKit uses the wrapper's version.
+     */
+    private val gradleVersion: String? = System.getProperty("kraft.test.gradleVersion")
+
     private fun runner(vararg arguments: String): GradleRunner = GradleRunner.create()
         .withProjectDir(projectDir)
         .withArguments(*arguments, "--stacktrace")
+        .let { if (gradleVersion.isNullOrBlank()) it else it.withGradleVersion(gradleVersion) }
 
     @Test
     fun `wires dependencies, sources, task deps and moduleId on a KMP module`() {
@@ -471,6 +478,10 @@ class KraftGradlePluginFunctionalTest {
         assertThat(generated).contains("toCreatedAtString(")
     }
 
+    // Tagged so CI can drop it on Gradle versions AGP cannot load: AGP 8.11.2 uses
+    // org.gradle.api.problems.internal.InternalProblems, removed in Gradle 9.6.0.
+    // The limitation is AGP's, not Kraft's -- the KMP and JVM paths pass on Gradle 9.
+    @Tag("android")
     @Test
     fun `end to end - kotlin-android module generates and compiles side-aliased mappers`() {
         writeSettings()

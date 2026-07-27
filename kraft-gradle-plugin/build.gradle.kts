@@ -68,9 +68,18 @@ publishing {
     }
 }
 
-// Shared setup for the default suite and agp9Test — both run TestKit builds
-// against the local test repo.
-tasks.withType<Test>().configureEach {
+tasks.test {
+    useJUnitPlatform {
+        // CI drops tagged tests on toolchain combinations the tag documents as
+        // unsupported (e.g. -PkraftExcludeTags=android on Gradle 9.x, which AGP
+        // 8.11.2 cannot load). Comma-separated.
+        (findProperty("kraftExcludeTags") as? String)
+            ?.split(',')
+            ?.map(String::trim)
+            ?.filter(String::isNotEmpty)
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { excludeTags(*it.toTypedArray()) }
+    }
     dependsOn("publishAllPublicationsToTestRepository")
     // The end-to-end functional test compiles a real consumer project, which
     // must resolve kraft-ksp/kraft-annotations (and kraft-core, ksp's runtime
@@ -84,14 +93,29 @@ tasks.withType<Test>().configureEach {
     // plugin versions; keep them aligned with the catalog. (Explicit catalog API:
     // `libs.versions.kotlin` would resolve against the `kotlin {}` DSL accessor here.)
     val catalog = project.extensions.getByType<VersionCatalogsExtension>().named("libs")
-    systemProperty("kraft.test.kotlinVersion", catalog.findVersion("kotlin").get().requiredVersion)
-    systemProperty("kraft.test.kspVersion", catalog.findVersion("ksp").get().requiredVersion)
+    // Overridable from CI to matrix-test other Kotlin versions without test changes.
+    systemProperty(
+        "kraft.test.kotlinVersion",
+        (findProperty("kraft.test.kotlinVersion") as? String)?.takeIf { it.isNotBlank() }
+            ?: catalog.findVersion("kotlin").get().requiredVersion
+    )
+    // Overridable from CI to matrix-test other KSP versions without test changes.
+    systemProperty(
+        "kraft.test.kspVersion",
+        (findProperty("kraft.test.kspVersion") as? String)?.takeIf { it.isNotBlank() }
+            ?: catalog.findVersion("ksp").get().requiredVersion
+    )
     // Overridable from CI to matrix-test other AGP versions without test changes.
     systemProperty(
         "kraft.test.agpVersion",
-        (findProperty("kraft.test.agpVersion") as? String)
+        (findProperty("kraft.test.agpVersion") as? String)?.takeIf { it.isNotBlank() }
             ?: catalog.findVersion("agp").get().requiredVersion
     )
+    // Unset by default: TestKit then runs the generated builds on the Gradle
+    // version running this build. CI overrides it to matrix-test other Gradles.
+    (findProperty("kraft.test.gradleVersion") as? String)?.takeIf { it.isNotBlank() }?.let {
+        systemProperty("kraft.test.gradleVersion", it)
+    }
     systemProperty("kraft.test.compileSdk", catalog.findVersion("android-compileSdk").get().requiredVersion)
     systemProperty("kraft.test.pluginVersion", version.toString())
     systemProperty("kraft.test.repo", testRepoDir.get().asFile.absolutePath)

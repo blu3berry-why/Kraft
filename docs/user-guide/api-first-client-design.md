@@ -42,6 +42,8 @@ dependencies {
 !!! note "Version compatibility"
     kmpgen ≥ 1.5.0 declares date-time DTO fields through annotated type aliases — this requires **Kraft ≥ 0.10.1**, which resolves type aliases to their underlying types. Older Kraft versions fail with `expected KSClassDeclaration for [typealias ...]`.
 
+    Verified against kmpgen **1.5.0** (stable) and **1.6.0-RC01**. The alias mechanism is unchanged between them; 1.6.0-RC01 additionally emits aliases whose expansion is itself nullable (`typealias NullableRefTypealias = NullableInlineObject?`) for nullable `$ref`s, which Kraft maps as the nullable underlying type.
+
 ## From spec to domain
 
 A spec fragment:
@@ -69,7 +71,7 @@ data class ProductDto(
     val name: String,
     val priceMinorUnits: Long,
     val status: Status,          // nested enum
-    val updatedAt: Instant,      // via kotlinx-datetime
+    val updatedAt: SerializableISO8601Instant,   // typealias to kotlinx-datetime Instant
 ) {
     @Serializable
     enum class Status { ACTIVE, DISCONTINUED }
@@ -117,7 +119,7 @@ Generated code has patterns hand-written code wouldn't. Two worth knowing:
 
 **Inlined `$ref` schemas.** Some generators inline a `$ref`'d schema everywhere it's used instead of emitting one top-level class, producing N structurally-identical types with different fully-qualified names (`AuthResponse.User` vs `AuthMe200Response`). Kraft treats them as the distinct types they are: declare a converter per copy, with disambiguated function names to avoid collisions (`toUserRoleFromAuthMeRole`, `toUserRoleFromAuthResponseRole`). The real fix is generator configuration that resolves `$ref`s to shared classes, when available.
 
-**Type-aliased fields.** Generators attach custom serializers via annotated type aliases (`typealias ApiInstant = @Serializable(...) Instant`). Kraft ≥ 0.10.1 resolves through aliases transparently — properties, converter signatures, and `Alias::class` annotation arguments all behave as the underlying type. Parameterized aliases (`typealias X<T> = ...`) are the one unsupported shape; Kraft reports a clear error and the fix is declaring the property with the underlying type.
+**Type-aliased fields.** Generators attach custom serializers via annotated type aliases — kmpgen's is `typealias SerializableISO8601Instant = @Serializable(ISO8601InstantSerializer::class) Instant`. Kraft ≥ 0.10.1 resolves through aliases transparently — properties, converter signatures, `Alias::class` annotation arguments, collection elements, and aliases that expand to a nullable type all behave as the underlying type, with use-site nullability preserved. Parameterized aliases (`typealias X<T> = ...`) are the one unsupported shape; Kraft reports a clear error and the fix is declaring the property with the underlying type. kmpgen ships one (`SerializableImmutableList<T>`) but does not use it for generated model properties, which are plain `List<T>`.
 
 ## See also
 

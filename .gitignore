@@ -28,3 +28,6 @@ improvements.md
 # Brainstorm companion sessions
 .superpowers/
 marketing/
+
+# Claude Code worktrees (session-local, never committed)
+.claude/worktrees/
