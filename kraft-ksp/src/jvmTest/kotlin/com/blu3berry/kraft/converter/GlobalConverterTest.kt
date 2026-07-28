@@ -164,4 +164,26 @@ class GlobalConverterTest {
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
         assertThat(result.messages).contains("must be an extension function")
     }
+
+    @Test
+    fun `parameterized converter type reports error naming the element-wise and @MapUsing fixes`() {
+        val source = SourceFile.kotlin(
+            "Converters.kt",
+            """
+            package converters
+
+            @com.blu3berry.kraft.config.KraftConverter
+            fun List<Int>.toCsv(): String = joinToString(",")
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("parameterized receiver or return type")
+        // The error must name both escape hatches: automatic element-wise
+        // collection mapping and per-property @MapUsing.
+        assertThat(result.messages).contains("element-wise")
+        assertThat(result.messages).contains("@MapUsing")
+    }
 }
