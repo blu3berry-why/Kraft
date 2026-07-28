@@ -150,11 +150,17 @@ fun KSPLogger.detailedTypeMismatch(
 ) {
     var sourceShown = sourceProperty.type.ksType.toString()
     var targetShown = targetProperty.type.ksType.toString()
-    // Same-simple-name pairs (DTO vs domain) render identically and make the
-    // mismatch unreadable — fall back to qualified names.
-    if (sourceShown == targetShown) {
-        sourceShown = sourceProperty.type.qualifiedRendering()
-        targetShown = targetProperty.type.qualifiedRendering()
+    // Same-simple-name pairs (DTO vs domain) render identically — or differ only
+    // in nullability — and make the mismatch unreadable. Fall back to qualified
+    // names when those actually disambiguate; for parameterized types (List<A>
+    // vs List<B>) the type arguments carry the difference, so keep the short form.
+    if (sourceProperty.type.simpleName == targetProperty.type.simpleName) {
+        val sourceQualified = sourceProperty.type.qualifiedRendering()
+        val targetQualified = targetProperty.type.qualifiedRendering()
+        if (sourceQualified != targetQualified) {
+            sourceShown = sourceQualified
+            targetShown = targetQualified
+        }
     }
     err(
         """

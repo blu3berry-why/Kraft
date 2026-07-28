@@ -132,4 +132,28 @@ class NullableScalarBridgeTest {
         assertThat(result.messages).contains("models.dto.Status")
         assertThat(result.messages).contains("models.domain.Status")
     }
+
+    @Test
+    fun `nullability-only mismatch of the same class prints qualified names`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            class Status(val v: Int)
+
+            data class Src(val status: Status?)
+            data class Dst(val status: Status)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+            object SrcMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("models.Status?")
+        assertThat(result.messages).contains("models.Status")
+    }
 }
