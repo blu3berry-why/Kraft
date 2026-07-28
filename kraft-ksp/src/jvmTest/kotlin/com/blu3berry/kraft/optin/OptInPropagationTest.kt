@@ -123,6 +123,102 @@ class OptInPropagationTest {
     }
 
     @Test
+    fun `markers survive typealiased receiver and return types on delegate registry`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            @RequiresOptIn(level = RequiresOptIn.Level.WARNING)
+            annotation class ExperimentalId
+
+            @RequiresOptIn(level = RequiresOptIn.Level.WARNING)
+            @Target(AnnotationTarget.CLASS, AnnotationTarget.TYPEALIAS)
+            annotation class ExperimentalAlias
+
+            @ExperimentalId
+            class StampId(val raw: String)
+
+            @ExperimentalAlias
+            typealias AliasedId = StampId
+
+            @com.blu3berry.kraft.config.KraftConverter
+            fun String.toAliasedId(): AliasedId = StampId(this)
+
+            @com.blu3berry.kraft.config.KraftConverter
+            fun AliasedId.toRaw(): String = raw
+            """
+        )
+
+        val generated = TestKspRunner.compileAndReturnGenerated(source)
+        val text = generated.first { it.name.startsWith("Converters_") }.readText()
+
+        // The underlying class's marker must be found through the alias, and the
+        // alias's own marker must be collected too — one delegate per direction.
+        assertThat("ExperimentalId::class".toRegex().findAll(text).count()).isEqualTo(2)
+        assertThat("ExperimentalAlias::class".toRegex().findAll(text).count()).isEqualTo(2)
+    }
+
+    @Test
+    fun `file-level @file OptIn on the source class file propagates to the mapper`() {
+        val markers = SourceFile.kotlin(
+            "Markers.kt",
+            """
+            package models
+
+            @RequiresOptIn(level = RequiresOptIn.Level.WARNING)
+            annotation class ExperimentalModel
+            """
+        )
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            @file:OptIn(models.ExperimentalModel::class)
+            package models
+
+            data class Src(val count: Int)
+            data class Dst(val count: Int)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+            object SrcMapper
+            """
+        )
+
+        val generated = TestKspRunner.compileAndReturnGenerated(markers, source)
+        val text = generated.first { it.name.contains("Src") }.readText()
+
+        assertThat(text).contains("@OptIn(ExperimentalModel::class)")
+    }
+
+    @Test
+    fun `file-level @file OptIn on the converter file propagates to the delegate registry`() {
+        val markers = SourceFile.kotlin(
+            "Markers.kt",
+            """
+            package models
+
+            @RequiresOptIn(level = RequiresOptIn.Level.WARNING)
+            annotation class ExperimentalConv
+            """
+        )
+        val source = SourceFile.kotlin(
+            "Converters.kt",
+            """
+            @file:OptIn(models.ExperimentalConv::class)
+            package models
+
+            @com.blu3berry.kraft.config.KraftConverter
+            fun Int.toLabel(): String = "n=" + this
+            """
+        )
+
+        val generated = TestKspRunner.compileAndReturnGenerated(markers, source)
+        val text = generated.first { it.name.startsWith("Converters_") }.readText()
+
+        assertThat(text).contains("ExperimentalConv::class")
+    }
+
+    @Test
     fun `@OptIn on @MapUsing converter propagates to generated function`() {
         val source = SourceFile.kotlin(
             "Models.kt",

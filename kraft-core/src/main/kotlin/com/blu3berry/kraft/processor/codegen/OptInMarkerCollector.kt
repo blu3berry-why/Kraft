@@ -3,6 +3,7 @@ package com.blu3berry.kraft.processor.codegen
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
 import com.blu3berry.kraft.model.descriptor.MappingSource
@@ -77,7 +78,18 @@ object OptInMarkerCollector {
     }
 
     private fun collectFrom(symbol: KSAnnotated, sink: MutableMap<String, OptInMarker>) {
-        for (annotation in symbol.annotations) {
+        collectFromAnnotations(symbol.annotations, sink)
+        // A generator (or user) can express opt-in as `@file:OptIn(...)` instead of
+        // annotating the declaration; those markers must propagate the same way or
+        // they are silently dropped (#106).
+        (symbol as? KSDeclaration)?.containingFile?.let { collectFromAnnotations(it.annotations, sink) }
+    }
+
+    private fun collectFromAnnotations(
+        annotations: Sequence<KSAnnotation>,
+        sink: MutableMap<String, OptInMarker>
+    ) {
+        for (annotation in annotations) {
             val annotationType = annotation.annotationType.resolve().declaration as? KSClassDeclaration
                 ?: continue
             val annotationFq = annotationType.qualifiedName?.asString() ?: continue
