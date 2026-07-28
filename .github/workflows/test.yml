@@ -55,6 +55,12 @@ jobs:
       - name: Gradle plugin functional tests
         run: ./gradlew :kraft-gradle-plugin:test
 
+      # AGP 9 built-in-Kotlin coverage lives in a dedicated task: the test
+      # drives its own Gradle distribution (9.x), which the default suite
+      # deliberately does not download.
+      - name: Gradle plugin AGP 9 functional tests
+        run: ./gradlew :kraft-gradle-plugin:agp9Test
+
       # Real two-module KMP build: the consumer's converter only exists in the
       # producer's klib, so a green build proves cross-module @KraftConverter
       # discovery works under kspCommonMainKotlinMetadata (klib classpath).
@@ -88,6 +94,7 @@ jobs:
           path: |
             kraft-ksp/build/reports/tests/jvmTest/
             kraft-gradle-plugin/build/reports/tests/test/
+            kraft-gradle-plugin/build/reports/tests/agp9Test/
 
       - name: Publish JUnit report
         uses: mikepenz/action-junit-report@v6
@@ -96,6 +103,7 @@ jobs:
           report_paths: |
             kraft-ksp/build/test-results/jvmTest/**/*.xml
             kraft-gradle-plugin/build/test-results/test/**/*.xml
+            kraft-gradle-plugin/build/test-results/agp9Test/**/*.xml
 
   # CI-10: KSP-version compatibility. The Gradle plugin functional tests generate
   # real consumer projects that apply the KSP plugin, so overriding
@@ -145,9 +153,9 @@ jobs:
   #
   # 9.6.x drops the Android leg: AGP 8.x (both 8.11.2 and the latest 8.13.2)
   # calls org.gradle.api.problems.internal.InternalProblems, removed in Gradle
-  # 9.6.0, so the Android plugin cannot load. AGP 9.x fixes that, but it ships
-  # built-in Kotlin and Kraft does not detect that setup yet (F-17). 9.5.1 is
-  # the last Gradle before the removal, so it still covers Android on AGP 8.x.
+  # 9.6.0, so the Android plugin cannot load. 9.5.1 is the last Gradle before
+  # the removal, so it still covers Android on AGP 8.x. AGP 9 (built-in
+  # Kotlin) is covered separately by the agp9Test step in the test job.
   gradle-compat:
     name: Gradle ${{ matrix.gradle }}
     runs-on: ubuntu-latest
@@ -194,13 +202,10 @@ jobs:
   # its own 2.2.21 floor. This is the job that backs the claim that a Kotlin or
   # KSP upgrade does not strand consumers -- it is tested, not assumed.
   #
-  # Android is excluded here for two separate reasons, neither of them a bug:
-  #   1. AGP 8.x cannot load on Gradle >= 9.6.0 (removed Problems internals).
-  #   2. Moving to AGP 9.x is not a drop-in for this fixture: AGP 9 ships
-  #      built-in Kotlin, so applying org.jetbrains.kotlin.android alongside it
-  #      is an error. The fixture (and Kraft's own plugin detection) still
-  #      assume the kotlin-android plugin -- tracked as F-17.
-  # Android coverage lives on the gradle-compat 8.13 and 9.5.1 legs.
+  # Android is excluded here because this fixture uses AGP 8.x, which cannot
+  # load on Gradle >= 9.6.0 (removed Problems internals). Android coverage
+  # lives on the gradle-compat 8.13 and 9.5.1 legs, and AGP 9 (built-in
+  # Kotlin) is covered by the agp9Test step in the test job.
   modern-stack:
     name: Kotlin 2.4.10 / KSP 2.3.9 / Gradle 9.6.1
     runs-on: ubuntu-latest

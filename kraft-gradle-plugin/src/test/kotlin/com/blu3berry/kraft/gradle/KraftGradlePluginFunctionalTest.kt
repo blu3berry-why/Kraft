@@ -20,6 +20,10 @@ class KraftGradlePluginFunctionalTest {
     private val testRepo = System.getProperty("kraft.test.repo").replace('\\', '/')
     private val libsRepo = System.getProperty("kraft.test.libsRepo").replace('\\', '/')
     private val agpVersion = System.getProperty("kraft.test.agpVersion")
+    // AGP 9 line for the built-in-Kotlin test; AGP 9 needs Gradle 9.5+, above
+    // this build's wrapper, so that test drives its own Gradle distribution.
+    private val agp9Version = "9.3.0"
+    private val agp9GradleVersion = "9.6.1"
     private val compileSdk = System.getProperty("kraft.test.compileSdk")
 
     @TempDir
@@ -45,6 +49,12 @@ class KraftGradlePluginFunctionalTest {
             }
             rootProject.name = "kraft-plugin-test"
             """.trimIndent()
+        )
+        // Each generated build forks its own daemon, and several tests apply the
+        // Kotlin/AGP plugins in the same run; the default metaspace is not enough
+        // and exhausting it surfaces as an unrelated-looking plugin-apply failure.
+        File(projectDir, "gradle.properties").writeText(
+            "org.gradle.jvmargs=-Xmx1g -XX:MaxMetaspaceSize=768m\n"
         )
     }
 
@@ -510,5 +520,174 @@ class KraftGradlePluginFunctionalTest {
         assertThat(generated).contains("fun CategoryDto.intoCategory(")
         assertThat(generated).contains("fun CategoryDto.toDomain(")
         assertThat(generated).contains("toCreatedAtString(")
+    }
+
+    /**
+     * AGP 9 ships built-in Kotlin: an Android module applies only
+     * com.android.library (no org.jetbrains.kotlin.android -- applying it there
+     * is an error, the kotlin extension already exists). Kraft must recognise
+     * that shape as a Kotlin-bearing module and wire itself the same way.
+     */
+    @Tag("agp9")
+    @Test
+    fun `end to end - AGP 9 built-in Kotlin module generates and compiles side-aliased mappers`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.android.library") version "$agp9Version"
+                id("com.google.devtools.ksp") version "$kspVersion"
+                id("com.blu3berry.kraft") version "$pluginVersion"
+            }
+
+            android {
+                namespace = "com.example.kraft"
+                compileSdk = $compileSdk
+            }
+
+            kraft {
+                functionNameFormat.set("into\${'$'}{target}")
+                side("domain") { packagePattern.set("com.example.domain.**") }
+            }
+            """.trimIndent()
+        )
+        // KSP still registers its generated dir through kotlin.sourceSets, which
+        // built-in Kotlin rejects; AGP ships this opt-out for exactly that case.
+        File(projectDir, "gradle.properties").appendText("android.disallowKotlinSourceSets=false\n")
+        writeE2eSources(sourceRoot = "src/main/kotlin")
+
+        runner("compileDebugKotlin").withGradleVersion(agp9GradleVersion).build()
+
+        val generated = File(projectDir, "build/generated/ksp/debug/kotlin")
+            .walkTopDown().filter { it.isFile && it.name.endsWith(".kt") }
+            .joinToString("\n") { it.readText() }
+
+        assertThat(generated).contains("fun CategoryDto.intoCategory(")
+        assertThat(generated).contains("fun CategoryDto.toDomain(")
+        assertThat(generated).contains("toCreatedAtString(")
+    }
+
+    /**
+     * A KMP module that targets Android applies com.android.library in the same
+     * module, so both the KMP branch and the AGP-id branch match it. Only the KMP
+     * wiring may run: the flat `ksp` / `implementation` dependencies would make
+     * KSP process the platform compilations on top of the metadata one.
+     */
+    @Tag("android")
+    @Test
+    fun `KMP module targeting Android is wired through the KMP path only`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.android.library") version "$agpVersion"
+                id("org.jetbrains.kotlin.multiplatform") version "$kotlinVersion"
+                id("com.google.devtools.ksp") version "$kspVersion"
+                id("com.blu3berry.kraft") version "$pluginVersion"
+            }
+
+            android {
+                namespace = "com.example.kraft"
+                compileSdk = $compileSdk
+            }
+
+            kotlin {
+                jvm()
+                androidTarget()
+            }
+
+            tasks.register("kraftWiringProbe") {
+                val metadata = configurations.getByName("kspCommonMainMetadata")
+                    .dependencies.count { it.group == "com.blu3berry.kraft" }
+                // Only the single-target path adds to these.
+                val flatKsp = configurations.findByName("ksp")
+                    ?.dependencies?.count { it.group == "com.blu3berry.kraft" } ?: 0
+                val flatImpl = configurations.findByName("implementation")
+                    ?.dependencies?.count { it.group == "com.blu3berry.kraft" } ?: 0
+                doLast {
+                    println("METADATA=" + metadata)
+                    println("FLATKSP=" + flatKsp)
+                    println("FLATIMPL=" + flatImpl)
+                }
+            }
+            """.trimIndent()
+        )
+
+        val output = runner("kraftWiringProbe").build().output
+
+        assertThat(output).contains("METADATA=1")
+        assertThat(output).contains("FLATKSP=0")
+        assertThat(output).contains("FLATIMPL=0")
+    }
+
+    /**
+     * Plugin application order inside a plugins block is user-controlled. With
+     * kotlin-android listed last, the AGP-id branch claims the module before the
+     * Kotlin plugin applies; the single-target branch arriving later must
+     * recognise the module is already wired instead of adding the same
+     * dependencies a second time.
+     */
+    @Tag("android")
+    @Test
+    fun `kotlin-android applied after the Android plugin wires exactly once`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.android.library") version "$agpVersion"
+                id("com.google.devtools.ksp") version "$kspVersion"
+                id("com.blu3berry.kraft") version "$pluginVersion"
+                id("org.jetbrains.kotlin.android") version "$kotlinVersion"
+            }
+
+            android {
+                namespace = "com.example.kraft"
+                compileSdk = $compileSdk
+            }
+
+            kotlin {
+                jvmToolchain(17)
+            }
+
+            tasks.register("kraftWiringProbe") {
+                val flatKsp = configurations.getByName("ksp")
+                    .dependencies.count { it.group == "com.blu3berry.kraft" }
+                doLast {
+                    println("FLATKSP=" + flatKsp)
+                }
+            }
+            """.trimIndent()
+        )
+
+        val output = runner("kraftWiringProbe").build().output
+
+        assertThat(output).contains("FLATKSP=1")
+    }
+
+    /**
+     * With the KMP plugin listed after both the Android plugin and KSP, the
+     * AGP-id branch has already wired the module single-target by the time KMP
+     * applies — the wrong shape for KMP, and one that cannot be unwired. Kraft
+     * must fail loudly with the reorder fix instead of wiring both paths.
+     */
+    @Tag("android")
+    @Test
+    fun `KMP applied after the Android plugin fails with actionable reorder message`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.android.library") version "$agpVersion"
+                id("com.google.devtools.ksp") version "$kspVersion"
+                id("com.blu3berry.kraft") version "$pluginVersion"
+                id("org.jetbrains.kotlin.multiplatform") version "$kotlinVersion"
+            }
+            """.trimIndent()
+        )
+
+        val output = runner("help").buildAndFail().output
+
+        assertThat(output).contains("already wired it for the Android plugin")
+        assertThat(output).contains("org.jetbrains.kotlin.multiplatform")
     }
 }

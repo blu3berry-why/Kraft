@@ -21,7 +21,7 @@ plugins {
 What it does:
 
 - **Adds the dependencies** — `kraft-ksp` and `kraft-annotations`, pinned to the plugin's own version, so every plugin-applied module automatically satisfies Kraft's same-version rule.
-- **Wires KMP builds** — generated sources into `commonMain`, KSP ordered before every compilation. (On JVM/Android, KSP handles this itself; the plugin touches no AGP APIs, so your AGP version doesn't matter.)
+- **Wires KMP builds** — generated sources into `commonMain`, KSP ordered before every compilation. (On JVM/Android, KSP handles this itself; the plugin touches no AGP APIs, so it works across AGP versions, including AGP 9's built-in Kotlin.)
 - **Names your module** — `kraft.moduleId` defaults to the project path, so cross-module diagnostics name real modules.
 - **Fails helpfully** — the Kotlin and KSP plugins are required but never auto-applied (their versions stay yours); if one is missing, the build error tells you exactly what to add.
 
@@ -89,6 +89,28 @@ dependencies {
     ksp("com.blu3berry.kraft:kraft-ksp:<version>")
 }
 ```
+
+### Android with AGP 9 (built-in Kotlin)
+
+AGP 9 compiles Kotlin itself, so an Android module applies only the AGP plugin — don't also apply `org.jetbrains.kotlin.android`. Kraft supports this shape (AGP 9 needs Gradle 9.5+):
+
+```kotlin
+plugins {
+    id("com.android.library") version "<agp-9-version>"   // or com.android.application
+    id("com.google.devtools.ksp") version "<ksp-version>"
+    id("com.blu3berry.kraft") version "<version>"
+}
+```
+
+One line in `gradle.properties` is needed while KSP catches up:
+
+```properties
+android.disallowKotlinSourceSets=false
+```
+
+KSP registers its generated sources through the `kotlin.sourceSets` DSL, which built-in Kotlin doesn't accept yet. This is AGP's documented opt-out and applies to every KSP processor, not just Kraft — you can drop it once KSP supports built-in Kotlin ([google/ksp#2729](https://github.com/google/ksp/issues/2729)).
+
+On AGP 8 nothing changes: keep applying `org.jetbrains.kotlin.android` as before.
 
 ## Compatibility and legacy projects
 

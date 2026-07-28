@@ -42,20 +42,78 @@ class KraftGradlePlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
         val extension = project.extensions.create("kraft", KraftExtension::class.java)
+        var kmpSeen = false
         var kotlinPluginSeen = false
+        var agpWired = false
         project.pluginManager.withPlugin(KOTLIN_MULTIPLATFORM_ID) {
+            kmpSeen = true
             kotlinPluginSeen = true
             project.pluginManager.withPlugin(KSP_ID) {
+                // The AGP-id branch below may have single-target-wired the module
+                // already (KMP listed after both the Android plugin and KSP). That
+                // wiring cannot be undone, and stacking KMP wiring on top would
+                // make KSP process the platform compilations on top of the
+                // metadata one — fail with the reorder fix instead.
+                if (agpWired) {
+                    throw GradleException(
+                        """
+                        Kraft Gradle Plugin: '${project.path}' applies $KOTLIN_MULTIPLATFORM_ID after
+                        Kraft already wired it for the Android plugin ($ANDROID_APPLICATION_ID /
+                        $ANDROID_LIBRARY_ID + $KSP_ID applied first).
+
+                        How to fix:
+                          Reorder this module's plugins block so $KOTLIN_MULTIPLATFORM_ID
+                          comes before $KSP_ID and id("com.blu3berry.kraft").
+                        """.trimIndent()
+                    )
+                }
                 KraftKmpWiring.configure(project, kraftVersion(), extension)
             }
         }
         // kotlin-jvm and kotlin-android are mutually exclusive with each other and
-        // with KMP, so at most one of these three branches fires.
+        // with KMP, so at most one of these two branches fires.
+        var singleTargetSeen = false
         for (id in listOf(KOTLIN_JVM_ID, KOTLIN_ANDROID_ID)) {
+            project.pluginManager.withPlugin(id) {
+                singleTargetSeen = true
+                kotlinPluginSeen = true
+                project.pluginManager.withPlugin(KSP_ID) {
+                    // Skip when the AGP-id branch already applied the identical
+                    // single-target wiring (kotlin-android listed after both the
+                    // Android plugin and KSP).
+                    if (!agpWired) {
+                        KraftSingleTargetWiring.configure(project, kraftVersion(), extension)
+                    }
+                }
+            }
+        }
+        // AGP 9 compiles Kotlin itself, so an Android module is Kotlin-bearing with
+        // no org.jetbrains.kotlin.* plugin at all. These ids are handled separately
+        // rather than added to the loop above, because they are ALSO present in
+        // shapes that another branch already owns:
+        //   - a KMP module targeting Android applies com.android.library too, and
+        //     the KMP wiring is the correct one there;
+        //   - on AGP 8, an Android module applies com.android.library AND
+        //     kotlin-android.
+        // In both cases wiring from the AGP id as well would add the flat ksp and
+        // implementation dependencies on top of the ones the owning branch added.
+        // Plugin application order inside a plugins block is user-controlled, so
+        // a Kotlin plugin listed after both the Android plugin and KSP has not
+        // applied yet when this check runs — wiring cannot simply be deferred to
+        // afterEvaluate either, because KSP consumes the ksp configuration during
+        // its own configuration lifecycle and late-added dependencies are ignored
+        // (proven by the agp9 end-to-end test). Instead this branch records that
+        // it claimed the module: a single-target plugin arriving later skips its
+        // (identical) wiring, and a KMP plugin arriving later fails loudly with
+        // the reorder fix.
+        for (id in listOf(ANDROID_APPLICATION_ID, ANDROID_LIBRARY_ID)) {
             project.pluginManager.withPlugin(id) {
                 kotlinPluginSeen = true
                 project.pluginManager.withPlugin(KSP_ID) {
-                    KraftSingleTargetWiring.configure(project, kraftVersion(), extension)
+                    if (!kmpSeen && !singleTargetSeen) {
+                        agpWired = true
+                        KraftSingleTargetWiring.configure(project, kraftVersion(), extension)
+                    }
                 }
             }
         }
@@ -76,6 +134,8 @@ class KraftGradlePlugin : Plugin<Project> {
                   1. Kotlin Multiplatform — `alias(libs.plugins.kotlinMultiplatform)` (id "$KOTLIN_MULTIPLATFORM_ID")
                   2. Kotlin JVM — `alias(libs.plugins.kotlinJvm)` (id "$KOTLIN_JVM_ID")
                   3. Kotlin Android — `alias(libs.plugins.kotlinAndroid)` (id "$KOTLIN_ANDROID_ID")
+                  4. Android with AGP 9 built-in Kotlin — id "$ANDROID_APPLICATION_ID" or
+                     "$ANDROID_LIBRARY_ID" on their own (do not also apply "$KOTLIN_ANDROID_ID")
                 Details: https://blu3berry-why.github.io/Kraft/user-guide/getting-started/
                 """.trimIndent()
             )
@@ -119,6 +179,10 @@ class KraftGradlePlugin : Plugin<Project> {
         const val KOTLIN_MULTIPLATFORM_ID = "org.jetbrains.kotlin.multiplatform"
         const val KOTLIN_JVM_ID = "org.jetbrains.kotlin.jvm"
         const val KOTLIN_ANDROID_ID = "org.jetbrains.kotlin.android"
+        // AGP 9 compiles Kotlin itself (built-in Kotlin), so these ids mark a
+        // Kotlin-bearing module even with no org.jetbrains.kotlin.* plugin.
+        const val ANDROID_APPLICATION_ID = "com.android.application"
+        const val ANDROID_LIBRARY_ID = "com.android.library"
         const val KSP_ID = "com.google.devtools.ksp"
         const val VERSION_RESOURCE = "kraft-plugin.properties"
         const val BROKEN_DISTRIBUTION_HINT =
