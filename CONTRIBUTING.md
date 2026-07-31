@@ -203,7 +203,10 @@ as a GitHub pre-release):
    version; merging it tags `0.13.0-RC01`, creates the GitHub Release, and
    `publish.yml` publishes the artifacts to Maven Central as normal.
 2. **Docs stay stable:** `docs-deploy.yml` skips any release whose tag contains
-   `-`, so an RC never overwrites the stable GitHub Pages site.
+   `-`, so an RC release never overwrites the stable GitHub Pages site. This
+   guard applies to automatic release-triggered deploys only — a manual
+   `workflow_dispatch` deploys whatever ref it is run on, so don't dispatch it
+   on an RC tag.
 3. **Promote to stable:** after validation, land a commit with
    `Release-As: 0.13.0` and merge the retargeted release PR. Use the explicit
    footer for the promotion — do not rely on the automatic bump from an RC
