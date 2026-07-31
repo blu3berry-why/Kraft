@@ -59,9 +59,12 @@ class GlobalConverterScanner(
 
         if (receiverType.arguments.isNotEmpty() || returnType.arguments.isNotEmpty()) {
             logger.error(
-                "@KraftConverter on '${fn.simpleName.asString()}' uses a parameterized receiver " +
-                    "or return type. Generic converters (e.g. List<T> → Set<T>) are not yet supported; " +
-                    "register a converter for each concrete type pair, or use a per-property @MapUsing.",
+                "@KraftConverter on '${fn.simpleName.asString()}' has a parameterized receiver or " +
+                    "return type. Converters are registered by their raw (source → target) class " +
+                    "pair, so type arguments cannot be matched — even concrete ones like " +
+                    "List<Int> → String. How to fix: List/Set properties whose element " +
+                    "types map are already converted element-wise without a @KraftConverter; for " +
+                    "any other parameterized conversion use a per-property @MapUsing on the mapper.",
                 fn
             )
             return
