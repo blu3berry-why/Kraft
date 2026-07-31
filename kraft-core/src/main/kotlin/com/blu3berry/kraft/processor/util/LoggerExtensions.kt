@@ -5,6 +5,7 @@ package com.blu3berry.kraft.processor.util
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSNode
 import com.blu3berry.kraft.model.PropertyInfo
+import com.blu3berry.kraft.model.TypeInfo
 import com.blu3berry.kraft.model.scan.FieldOverride
 
 /**
@@ -146,15 +147,30 @@ fun KSPLogger.detailedTypeMismatch(
     sourceProperty: PropertyInfo,
     targetProperty: PropertyInfo,
     symbol: KSNode
-) = err(
-    """
+) {
+    var sourceShown = sourceProperty.type.ksType.toString()
+    var targetShown = targetProperty.type.ksType.toString()
+    // Same-simple-name pairs (DTO vs domain) render identically — or differ only
+    // in nullability — and make the mismatch unreadable. Fall back to qualified
+    // names when those actually disambiguate; for parameterized types (List<A>
+    // vs List<B>) the type arguments carry the difference, so keep the short form.
+    if (sourceProperty.type.simpleName == targetProperty.type.simpleName) {
+        val sourceQualified = sourceProperty.type.qualifiedRendering()
+        val targetQualified = targetProperty.type.qualifiedRendering()
+        if (sourceQualified != targetQualified) {
+            sourceShown = sourceQualified
+            targetShown = targetQualified
+        }
+    }
+    err(
+        """
     Type mismatch for property '${targetProperty.name}'.
 
     From source ($sourceType):
-      • ${sourceProperty.name}: ${sourceProperty.type.ksType}
+      • ${sourceProperty.name}: $sourceShown
 
     To target ($targetType):
-      • ${targetProperty.name}: ${targetProperty.type.ksType}
+      • ${targetProperty.name}: $targetShown
 
     Types must match exactly.
 
@@ -162,9 +178,13 @@ fun KSPLogger.detailedTypeMismatch(
       ✓ Align nullability in both types
       ✓ Use @MapUsing with a converter
       ✓ Ensure both types are compatible
-    """.trimIndent(),
-    symbol
-)
+        """.trimIndent(),
+        symbol
+    )
+}
+
+private fun TypeInfo.qualifiedRendering(): String =
+    qualifiedName + if (isNullable) "?" else ""
 
 /**
  * More informative @MapField override failure message.

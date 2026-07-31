@@ -125,9 +125,10 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
                 )
             }
             converter.isExtension -> {
+                val dot = if (converter.useSafeCall) "?." else "."
                 block.add(
-                    "%N = this.%N.%M()",
-                    targetName, sourceName, topLevelMemberName(converter)
+                    "%N = this.%N%L%M()",
+                    targetName, sourceName, dot, topLevelMemberName(converter)
                 )
             }
             else -> {

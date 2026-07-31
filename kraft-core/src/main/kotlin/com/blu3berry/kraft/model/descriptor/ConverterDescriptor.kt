@@ -33,6 +33,9 @@ import com.blu3berry.kraft.model.TypeInfo
  * @param targetType          Type of the converter's output.
  * @param resolvedDirection   The mapping direction this converter applies to; [ConverterDirection.AUTO]
  *                            when the config has no `@MapReverse` (all converters serve the single direction).
+ * @param useSafeCall         Emit the call as `source?.fn()` instead of `source.fn()`. Set when a
+ *                            nullable `X? → Y?` property pair is served by a registered non-null
+ *                            `X → Y` bridge (the scalar analogue of `?.map { it.fn() }`).
  */
 data class ConverterDescriptor(
     val enclosingObject: KSClassDeclaration?,
@@ -44,7 +47,8 @@ data class ConverterDescriptor(
     val targetPropertyName: String,
     val sourceType: TypeInfo,
     val targetType: TypeInfo,
-    val resolvedDirection: ConverterDirection = ConverterDirection.AUTO
+    val resolvedDirection: ConverterDirection = ConverterDirection.AUTO,
+    val useSafeCall: Boolean = false
 ) {
     /** Simple name of the converter function. */
     val functionName: String
