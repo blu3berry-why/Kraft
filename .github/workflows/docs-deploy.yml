@@ -23,6 +23,14 @@ concurrency:
 
 jobs:
   deploy:
+    # Pre-releases (e.g. 0.13.0-RC01) must not overwrite the stable docs site.
+    # Guard on the tag name, not github.event.release.prerelease: stable tags
+    # never contain '-', pre-release tags always do, and the flag would need
+    # release-please's `prerelease` option — which also flags every pre-major
+    # (0.x) release, so it cannot be used while Kraft is pre-1.0.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      !contains(github.event.release.tag_name, '-')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
