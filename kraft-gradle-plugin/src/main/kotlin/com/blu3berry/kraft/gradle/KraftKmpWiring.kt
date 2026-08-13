@@ -35,6 +35,20 @@ internal object KraftKmpWiring {
             }
         }
 
+        // KSP's own platform tasks (kspKotlinJvm, kspKotlinJs, …) also consume
+        // commonMain sources, including the generated dir wired above. They are
+        // not KotlinCompilationTasks, so the block above misses them. Up to KSP
+        // 2.3.10 they were skipped in this setup (the processor is only on the
+        // metadata configuration), but since 2.3.11 an empty-processor KSP task
+        // still runs to clean its outputs — and Gradle then fails the build with
+        // an implicit-dependency validation error. Matched by name so both the
+        // KSP1 and KSP2 task types are covered.
+        project.tasks.configureEach { task ->
+            if (task.name != KSP_METADATA_TASK && task.name.startsWith("ksp")) {
+                task.dependsOn(KSP_METADATA_TASK)
+            }
+        }
+
         KraftKspArgEmitter.register(project, extension)
     }
 }
