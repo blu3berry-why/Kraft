@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/blu3berry-why/Kraft/compare/0.13.0...0.13.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* order KSP platform tasks after kspCommonMainKotlinMetadata ([#111](https://github.com/blu3berry-why/Kraft/issues/111)) ([760d808](https://github.com/blu3berry-why/Kraft/commit/760d808b7b1f7c2f1d7f371130a314fa11a5fc0b))
+
 ## [0.13.0](https://github.com/blu3berry-why/Kraft/compare/0.12.0...0.13.0) (2026-07-31)
 
 
