@@ -172,15 +172,75 @@ fun KSPLogger.detailedTypeMismatch(
     To target ($targetType):
       • ${targetProperty.name}: $targetShown
 
-    Types must match exactly.
+    Types must match exactly, or be bridged by a registered converter.
 
-    How to fix:
-      ✓ Align nullability in both types
-      ✓ Use @MapUsing with a converter
-      ✓ Ensure both types are compatible
+${typeMismatchGuidance(sourceProperty, targetProperty)}
         """.trimIndent(),
         symbol
     )
+}
+
+/**
+ * Builds the "how to fix" half of [detailedTypeMismatch].
+ *
+ * A nullable source paired with a non-null target gets its own text: Kraft *does*
+ * reuse a non-null `X → Y` converter for an `X? → Y?` pair (threaded through a safe
+ * call), so a user who has that converter registered and still sees a mismatch is
+ * almost always looking at the one pair that is deliberately never lifted. Saying
+ * "align nullability" there hides the actual rule.
+ */
+private fun typeMismatchGuidance(
+    sourceProperty: PropertyInfo,
+    targetProperty: PropertyInfo
+): String {
+    val name = targetProperty.name
+    val src = sourceProperty.type.simpleName
+    val tgt = targetProperty.type.simpleName
+
+    val nullableSourceOnly = sourceProperty.type.isNullable && !targetProperty.type.isNullable
+
+    // Same class on both sides, differing only by '?'. No converter is involved or
+    // wanted here, so suggesting one ('$src → $src') would be noise.
+    if (nullableSourceOnly && sourceProperty.type.qualifiedName == targetProperty.type.qualifiedName) {
+        return """
+    Both sides are '$src'; only nullability differs. Kraft never drops a null into a
+    non-null target, so this pair needs an explicit decision rather than a converter.
+
+    How to fix:
+      ✓ Make the target property '$name' nullable
+      ✓ Or give '$name' a default in the target constructor and add @MapIgnore
+      ✓ Or choose the fallback explicitly with a whole-source @MapUsing:
+            @MapUsing(target = "$name") fun Source.${name}OrDefault(): $tgt = $name ?: <default>
+        """.trimIndent().prependIndent("    ")
+    }
+
+    if (nullableSourceOnly) {
+        return """
+    The source is nullable and the target is not. Kraft threads a registered
+    '$src → $tgt' converter through a safe call only when BOTH sides are nullable
+    ($src? → $tgt?). A nullable source with a non-null target is never lifted:
+    the safe call would produce a null the target cannot hold, and unlike a
+    List (which falls back to emptyList()) a scalar has no natural empty value.
+
+    How to fix:
+      ✓ Make the target property '$name' nullable — an existing '$src → $tgt'
+        @KraftConverter or @MapEnum is then applied automatically
+      ✓ Or supply the fallback yourself with a whole-source @MapUsing:
+            @MapUsing(target = "$name") fun Source.${name}OrDefault(): $tgt = $name ?: <default>
+      ✓ Or declare a converter that accepts the nullable source:
+            @KraftConverter fun $src?.to$tgt(): $tgt = ...
+        """.trimIndent().prependIndent("    ")
+    }
+
+    return """
+    How to fix:
+      ✓ Register a @KraftConverter for this pair — one top-level extension covers
+        every mapper in the module:
+            @KraftConverter fun $src.to$tgt(): $tgt = ...
+      ✓ Or, if both types are enums, add @MapEnum(source = $src::class, target = $tgt::class)
+      ✓ Or override just this property with @MapUsing on the @MapConfig object
+      ✓ Or align the declared types (including nullability)
+    """.trimIndent().prependIndent("    ")
 }
 
 private fun TypeInfo.qualifiedRendering(): String =

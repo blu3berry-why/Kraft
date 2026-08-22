@@ -365,8 +365,10 @@ Two `@KraftConverter` functions registering the same `(sourceType, targetType)` 
 
 When the source class, target class, `@MapConfig` object, `@MapUsing` function, or any invoked `@KraftConverter` carries an `@OptIn(...)` or an `@RequiresOptIn`-meta-annotated marker, Kraft copies a deduplicated `@OptIn(...)` onto the generated mapper function. This keeps experimental APIs like `kotlin.uuid.Uuid` from forcing every consumer of the generated mapper to add an opt-in at the call site.
 
+Both placements are honoured: a marker on the declaration itself **and** a file-level `@file:OptIn(...)` on the file that declares it. That second form matters for generated DTOs — code generators differ on which one they emit, and on Kraft < 0.13.0 the file-level form was silently dropped, so the same models produced a compiling mapper with one generator version and an opt-in error with another. On 0.13.0+ the generated mapper carries its own opt-ins either way, and you do not need a module-wide `freeCompilerArgs += "-opt-in=..."` to compile it.
+
 ### Restrictions and caveats
 
 - Only top-level extension functions are accepted; member functions and free-standing functions with a value parameter are rejected at compile time.
-- Lookup matches the source/target qualified names *and* nullability exactly. `Uuid → String` does not auto-lift to `Uuid? → String?`; declare the nullable variant separately if you need it.
+- Lookup matches the source/target qualified names *and* nullability, with one lift: a `X? → Y?` property pair reuses a registered non-null `X → Y` converter through a safe call (`this.field?.toY()`), so `Uuid → String` covers `Uuid? → String?` without a second declaration. A **nullable source with a non-null target is deliberately not lifted** — a safe call yields `Y?`, and unlike collections (which fall back to `emptyList()`) a scalar has no natural empty value. For that pair, declare an explicit `X? → Y` converter, or use a whole-source `@MapUsing` that supplies the default (see [Pattern 4](#pattern-4-coalesce-a-nullable-source-into-a-non-null-target-with-a-default)).
 - Kraft does not ship a built-in primitives or stdlib converter set yet. Each module that needs `Int → Long`, `Uuid → String`, etc. must declare the converters itself.

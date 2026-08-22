@@ -1,7 +1,7 @@
 ---
 name: kraft-mappers
 description: |
-  Authoring guide for the Kraft KSP automapper library (com.blu3berry.kraft) in Kotlin/KMP. Covers the decision tree for @MapConfig, @MapEnum, @KraftConverter, and @MapUsing (including whole-source mode for decompose/compose/constant/default patterns); reverse mapping with @MapReverse; the Gradle plugin and kraft { } DSL (side aliases, functionNameFormat, moduleId); placement and naming conventions; and the kmpgen-DTO interaction gotchas (K1, K-A1). Use this skill whenever writing or reviewing mappers in a project that depends on Kraft. Trigger on phrases like "Kraft mapper", "@MapConfig", "@KraftConverter", "@MapEnum", "@MapReverse", "DTO mapper", "auto-mapper", "side alias", "kraft plugin", or anytime a `*Mappers.kt` file is being authored.
+  Authoring guide for the Kraft KSP automapper library (com.blu3berry.kraft) in Kotlin/KMP. Covers the decision tree for @MapConfig, @MapEnum, @KraftConverter, and @MapUsing (including whole-source mode for decompose/compose/constant/default patterns); reverse mapping with @MapReverse; the Gradle plugin and kraft { } DSL (side aliases, functionNameFormat, moduleId); placement and naming conventions; what Kraft already does automatically (element-wise List/Set mapping, nullable collection and nullable-scalar bridging); and the kmpgen-DTO interaction gotchas (K1, K-A1, K3, K4, K5, K6). Use this skill whenever writing or reviewing mappers in a project that depends on Kraft. Trigger on phrases like "Kraft mapper", "@MapConfig", "@KraftConverter", "@MapEnum", "@MapReverse", "DTO mapper", "auto-mapper", "side alias", "kraft plugin", or anytime a `*Mappers.kt` file is being authored.
 ---
 
 # Kraft Mappers — Authoring Guide
@@ -26,12 +26,26 @@ When you call those functions, they try to resolve every property of `Target` fr
 - **Registered converter** — call the matching `@KraftConverter` extension or `@MapUsing` function
 - **Nested mapper** — if both types have a `@MapConfig` registered for them, recurse
 - **Enum mapper** — if both enums have a `@MapEnum` registered (or auto-derive when entries align by name)
+- **Collection element mapping** — `List<A>`/`Set<A>` → `List<B>`/`Set<B>` maps element-wise, using the nested mapper or the `@MapEnum` pair for `A → B`
 
 If none resolves, Kraft fails compilation with a `Type mismatch` or `Required property has no mapping source` error.
 
+### What is already automatic (do not hand-write these)
+
+These recur as "Kraft can't do this" and all four are native. Reach for an annotation only after checking this list:
+
+| Shape | Emitted for you |
+|---|---|
+| `List<A>` → `List<B>`, `Set<A>` → `Set<B>` | `.map { it.toB() }`, plus `.toSet()` for sets — where `A → B` is a nested mapper (two mappable classes) or a `@MapEnum` pair |
+| `List<A>?` → `List<B>` | `this.xs?.map { it.toB() } ?: emptyList()` — the nullable source needs **no** `@MapUsing` |
+| `List<A?>` → `List<B>` | `this.xs.mapNotNull { it?.toB() }` |
+| `A?` → `B?` with only a non-null `A → B` converter registered | `this.x?.toB()` — the non-null bridge is threaded through a safe call (Kraft 0.13.0+) |
+
+The one nullable shape that is **not** automatic is `A?` → `B` (nullable source, non-null target): a safe call would yield a null the target cannot hold, and a scalar has no `emptyList()` equivalent. Supply the fallback with a whole-source `@MapUsing` (see Pattern 4 below). Collections are the exception — `List<A>?` → `List<B>` *is* handled, via the empty-collection fallback.
+
 ---
 
-## Build setup (Gradle plugin, Kraft 0.12.0+)
+## Build setup (Gradle plugin, Kraft 0.13.0+)
 
 A module uses either the Kraft Gradle plugin (preferred) or manual wiring — recognize both:
 
@@ -60,6 +74,14 @@ Source S, Target T:
 │
 ├── Both are enums
 │   → @MapEnum (or rely on by-name auto-derivation when entries align)
+│     ↑ registers the pair globally — List<S>/Set<S> properties of that enum
+│       are then converted element-wise with no extra annotation
+│
+├── Both are List<…> or Set<…> of types that themselves map
+│   → nothing. Element-wise mapping is automatic, nullable sources included.
+│     Annotate the ELEMENT pair (@MapConfig for classes, @MapEnum for enums),
+│     never the collection — a converter for List<A> → List<B> is rejected.
+│     Caveat: a hand-written @KraftConverter is NOT applied at element position (K6).
 │
 ├── Conversion requires logic on a single type pair (Uuid → String, format, parse)
 │   → @KraftConverter on a top-level extension function
@@ -199,6 +221,29 @@ Pre-fix behavior: Kraft derived the generated mapper's filename from `<sourceSim
 
 **Generator versions checked:** kmpgen 1.5.0 and 1.6.0-RC01. The alias mechanism is identical in both; 1.6.0-RC01 adds nullable-expansion aliases (`typealias NullableRefTypealias = NullableInlineObject?`) for nullable `$ref`s, covered by the fix. kmpgen's one parameterized alias (`SerializableImmutableList<T>`) is not used for generated model properties.
 
+### K4 — `@OptIn` on generated DTOs was classpath-sensitive *(fixed in Kraft 0.13.0)*
+
+**Status:** Fixed in Kraft 0.13.0 (PRs #107/#108, issues #104/#106).
+
+Pre-fix, Kraft collected opt-in markers only from the *declaration* (`@OptIn(ExperimentalUuidApi::class)` written on the class, converter, or config object). A file-level `@file:OptIn(...)` — the form some generator versions emit instead — was silently dropped, so the generated mapper compiled under one kmpgen version and failed with an opt-in error under another, with no change to your own source. The symptom is a mapper that stops compiling after a *generator* upgrade.
+
+**Post-fix:** both placements propagate (declaration and containing file), deduplicated, on the mapper and on the delegate registry. The generated code owns its opt-ins — you should **not** need a module-wide `freeCompilerArgs += "-opt-in=kotlin.uuid.ExperimentalUuidApi"` to compile Kraft output. If you still do on 0.13.0+, that is a bug worth reporting, not a workaround to keep.
+
+### K5 — Nullable scalar with a non-null target is the one pair never auto-bridged
+
+`A? → B?` reuses a registered non-null `A → B` converter through a safe call (0.13.0+). `A? → B` does not, by design — see the mental-model table above. This is the single most common "my `@KraftConverter` is registered but Kraft says type mismatch" report; the fix is a whole-source `@MapUsing` supplying the default, or making the target nullable.
+
+### K6 — `@KraftConverter` is not applied at collection element position
+
+A registered `@KraftConverter fun A.intoB(): B` converts an `A` *property*, but a `List<A>` → `List<B>` property does not use it: the element-position path accepts only auto-derived `@MapEnum` mappers and synthesised nested mappers, because rendering the element call assumes a `to<Target>` name that a hand-written converter need not have. The property fails with a plain type mismatch, with nothing to indicate a converter was found and declined.
+
+**Workaround:** if `A` and `B` are both classes with primary constructors, drop the converter and let `@MapConfig` synthesise the nested mapper (which *is* applied element-wise). Otherwise handle the whole collection with a whole-source `@MapUsing`:
+
+```kotlin
+@MapUsing(target = "items")
+fun SrcDto.itemsMapped(): List<B> = items.map { it.intoB() }
+```
+
 ### Don't run mappers on JVM-only paths in `commonMain`
 
 Kraft itself is multiplatform-friendly, but a `@KraftConverter` whose body touches JVM types will compile in `commonMain` only via expect/actual or platform-specific source sets. Keep converter bodies KMP-pure (`Uuid.parse`, `Uuid.toString`, `Instant.parse`, etc.).
@@ -220,6 +265,9 @@ If Kraft would add more boilerplate (lots of `@MapUsing` overrides per field) th
 | Error | Cause | Fix |
 |---|---|---|
 | `Type mismatch for property X` | Source field type ≠ target field type, no converter registered | Add `@KraftConverter` for the type pair, `@MapEnum` for enum pairs, or `@MapUsing` (whole-source) for composite/constant/default cases |
+| `Type mismatch` where the ONLY difference is `?` on the source | Nullable source, non-null target — never auto-lifted (K5) | Make the target nullable, or add a whole-source `@MapUsing` that supplies the default |
+| `Type mismatch` on a `List`/`Set` property | The ELEMENT pair has no mapping — the collection itself is never the problem | Register `@MapConfig` (classes) or `@MapEnum` (enums) for the element types; do not write a `List → List` converter (parameterized receivers are rejected). A plain `@KraftConverter` does not cover element position — see K6 |
+| Opt-in error (`This declaration needs opt-in`) in a generated mapper | Kraft < 0.13.0 dropped file-level `@file:OptIn` (K4) | Upgrade to 0.13.0+; do not paper over it with module-wide `-opt-in` compiler args |
 | `Required property X has no mapping source` | Target has a field with no matching source field | Add `@FieldMapping` rename, make target field nullable, supply a default, or use whole-source `@MapUsing` for constant injection |
 | `Unresolved reference 'toXFromY'` in a generated file | Cross-package extension import missing in generated file | Open the generated file, add the FQN import; flag as an upstream Kraft bug |
 | `FileAlreadyExistsException ... _EnumMapper.kt.kt` | Two `@MapEnum`s with same target simpleName (K-A1) | Upgrade to Kraft 0.8.x+; on older versions, replace one with hand-written `@KraftConverter` extensions |
