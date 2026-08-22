@@ -19,9 +19,10 @@ here so the reasoning behind them stays recorded.
 
 ## Consumer pain-point verification
 
-Re-Claw reported four recurring problems. Each was re-tested against `main` at 0.13.0.
-Two are real defects (both already fixed in code, both still mis-documented), and two are
-discoverability failures where the code was correct all along.
+Re-Claw reported four recurring problems, re-tested against `main` at 0.13.0. The first
+covers two separate features, so it is split into two checks below — five rows for four
+reports. Two are real defects (both already fixed in code, both still mis-documented), and
+two are discoverability failures where the code was correct all along.
 
 | # | Reported | Reproduced? | Verdict |
 |---|---|---|---|

@@ -157,6 +157,8 @@ object MoneyMapper {
 }
 ```
 
+<a id="pattern-4"></a>
+
 #### Pattern 4 — Coalesce a nullable source into a non-null target with a default
 
 When the source field is nullable but the target requires a value, use whole-source mode to apply a default in one place:
@@ -370,5 +372,5 @@ Both placements are honoured: a marker on the declaration itself **and** a file-
 ### Restrictions and caveats
 
 - Only top-level extension functions are accepted; member functions and free-standing functions with a value parameter are rejected at compile time.
-- Lookup matches the source/target qualified names *and* nullability, with one lift: a `X? → Y?` property pair reuses a registered non-null `X → Y` converter through a safe call (`this.field?.toY()`), so `Uuid → String` covers `Uuid? → String?` without a second declaration. A **nullable source with a non-null target is deliberately not lifted** — a safe call yields `Y?`, and unlike collections (which fall back to `emptyList()`) a scalar has no natural empty value. For that pair, declare an explicit `X? → Y` converter, or use a whole-source `@MapUsing` that supplies the default (see [Pattern 4](#pattern-4-coalesce-a-nullable-source-into-a-non-null-target-with-a-default)).
+- Lookup matches the source/target qualified names *and* nullability, with one lift: a `X? → Y?` property pair reuses a registered non-null `X → Y` converter through a safe call (`this.field?.toY()`), so `Uuid → String` covers `Uuid? → String?` without a second declaration. A **nullable source with a non-null target is deliberately not lifted** — a safe call yields `Y?`, and unlike collections (which fall back to `emptyList()`) a scalar has no natural empty value. For that pair, declare an explicit `X? → Y` converter, or use a whole-source `@MapUsing` that supplies the default (see [Pattern 4](#pattern-4)).
 - Kraft does not ship a built-in primitives or stdlib converter set yet. Each module that needs `Int → Long`, `Uuid → String`, etc. must declare the converters itself.

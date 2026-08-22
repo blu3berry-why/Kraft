@@ -61,7 +61,7 @@ That's the whole mapper. Kraft is a KSP processor that generates type-safe exten
 
 ## Requirements
 
-- **Kotlin 2.2+** — built against 2.2.21; CI also runs the full plugin suite on Kotlin 2.4.10
+- **Kotlin 2.2+** — built against 2.2.21; CI also runs the plugin suite on Kotlin 2.4.10 (Android-tagged tests excluded there; Android is covered by the Gradle 8.13 / 9.5.1 legs and a dedicated AGP 9 job)
 - **KSP 2** — built against 2.3.3; CI runs a compatibility matrix (2.3.3 and 2.3.9) plus a weekly probe against the newest KSP on Maven Central, so newer KSP 2 releases are tested rather than assumed (KSP 1-era versions are not supported)
 - **Gradle 8.13+** — CI covers 8.13, 9.5.1 and 9.6.1
 - **JDK 17+ build toolchain** — the processor runs at compile time only

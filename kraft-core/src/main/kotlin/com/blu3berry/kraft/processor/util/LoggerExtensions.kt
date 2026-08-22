@@ -194,14 +194,23 @@ private fun typeMismatchGuidance(
     targetProperty: PropertyInfo
 ): String {
     val name = targetProperty.name
+    // The fallback expression reads the SOURCE property; under a @MapField or
+    // FieldMapping rename the two names differ, and using the target's name would
+    // emit a snippet referencing a property the source class does not have.
+    val readName = sourceProperty.name
     val src = sourceProperty.type.simpleName
     val tgt = targetProperty.type.simpleName
 
     val nullableSourceOnly = sourceProperty.type.isNullable && !targetProperty.type.isNullable
 
-    // Same class on both sides, differing only by '?'. No converter is involved or
+    // Same type on both sides, differing only by '?'. No converter is involved or
     // wanted here, so suggesting one ('$src → $src') would be noise.
-    if (nullableSourceOnly && sourceProperty.type.qualifiedName == targetProperty.type.qualifiedName) {
+    //
+    // Compare the resolved types with nullability normalised rather than their
+    // qualified names: `List<A>?` and `List<B>` share the qualified name
+    // `kotlin.collections.List`, so a name comparison would claim "only nullability
+    // differs" for a pair whose element types differ too.
+    if (nullableSourceOnly && sourceProperty.type.ksType.makeNotNullable() == targetProperty.type.ksType) {
         return """
     Both sides are '$src'; only nullability differs. Kraft never drops a null into a
     non-null target, so this pair needs an explicit decision rather than a converter.
@@ -210,7 +219,7 @@ private fun typeMismatchGuidance(
       ✓ Make the target property '$name' nullable
       ✓ Or give '$name' a default in the target constructor and add @MapIgnore
       ✓ Or choose the fallback explicitly with a whole-source @MapUsing:
-            @MapUsing(target = "$name") fun Source.${name}OrDefault(): $tgt = $name ?: <default>
+            @MapUsing(target = "$name") fun Source.${name}OrDefault(): $tgt = $readName ?: <default>
         """.trimIndent().prependIndent("    ")
     }
 
@@ -226,7 +235,7 @@ private fun typeMismatchGuidance(
       ✓ Make the target property '$name' nullable — an existing '$src → $tgt'
         @KraftConverter or @MapEnum is then applied automatically
       ✓ Or supply the fallback yourself with a whole-source @MapUsing:
-            @MapUsing(target = "$name") fun Source.${name}OrDefault(): $tgt = $name ?: <default>
+            @MapUsing(target = "$name") fun Source.${name}OrDefault(): $tgt = $readName ?: <default>
       ✓ Or declare a converter that accepts the nullable source:
             @KraftConverter fun $src?.to$tgt(): $tgt = ...
         """.trimIndent().prependIndent("    ")

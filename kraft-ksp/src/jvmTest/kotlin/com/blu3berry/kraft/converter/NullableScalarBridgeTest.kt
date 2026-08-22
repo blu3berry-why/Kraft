@@ -219,4 +219,60 @@ class NullableScalarBridgeTest {
         assertThat(result.messages).contains("only nullability differs")
         assertThat(result.messages).doesNotContain("@KraftConverter fun Status?.toStatus()")
     }
+
+    @Test
+    fun `a nullable collection with different element types is not called nullability-only`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            data class Src(val counts: List<Int>?)
+            data class Dst(val counts: List<String>)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+            object SrcMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        // Both sides are kotlin.collections.List, so comparing qualified names alone
+        // would wrongly report that only nullability differs — the element types
+        // differ too.
+        assertThat(result.messages).contains("Type mismatch for property 'counts'")
+        assertThat(result.messages).doesNotContain("only nullability differs")
+    }
+
+    @Test
+    fun `the suggested fallback reads the source property name under a rename`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            import com.blu3berry.kraft.config.FieldMapping
+
+            data class Src(val legacyCount: Int?)
+            data class Dst(val count: String)
+
+            @com.blu3berry.kraft.config.MapConfig(
+                source = Src::class,
+                target = Dst::class,
+                fieldMappings = [FieldMapping(source = "legacyCount", target = "count")]
+            )
+            object SrcMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        // @MapUsing targets the TARGET name but the body reads the SOURCE property;
+        // emitting 'count ?: ...' would reference a property Src does not declare.
+        assertThat(result.messages).contains("@MapUsing(target = \"count\")")
+        assertThat(result.messages).contains("legacyCount ?: <default>")
+        assertThat(result.messages).doesNotContain("= count ?: <default>")
+    }
 }
