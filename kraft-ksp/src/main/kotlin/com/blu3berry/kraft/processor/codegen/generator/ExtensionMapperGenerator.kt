@@ -66,7 +66,7 @@ class ExtensionMapperGenerator(
 
         optInAnnotation(OptInMarkerCollector.collect(descriptor))?.let(verboseFn::addAnnotation)
 
-        val fileBuilder = FileSpec.builder(packageName, "$fileName.kt")
+        val fileBuilder = FileSpec.builder(packageName, fileName)
             .addFileComment(CodeGenUtils.generatedBanner())
             .addFunction(verboseFn.build())
 

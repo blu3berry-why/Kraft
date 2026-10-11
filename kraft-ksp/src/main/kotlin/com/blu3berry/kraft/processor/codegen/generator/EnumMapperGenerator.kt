@@ -81,7 +81,7 @@ class EnumMapperGenerator(
             "EnumMapper"
         )
 
-        val fileBuilder = FileSpec.builder(pkg, "$fileName.kt")
+        val fileBuilder = FileSpec.builder(pkg, fileName)
             .addFileComment(CodeGenUtils.generatedBanner())
             .addFunction(funSpec)
 
