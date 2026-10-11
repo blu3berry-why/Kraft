@@ -26,6 +26,7 @@ When you call those functions, they try to resolve every property of `Target` fr
 - **Registered converter** — call the matching `@KraftConverter` extension or `@MapUsing` function
 - **Nested mapper** — if both types have a `@MapConfig` registered for them, recurse
 - **Enum mapper** — if both enums have a `@MapEnum` registered (or auto-derive when entries align by name)
+- **Value class** — `UserId(val value: String)` ↔ `String` is wrapped/unwrapped automatically (also nullable, `List`/`Set` elements); do NOT write a `@KraftConverter` for it unless the conversion is not a plain wrap/unwrap
 
 If none resolves, Kraft fails compilation with a `Type mismatch` or `Required property has no mapping source` error.
 

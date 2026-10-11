@@ -56,6 +56,7 @@ nav:
       - Field Renaming: user-guide/field-renaming.md
       - Nested Mapping: user-guide/nested-mapping.md
       - Collection Mapping: user-guide/collection-mapping.md
+      - Value Classes: user-guide/value-classes.md
       - Enum Mapping: user-guide/enum-mapping.md
       - Custom Converters: user-guide/custom-converters.md
       - Ignore Rules: user-guide/ignore-rules.md

@@ -78,6 +78,12 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
             is PropertyMappingStrategy.NestedMapper -> {
                 addNestedMapperLine(block, strategy)
             }
+            is PropertyMappingStrategy.ValueClassWrap -> {
+                addValueClassWrapLine(block, strategy)
+            }
+            is PropertyMappingStrategy.ValueClassUnwrap -> {
+                addValueClassUnwrapLine(block, strategy)
+            }
             is PropertyMappingStrategy.Ignored -> {
                 // Already filtered out before this method is called
             }
@@ -216,6 +222,53 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
         } else {
             block.add("%N = this.%N.%L { %L.%M() }%L", t, s, mapFn, itRef, fnMember, toSuffix)
         }
+    }
+
+    private fun addValueClassWrapLine(
+        block: CodeBlock.Builder,
+        strategy: PropertyMappingStrategy.ValueClassWrap
+    ) {
+        val t = strategy.targetProperty.name
+        val s = strategy.sourceProperty.name
+        val valueClass = strategy.valueClass.className
+        val collKind = strategy.collectionKind
+        when {
+            collKind != null -> {
+                val dot = if (strategy.safeCall) "?." else "."
+                block.add(
+                    "%N = this.%N%Lmap { %T(it) }%L",
+                    t, s, dot, valueClass, collectionSuffix(collKind, strategy.safeCall)
+                )
+            }
+            strategy.safeCall -> block.add("%N = this.%N?.let { %T(it) }", t, s, valueClass)
+            else -> block.add("%N = %T(this.%N)", t, valueClass, s)
+        }
+    }
+
+    private fun addValueClassUnwrapLine(
+        block: CodeBlock.Builder,
+        strategy: PropertyMappingStrategy.ValueClassUnwrap
+    ) {
+        val t = strategy.targetProperty.name
+        val s = strategy.sourceProperty.name
+        // %L, not %N: KotlinPoet backtick-escapes the soft keyword `value`, the
+        // conventional underlying name, which is legal but noisy in generated code.
+        val underlying = strategy.underlyingPropertyName
+        val dot = if (strategy.safeCall) "?." else "."
+        val collKind = strategy.collectionKind
+        if (collKind != null) {
+            block.add(
+                "%N = this.%N%Lmap { it.%L }%L",
+                t, s, dot, underlying, collectionSuffix(collKind, strategy.safeCall)
+            )
+        } else {
+            block.add("%N = this.%N%L%L", t, s, dot, underlying)
+        }
+    }
+
+    private fun collectionSuffix(collKind: CollectionKind, safeCall: Boolean): String = when (collKind) {
+        CollectionKind.LIST -> ""
+        CollectionKind.SET -> if (safeCall) "?.toSet()" else ".toSet()"
     }
 
     private fun nestedMapperMemberName(nested: NestedMappingDescriptor): MemberName {
