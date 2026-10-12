@@ -11,6 +11,7 @@ import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.GlobalCon
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.IgnoreRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.NestedRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.RequiredFieldErrorRule
+import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ValueClassRule
 
 /**
  * Coordinates an ordered chain of [MappingRule] instances to resolve each target property to a [PropertyMappingStrategy].
@@ -57,6 +58,12 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
          *                              (rename/direct rules win) or no converter is registered
          *                              (existing rules emit the error).
          *
+         * 4b. [ValueClassRule]       — auto wrap/unwrap of value classes against their underlying
+         *                              type (also element-wise for List/Set). After
+         *                              GlobalConverterRule so a registered converter for the pair
+         *                              wins; before the rename/direct rules for the same reason
+         *                              GlobalConverterRule is — they would report a type mismatch.
+         *
          * 5. [ClassOverrideRule]     — annotation-level renames (@MapField); evaluated before
          *                              ConfigOverrideRule so annotation-level intent wins when
          *                              both sources declare an override for the same property.
@@ -77,6 +84,7 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
                 IgnoreRule(),
                 NestedRule(),
                 GlobalConverterRule(),
+                ValueClassRule(),
                 ClassOverrideRule(),
                 ConfigOverrideRule(),
                 DirectMatchRule(),

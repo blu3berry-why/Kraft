@@ -1,6 +1,7 @@
 package com.blu3berry.kraft.model.descriptor
 
 import com.blu3berry.kraft.model.PropertyInfo
+import com.blu3berry.kraft.model.TypeInfo
 
 /**
  * Describes how a single target property should be populated in the generated mapper.
@@ -50,6 +51,40 @@ sealed interface PropertyMappingStrategy {
         override val targetProperty: PropertyInfo,
         val sourceProperty: PropertyInfo,
         val nestedMappingDescriptor: NestedMappingDescriptor
+    ) : PropertyMappingStrategy
+
+    /**
+     * Wraps the source value into a value class:
+     * `target.id = UserId(source.id)`, `source.id?.let { UserId(it) }`,
+     * or element-wise `source.ids.map { UserId(it) }` when [collectionKind] is set.
+     *
+     * @property valueClass     The value class constructed (the element type for collections).
+     * @property safeCall       Whether the source (or the source collection) is nullable and must be safe-called.
+     * @property collectionKind Non-null when the wrap applies to each element of a `List` / `Set`.
+     */
+    data class ValueClassWrap(
+        override val targetProperty: PropertyInfo,
+        val sourceProperty: PropertyInfo,
+        val valueClass: TypeInfo,
+        val safeCall: Boolean,
+        val collectionKind: CollectionKind? = null
+    ) : PropertyMappingStrategy
+
+    /**
+     * Unwraps a value class to its underlying property:
+     * `target.id = source.id.value`, `source.id?.value`,
+     * or element-wise `source.ids.map { it.value }` when [collectionKind] is set.
+     *
+     * @property underlyingPropertyName The value class's single public property.
+     * @property safeCall               Whether the source (or the source collection) is nullable.
+     * @property collectionKind         Non-null when the unwrap applies to each element of a `List` / `Set`.
+     */
+    data class ValueClassUnwrap(
+        override val targetProperty: PropertyInfo,
+        val sourceProperty: PropertyInfo,
+        val underlyingPropertyName: String,
+        val safeCall: Boolean,
+        val collectionKind: CollectionKind? = null
     ) : PropertyMappingStrategy
 
     /**

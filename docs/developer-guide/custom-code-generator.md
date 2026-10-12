@@ -187,6 +187,18 @@ classDiagram
         +sourceProperty: PropertyInfo
         +nestedMappingDescriptor: NestedMappingDescriptor
     }
+    class ValueClassWrap {
+        +sourceProperty: PropertyInfo
+        +valueClass: TypeInfo
+        +safeCall: Boolean
+        +collectionKind: CollectionKind?
+    }
+    class ValueClassUnwrap {
+        +sourceProperty: PropertyInfo
+        +underlyingPropertyName: String
+        +safeCall: Boolean
+        +collectionKind: CollectionKind?
+    }
     class Constant {
         +expression: String
     }
@@ -206,6 +218,8 @@ classDiagram
     PropertyMappingStrategy <|-- Renamed
     PropertyMappingStrategy <|-- ConverterFunction
     PropertyMappingStrategy <|-- NestedMapper
+    PropertyMappingStrategy <|-- ValueClassWrap
+    PropertyMappingStrategy <|-- ValueClassUnwrap
     PropertyMappingStrategy <|-- Constant
     PropertyMappingStrategy <|-- Ignored
 
@@ -215,6 +229,8 @@ classDiagram
 ```
 
 `Ignored` really has no fields of its own — the empty box is accurate: it carries only the inherited `targetProperty`, and the generator simply emits no constructor argument for it.
+
+`ValueClassWrap` / `ValueClassUnwrap` (added in 0.14) wrap a value into a value class (`UserId(x)`) or read its underlying property (`x.value`). `safeCall` means the source is nullable; a non-null `collectionKind` means the conversion applies to each element of a `List` / `Set`. The strategy hierarchy is `sealed` and grows with new features. The generator SPI is `@ExperimentalKraftApi` for that reason, so expect an exhaustive `when` to need new branches on upgrade.
 
 ---
 

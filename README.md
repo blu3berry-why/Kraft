@@ -43,6 +43,7 @@ That's the whole mapper. Kraft is a KSP processor that generates type-safe exten
 - **Field renaming** — `@MapField` or `@FieldMapping` for cross-name mapping
 - **Nested objects** — auto-detected when types differ, including renamed properties
 - **Collections** — `List<T>` and `Set<T>` with nested element mapping
+- **Value classes** — typed IDs like `UserId(val value: String)` are wrapped and unwrapped automatically, including nullable and collection properties
 - **Enum mapping** — `@MapEnum` with auto-matching and custom entry pairs
 - **Reverse mapping** — `@MapReverse` generates the inverse mapper automatically
 
