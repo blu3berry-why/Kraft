@@ -50,6 +50,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Roadmap: ROADMAP.md
   - User Guide:
       - Getting Started: user-guide/getting-started.md
       - Basic Mapping: user-guide/basic-mapping.md

@@ -96,6 +96,65 @@ class NullableScalarBridgeTest {
     }
 
     @Test
+    fun `the not-lifted error names the both-sides-nullable rule and the ways out`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            enum class ReasonDto { LATE, MISSING }
+            enum class Reason { LATE, MISSING }
+
+            @com.blu3berry.kraft.config.MapEnum(source = ReasonDto::class, target = Reason::class)
+            object ReasonMapping
+
+            data class Src(val reason: ReasonDto?)
+            data class Dst(val reason: Reason)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+            object SrcMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        // The rule itself, not just "align nullability": the pair IS bridged when
+        // both sides are nullable, so the message has to say which half is missing.
+        assertThat(result.messages).contains("only when BOTH sides are nullable")
+        assertThat(result.messages).contains("ReasonDto? → Reason?")
+        // Each documented way out is spelled with the annotation that provides it.
+        assertThat(result.messages).contains("Make the target property 'reason' nullable")
+        assertThat(result.messages).contains("@MapUsing(target = \"reason\")")
+        assertThat(result.messages).contains("@KraftConverter fun ReasonDto?.toReason(): Reason")
+    }
+
+    @Test
+    fun `a plain type mismatch points at @KraftConverter and @MapEnum by name`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            data class Src(val count: Int)
+            data class Dst(val count: String)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+            object SrcMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        // The old text only offered @MapUsing, which sent users writing a
+        // per-mapper override for a pair that a module-wide converter fixes once.
+        assertThat(result.messages).contains("@KraftConverter fun Int.toString(): String")
+        assertThat(result.messages).contains("@MapEnum(source = Int::class, target = String::class)")
+        assertThat(result.messages).contains("@MapUsing")
+    }
+
+    @Test
     fun `type mismatch between same-simple-name types prints qualified names`() {
         val source = SourceFile.kotlin(
             "Models.kt",
@@ -155,5 +214,65 @@ class NullableScalarBridgeTest {
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
         assertThat(result.messages).contains("models.Status?")
         assertThat(result.messages).contains("models.Status")
+        // Same class on both sides: a converter is not the answer, so the message
+        // must not suggest registering a 'Status -> Status' one.
+        assertThat(result.messages).contains("only nullability differs")
+        assertThat(result.messages).doesNotContain("@KraftConverter fun Status?.toStatus()")
+    }
+
+    @Test
+    fun `a nullable collection with different element types is not called nullability-only`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            data class Src(val counts: List<Int>?)
+            data class Dst(val counts: List<String>)
+
+            @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+            object SrcMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        // Both sides are kotlin.collections.List, so comparing qualified names alone
+        // would wrongly report that only nullability differs — the element types
+        // differ too.
+        assertThat(result.messages).contains("Type mismatch for property 'counts'")
+        assertThat(result.messages).doesNotContain("only nullability differs")
+    }
+
+    @Test
+    fun `the suggested fallback reads the source property name under a rename`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            package models
+
+            import com.blu3berry.kraft.config.FieldMapping
+
+            data class Src(val legacyCount: Int?)
+            data class Dst(val count: String)
+
+            @com.blu3berry.kraft.config.MapConfig(
+                source = Src::class,
+                target = Dst::class,
+                fieldMappings = [FieldMapping(source = "legacyCount", target = "count")]
+            )
+            object SrcMapper
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        // @MapUsing targets the TARGET name but the body reads the SOURCE property;
+        // emitting 'count ?: ...' would reference a property Src does not declare.
+        assertThat(result.messages).contains("@MapUsing(target = \"count\")")
+        assertThat(result.messages).contains("legacyCount ?: <default>")
+        assertThat(result.messages).doesNotContain("= count ?: <default>")
     }
 }
