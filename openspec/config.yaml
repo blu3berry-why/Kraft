@@ -1,0 +1,55 @@
+schema: spec-driven
+
+context: |
+  Kraft is a KSP code generator: behaviour = "given these annotations and types,
+  generate this code, or fail compilation with this error".
+  Specs describe that behaviour for contributors and agents; docs/user-guide
+  describes usage for users. Do not duplicate one into the other.
+  Use OpenSpec for feat: work and anything that changes annotations, the
+  kraft { } DSL or generated function signatures. Skip it for fix:/chore:/docs:.
+  Specs are grown from new changes only; existing 0.13 behaviour is not
+  back-filled.
+  Roadmap and priorities live in docs/ROADMAP.md.
+
+rules:
+  specs:
+    - Write each scenario as input source (annotations + types) -> generated code or compile error, so it maps one-to-one onto a KSP compile-test
+    - Name the exact error message wording when a scenario expects a compile failure
+  design:
+    - State whether the change alters the signature of generated functions (a breaking change for consumers)
+    - Name the PropertyMappingStrategy, or the new one, that the change lands in
+  tasks:
+    - Each spec scenario gets a test task in kraft-ksp/src/jvmTest
+    - Final task is the full gate - detekt, kraft-ksp:jvmTest, kraft-gradle-plugin:test, KMP integration tests
+    - Include a docs/user-guide and kraft-mappers SKILL.md update task when user-facing behaviour changes
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+# Example:
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
