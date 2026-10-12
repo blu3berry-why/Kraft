@@ -1,0 +1,96 @@
+name: Publish RC
+
+# One-click release candidate: publishes main HEAD to Maven Central as
+# <next>-RC<n> and tags that commit, so a consumer (e.g. Re-Claw) can test it
+# before the real release.
+#
+# <next> is the version release-please is currently proposing in its open
+# release PR, and <n> counts up from the existing <next>-RC* tags. No commit
+# lands on main, no GitHub Release is created (so publish.yml and the docs
+# deploy never fire), and the CHANGELOG is left alone. Promoting to stable is
+# just merging the release PR as usual.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Two runs at once would pick the same RC number.
+concurrency:
+  group: publish-rc
+  cancel-in-progress: false
+
+env:
+  RELEASE_PR_BRANCH: release-please--branches--main
+
+jobs:
+  publish-rc:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Compute RC version
+        id: version
+        run: |
+          set -euo pipefail
+          if ! git fetch --quiet origin "$RELEASE_PR_BRANCH"; then
+            echo "::error::No open release-please PR ($RELEASE_PR_BRANCH): nothing on main would be released, so there is nothing to make an RC of."
+            exit 1
+          fi
+          NEXT=$(git show "FETCH_HEAD:gradle.properties" | grep '^kraft.version=' | cut -d= -f2)
+          if ! echo "$NEXT" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Release PR proposes '$NEXT', expected MAJOR.MINOR.PATCH."
+            exit 1
+          fi
+
+          git fetch --tags --force --quiet
+          LAST=$(git tag --list "${NEXT}-RC*" | sed "s/^${NEXT}-RC//" | grep -E '^[0-9]+$' | sort -n | tail -n1)
+          VERSION="${NEXT}-RC$(( ${LAST:-0} + 1 ))"
+          echo "Publishing $VERSION from $(git rev-parse --short HEAD)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Inject publish credentials
+        uses: ./.github/actions/inject-credentials
+        with:
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-key-id: ${{ secrets.GPG_KEY_ID }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          maven-central-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          maven-central-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+
+      - name: Publish all modules to Central Portal
+        run: |
+          ./gradlew publishAggregationToCentralPortal --no-configuration-cache \
+            -Pkraft.version=${{ steps.version.outputs.version }} \
+            -Pkraft.publishingType=AUTOMATIC
+
+      # Tag only after a successful upload, so a failed run doesn't burn an RC number.
+      - name: Tag the RC commit
+        run: |
+          git tag "${{ steps.version.outputs.version }}"
+          git push origin "refs/tags/${{ steps.version.outputs.version }}"
+
+      - name: Summary
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          {
+            echo "## Published \`$V\`"
+            echo ""
+            echo "Maven Central can take ~15-30 min to serve it. To test in a consumer:"
+            echo ""
+            echo '```toml'
+            echo "kraft = \"$V\""
+            echo '```'
+            echo ""
+            echo "Promote by merging the release-please PR."
+          } >> "$GITHUB_STEP_SUMMARY"

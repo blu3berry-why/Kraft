@@ -1,18 +1,14 @@
 name: Publish
 
+# Merging the release-please PR creates the tag and GitHub Release; this
+# publishes the tagged commit to Maven Central. Release candidates go through
+# publish-rc.yml instead and never create a GitHub Release.
 on:
-  # Legacy flow (create-release.yml → release/<v> PR → release-branch merge).
-  # Dormant since the release-please migration; delete together with
-  # create-release.yml after the first verified release-please release.
-  push:
-    branches: [ release-branch ]
-  # Release-please flow: merging the rolling release PR creates the tag and
-  # GitHub Release; this trigger publishes the tagged commit to Maven Central.
   release:
     types: [ published ]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   publish:
@@ -72,87 +68,3 @@ jobs:
       - name: Publish all modules to Central Portal
         run: |
           ./gradlew publishAggregationToCentralPortal --no-configuration-cache
-
-  create-release:
-    # Legacy path only: on the release-please flow the GitHub Release already
-    # exists (it's what triggered this run), so creating it again would fail.
-    if: github.event_name == 'push'
-    needs: [ publish ]
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Read version from gradle.properties
-        id: version
-        run: |
-          if [ ! -f gradle.properties ]; then
-            echo "::error::gradle.properties not found" >&2
-            exit 1
-          fi
-          VERSION=$(grep "^kraft.version=" gradle.properties | cut -d= -f2)
-          if [ -z "${VERSION// /}" ]; then
-            echo "::error::kraft.version is empty or missing in gradle.properties" >&2
-            exit 1
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Resolve previous release tag
-        id: prev
-        run: |
-          # release-branch is force-reset to `main + chore: release <v>` each
-          # cycle, so prior release tags are not ancestors of the new release
-          # SHA. Without an explicit --notes-start-tag, gh's --generate-notes
-          # falls back to "no previous release" and dumps every PR since #1
-          # into the changelog (and renders Full Changelog as commits/<tag>
-          # instead of compare/<prev>...<tag>). Pick the most recent stable
-          # release tag globally by version sort, restricted to bare
-          # MAJOR.MINOR.PATCH so old experimental tags (v*, -RC*, -Alpha*,
-          # -test*) don't sort on top.
-          git fetch --tags --force --quiet
-          LAST_TAG=$(git for-each-ref --sort=-v:refname \
-            --format='%(refname:short)' 'refs/tags/[0-9]*' \
-            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
-            | grep -v "^${{ steps.version.outputs.version }}$" \
-            | head -n1)
-          echo "tag=$LAST_TAG" >> "$GITHUB_OUTPUT"
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PREV_TAG: ${{ steps.prev.outputs.tag }}
-        run: |
-          args=(
-            "${{ steps.version.outputs.version }}"
-            --generate-notes
-            --title "${{ steps.version.outputs.version }}"
-            --target "${{ github.sha }}"
-          )
-          if [ -n "$PREV_TAG" ]; then
-            args+=( --notes-start-tag "$PREV_TAG" )
-          fi
-          gh release create "${args[@]}"
-
-  sync-version-to-main:
-    needs: [ create-release ]
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: release-branch
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push version files to main
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          VERSION=$(grep "^kraft.version=" gradle.properties | cut -d= -f2)
-          git checkout main
-          git checkout release-branch -- gradle.properties .release-please-manifest.json
-          git add gradle.properties .release-please-manifest.json
-          git diff --cached --quiet || git commit -m "chore: sync version $VERSION to main"
-          git push origin main
