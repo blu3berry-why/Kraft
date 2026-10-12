@@ -38,7 +38,7 @@ Plain `@MapConfig` data-class fixtures generate a single file, so `first()` happ
 **Symptom:** generated code fails to compile inside the test (with `kspWithCompilation = true`):
 
 ```
-e: .../EventDtoToEventMapper.kt.kt:12:30 Unresolved reference 'toIso'.
+e: .../EventDtoToEventMapper.kt:12:30 Unresolved reference 'toIso'.
 e: .../Converters_<hash>.kt:9:61 Unresolved reference 'toIso'.
 ```
 
