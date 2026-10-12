@@ -12,7 +12,8 @@ The skill covers:
 - Reverse mapping with `@MapReverse` and converter direction inference
 - The **Gradle plugin** and `kraft { }` DSL — build setup, side aliases (never hand-write `.toDomain()` wrapper extensions), `functionNameFormat`, `moduleId`
 - Placement and naming conventions for mapper objects and converter functions
-- **Known gotchas** with generated API-client DTOs (nested `$ref` copies, enum filename collisions, type-aliased properties) and which Kraft version fixes each
+- **What Kraft already handles without an annotation** — element-wise `List`/`Set` mapping, nullable collections (`List<A>?` → `List<B>`), nullable elements, and nullable-scalar bridging — the shapes agents most often re-implement by hand because they assume they are unsupported
+- **Known gotchas** with generated API-client DTOs (nested `$ref` copies, enum filename collisions, type-aliased properties, classpath-sensitive `@OptIn` propagation) and which Kraft version fixes each
 - A common-errors table mapping processor messages to fixes
 - A pre-commit verification checklist
 
