@@ -41,14 +41,20 @@ fun KSPLogger.annotationTargetError(
 fun KSPLogger.missingAnnotationArgument(
     annotationName: String,
     argName: String,
-    symbol: KSNode
+    kind: ArgumentKind,
+    symbol: KSNode,
+    enumExample: String? = null
 ) = report(
     KraftDiagnostic.MISSING_ANNOTATION_ARGUMENT,
     """
     Missing required argument '$argName' in @$annotationName.
 
     ✔ Correct usage:
-        @$annotationName($argName = MyClass::class)
+        @$annotationName($argName = ${when (kind) {
+            ArgumentKind.CLASS -> "MyType::class"
+            ArgumentKind.STRING -> "\"propertyName\""
+            ArgumentKind.ENUM -> enumExample ?: "<enum entry>"
+        }})
 
     ✘ Found: argument '$argName' was not provided.
 

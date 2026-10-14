@@ -78,3 +78,9 @@ The hint text is prepended to whichever "How to fix" branch would already be cho
 ## Migration Plan
 
 Additive. It ships in a `feat:` minor release, and the release notes list the code prefix and the two new warnings. Rollback is a revert. Generated code and annotations don't change, so consumers need no migration.
+
+## Pre-cleared deviations
+
+- **3.3: missing-required-argument scenarios are tested with a synthetic `KSAnnotation`, not a compile test.** The Kotlin frontend rejects an omitted required argument before Kraft's processor sees it, so `TestKspRunner` cannot reach that path. Approved by the controller during apply (group 3).
+- **`getEnumArgOrNull` still returns null without logging when absent.** No Kraft enum argument is required, so `ArgumentKind.ENUM` is only exercised through the logger. Approved during apply (group 3).
+- **`SuppressVisibilityTest` covers KSP2 only (D5 says "both runners").** The KSP version in use (2.3.3) has no KSP1. Approved during apply (group 1).

@@ -70,7 +70,8 @@ object NotAClass
 
 **Fix:**
 
-- Provide the missing argument, for example `@MapFrom(source = MyClass::class)`.
+- Provide the missing argument. The message shows an example that matches the argument's kind: `@MapConfig(source = MyType::class)` for a class, `@MapUsing(target = "propertyName")` for a string, or the enum's first entry such as `ConverterDirection.AUTO`.
+- Arguments that have a default (such as `@MapUsing`'s `source` and `direction`) are never reported here; Kraft applies the declared default when the compiler leaves them out.
 - Make sure the Kraft annotations artifact and the Kraft KSP processor are the same version.
 
 ### KRAFT-E003 — Argument is not a class literal {#kraft-e003}

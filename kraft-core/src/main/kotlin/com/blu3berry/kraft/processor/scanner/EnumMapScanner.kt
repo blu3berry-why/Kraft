@@ -14,7 +14,7 @@ import com.blu3berry.kraft.processor.util.KraftKspConstants
 import com.blu3berry.kraft.processor.util.annotationTargetError
 import com.blu3berry.kraft.processor.util.enumEntryNames
 import com.blu3berry.kraft.processor.util.findAnnotation
-import com.blu3berry.kraft.processor.util.getEnumArgOrNull
+import com.blu3berry.kraft.processor.util.getEnumArgOrDefault
 import com.blu3berry.kraft.processor.util.getKClassArgOrNull
 import com.blu3berry.kraft.processor.util.unmappedEnumEntries
 import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
@@ -129,12 +129,13 @@ class EnumMapScanner(
         annotation: KSAnnotation,
         decl: KSClassDeclaration,
     ): AliasEmitMode {
-        val name = annotation.getEnumArgOrNull(
+        val name = annotation.getEnumArgOrDefault(
             name = KraftKspConstants.ARG_ALIAS_EMIT_MODE,
+            default = KraftKspConstants.DEFAULT_MAP_ENUM_ALIAS_EMIT_MODE,
             logger = logger,
             symbol = decl,
             annotationFqName = KraftKspConstants.FQ_MAP_ENUM,
-        ) ?: return AliasEmitMode.INHERIT
+        )
         return try {
             AliasEmitMode.valueOf(name)
         } catch (_: IllegalArgumentException) {

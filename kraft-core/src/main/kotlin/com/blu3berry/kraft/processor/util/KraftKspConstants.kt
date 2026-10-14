@@ -31,6 +31,18 @@ object KraftKspConstants {
     const val ARG_USE_GLOBAL_CONVERTERS = "useGlobalConverters"
     const val ARG_ALIAS_EMIT_MODE       = "aliasEmitMode"
 
+    // Declared defaults of optional annotation arguments. KSP does not always surface
+    // them (e.g. KMP metadata compilations), so Kraft applies them at the read site.
+    // A jvmTest pins each constant to the annotation's real default.
+    const val DEFAULT_MAP_USING_SOURCE                   = ""
+    const val DEFAULT_MAP_USING_DIRECTION                = "AUTO"
+    const val DEFAULT_MAP_IGNORE_FIELD_DIRECTION         = "BOTH"
+    const val DEFAULT_MAP_CONFIG_ALIAS_EMIT_MODE         = "INHERIT"
+    const val DEFAULT_MAP_ENUM_ALIAS_EMIT_MODE           = "INHERIT"
+    const val DEFAULT_MAP_CONFIG_USE_GLOBAL_CONVERTERS   = true
+    const val DEFAULT_MAP_NESTED_SOURCE_NAME             = ""
+    const val DEFAULT_KRAFT_CONVERTER_DELEGATE_MODULE_ID = ""
+
     const val GENERATED_REGISTRY_PACKAGE = "kraft.generated.registry"
 
     // Annotation fully-qualified names

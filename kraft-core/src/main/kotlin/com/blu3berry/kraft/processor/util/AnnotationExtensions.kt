@@ -24,7 +24,9 @@ fun KSAnnotation.getKClassArgOrNull(
 ): KSType? {
     val arg = arguments.firstOrNull { it.name?.asString() == name }
         ?: run {
-            logger.missingAnnotationArgument(annotationFqName, name, symbol)
+            logger.missingAnnotationArgument(
+                annotationFqName.substringAfterLast('.'), name, ArgumentKind.CLASS, symbol
+            )
             return null
         }
 
@@ -50,7 +52,9 @@ fun KSAnnotation.getStringArgOrNull(
 ): String? {
     val arg = arguments.firstOrNull { it.name?.asString() == name }
         ?: run {
-            logger.missingAnnotationArgument(annotationFqName, name, symbol)
+            logger.missingAnnotationArgument(
+                annotationFqName.substringAfterLast('.'), name, ArgumentKind.STRING, symbol
+            )
             return null
         }
 
@@ -69,6 +73,34 @@ fun KSAnnotation.getStringArgOrNull(
 
     return value
 }
+
+/**
+ * Extract a String argument that has a declared default. An absent argument yields
+ * [default] without logging; a present but mistyped one is still reported.
+ */
+fun KSAnnotation.getStringArgOrDefault(
+    name: String,
+    default: String,
+    logger: KSPLogger,
+    symbol: KSNode,
+    annotationFqName: String
+): String {
+    if (arguments.none { it.name?.asString() == name }) return default
+    return getStringArgOrNull(name, logger, symbol, annotationFqName) ?: default
+}
+
+/**
+ * Extract an enum argument that has a declared default, as the entry's simple name.
+ * An absent argument yields [default] without logging; a present but mistyped one
+ * is still reported (and also yields [default]).
+ */
+fun KSAnnotation.getEnumArgOrDefault(
+    name: String,
+    default: String,
+    logger: KSPLogger,
+    symbol: KSNode,
+    annotationFqName: String
+): String = getEnumArgOrNull(name, logger, symbol, annotationFqName) ?: default
 
 /**
  * Extract an enum annotation argument as its constant name string.

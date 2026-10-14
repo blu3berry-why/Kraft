@@ -112,7 +112,8 @@ class ClasspathConverterScanner(
             ?.arguments
             ?.firstOrNull { it.name?.asString() == "moduleId" }
             ?.value as? String
+            ?: KraftKspConstants.DEFAULT_KRAFT_CONVERTER_DELEGATE_MODULE_ID
         val fqName = fn.qualifiedName?.asString() ?: fn.simpleName.asString()
-        return if (moduleId.isNullOrBlank()) "'$fqName'" else "Kraft module '$moduleId' ('$fqName')"
+        return if (moduleId.isBlank()) "'$fqName'" else "Kraft module '$moduleId' ('$fqName')"
     }
 }

@@ -26,8 +26,9 @@ import com.blu3berry.kraft.processor.util.KraftKspConstants
 import com.blu3berry.kraft.processor.util.annotationTargetError
 import com.blu3berry.kraft.processor.util.findAnnotation
 import com.blu3berry.kraft.processor.util.getArrayArgOrNull
-import com.blu3berry.kraft.processor.util.getEnumArgOrNull
+import com.blu3berry.kraft.processor.util.getEnumArgOrDefault
 import com.blu3berry.kraft.processor.util.getKClassArgOrNull
+import com.blu3berry.kraft.processor.util.getStringArgOrDefault
 import com.blu3berry.kraft.processor.util.getStringArgOrNull
 import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
@@ -116,14 +117,15 @@ class ConfigObjectScanner(
 
         val useGlobalConverters = annotation.arguments
             .firstOrNull { it.name?.asString() == KraftKspConstants.ARG_USE_GLOBAL_CONVERTERS }
-            ?.value as? Boolean ?: true
+            ?.value as? Boolean ?: KraftKspConstants.DEFAULT_MAP_CONFIG_USE_GLOBAL_CONVERTERS
 
-        val aliasEmitModeName = annotation.getEnumArgOrNull(
+        val aliasEmitModeName = annotation.getEnumArgOrDefault(
             name = KraftKspConstants.ARG_ALIAS_EMIT_MODE,
+            default = KraftKspConstants.DEFAULT_MAP_CONFIG_ALIAS_EMIT_MODE,
             logger = logger,
             symbol = classDeclaration,
             annotationFqName = KraftKspConstants.FQ_MAP_CONFIG
-        ) ?: AliasEmitMode.INHERIT.name
+        )
         val aliasEmitMode = try {
             AliasEmitMode.valueOf(aliasEmitModeName)
         } catch (_: IllegalArgumentException) {
@@ -538,8 +540,9 @@ class ConfigObjectScanner(
             it.isAnnotation(KraftKspConstants.FQ_MAP_USING)
         } ?: return null
 
-        val fromProp = mapUsingAnn.getStringArgOrNull(
+        val fromProp = mapUsingAnn.getStringArgOrDefault(
             name = KraftKspConstants.ARG_SOURCE,
+            default = KraftKspConstants.DEFAULT_MAP_USING_SOURCE,
             logger = logger,
             symbol = fn,
             annotationFqName = KraftKspConstants.FQ_MAP_USING
@@ -562,12 +565,13 @@ class ConfigObjectScanner(
 
         val isWholeSource = fromProp.isNullOrBlank()
 
-        val directionName = mapUsingAnn.getEnumArgOrNull(
+        val directionName = mapUsingAnn.getEnumArgOrDefault(
             name = KraftKspConstants.ARG_DIRECTION,
+            default = KraftKspConstants.DEFAULT_MAP_USING_DIRECTION,
             logger = logger,
             symbol = fn,
             annotationFqName = KraftKspConstants.FQ_MAP_USING
-        ) ?: ConverterDirection.AUTO.name
+        )
 
         val direction = try {
             ConverterDirection.valueOf(directionName)
@@ -878,12 +882,13 @@ class ConfigObjectScanner(
             }
 
 
-            val directionName = ignoreAnn.getEnumArgOrNull(
+            val directionName = ignoreAnn.getEnumArgOrDefault(
                 name = KraftKspConstants.ARG_DIRECTION,
+                default = KraftKspConstants.DEFAULT_MAP_IGNORE_FIELD_DIRECTION,
                 logger = logger,
                 symbol = symbol,
                 annotationFqName = KraftKspConstants.FQ_MAP_IGNORE_FIELD
-            ) ?: IgnoreSide.BOTH.name
+            )
 
             val direction = try {
                 IgnoreSide.valueOf(directionName)

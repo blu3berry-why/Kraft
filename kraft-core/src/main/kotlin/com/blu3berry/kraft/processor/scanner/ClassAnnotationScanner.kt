@@ -208,7 +208,7 @@ class ClassAnnotationScanner(
                 else -> {
                     val sourceName = mapNestedAnn.arguments
                         .firstOrNull { it.name?.asString() == KraftKspConstants.ARG_SOURCE_NAME }
-                        ?.value as? String ?: ""
+                        ?.value as? String ?: KraftKspConstants.DEFAULT_MAP_NESTED_SOURCE_NAME
                     if (sourceName.isEmpty()) MapNestedAnnotation.SameName
                     else MapNestedAnnotation.Renamed(sourceName)
                 }
