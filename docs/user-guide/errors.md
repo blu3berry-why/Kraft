@@ -1177,9 +1177,50 @@ object SourceToTargetBMapper
 
 ### KRAFT-W001 — Redundant @MapUsing {#kraft-w001}
 
-A property-source `@MapUsing` converter produces the same mapping Kraft would generate without it.
+**Severity:** warning
 
-Full entry lands with the warning implementation.
+**Cause:** A property-source `@MapUsing` (one with a `source`) claims a target property that Kraft would map on its own: a direct copy, a nested or element-wise collection mapping, a value-class wrap or unwrap, or a registered `@KraftConverter`. Kraft still calls your converter and still generates the mapper. The warning shows the assignment Kraft would have generated instead, so you can check that it is equivalent. Kraft cannot read function bodies, so it compares outcomes, not code. Whole-source `@MapUsing` (no `source`) is never reported.
+
+```kotlin
+data class RowDto(val id: Int)
+data class Row(val id: Int)
+
+data class ReportDto(val rows: List<RowDto>?)
+data class Report(val rows: List<Row>)
+
+@MapConfig(source = RowDto::class, target = Row::class)
+object RowMapper
+
+@MapConfig(source = ReportDto::class, target = Report::class)
+object ReportMapper {
+    @MapUsing(source = "rows", target = "rows") // warning: Kraft already maps List<RowDto>? to List<Row>
+    fun List<RowDto>?.toRows(): List<Row> = this?.map { it.toRow() } ?: emptyList()
+}
+```
+
+The warning reads:
+
+```text
+[KRAFT-W001] @MapUsing 'toRows' on target property 'rows' duplicates a mapping Kraft already generates.
+
+Kraft would generate:
+    rows = this.rows?.map { it.toRow() } ?: emptyList()
+
+Remove 'toRows', or add @Suppress("KRAFT-W001") to it if its body intentionally differs (filtering, sorting, defaults).
+```
+
+**Fix:**
+
+- Delete the converter. Kraft generates the assignment shown in the warning.
+- If the converter deliberately does something different (it filters, sorts, or supplies a different default), keep it and suppress the warning on the function:
+
+```kotlin
+@Suppress("KRAFT-W001")
+@MapUsing(source = "rows", target = "rows")
+fun List<RowDto>?.toRows(): List<Row> = this.orEmpty().filter { it.id > 0 }.map { it.toRow() }
+```
+
+Suppressing the warning does not change the generated code.
 
 ### KRAFT-W002 — Nullable-twin @KraftConverter {#kraft-w002}
 

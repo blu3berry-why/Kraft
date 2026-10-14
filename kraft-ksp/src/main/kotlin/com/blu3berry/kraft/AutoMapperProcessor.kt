@@ -101,10 +101,7 @@ class AutoMapperProcessor(
         // Classpath delegates are resolved lazily by name (klib classpaths can't be
         // package-enumerated); eager same-module entries win, so a local
         // @KraftConverter shadows a classpath delegate by resolving first.
-        val mergedConverters = GlobalConverterRegistry(
-            entries = sameModuleConverters.entries,
-            classpathFallback = ClasspathConverterScanner(resolver, logger)::lookupByName
-        )
+        val mergedConverters = withClasspathFallback(sameModuleConverters, resolver)
 
         DelegateRegistryGenerator(
             logger = logger,
@@ -126,6 +123,22 @@ class AutoMapperProcessor(
         }
 
         return deferred
+    }
+
+    /**
+     * Same-module [converters] backed by the lazy classpath-delegate lookup. The silent
+     * variant serves the speculative `KRAFT-W001` probe, which must not report or memoize.
+     */
+    private fun withClasspathFallback(
+        converters: GlobalConverterRegistry,
+        resolver: Resolver
+    ): GlobalConverterRegistry {
+        val classpathScanner = ClasspathConverterScanner(resolver, logger)
+        return GlobalConverterRegistry(
+            entries = converters.entries,
+            classpathFallback = classpathScanner::lookupByName,
+            silentClasspathFallback = classpathScanner::lookupByNameSilently
+        )
     }
 
     /**

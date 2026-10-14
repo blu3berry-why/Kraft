@@ -42,7 +42,33 @@ class DescriptorBuilder(
         resolveImplicitDependencies(builtDescriptors, configMappings, globalConverters, enumBackedIds)
         validateNestedDependencies(builtDescriptors, enumBackedIds)
 
-        return builtDescriptors.values.toList()
+        val availableIds = builtDescriptors.keys + enumBackedIds
+        return builtDescriptors.values.map { dropUnavailableShadows(it, availableIds) }
+    }
+
+    /**
+     * Clears [PropertyMappingStrategy.ConverterFunction.shadowedNative] when it is a nested
+     * mapper call whose mapper does not exist. The `KRAFT-W001` probe is not allowed to build
+     * nested mappers, so a shadow pointing at one nobody built is not code Kraft would
+     * actually generate, and must not be reported as a duplicate.
+     */
+    private fun dropUnavailableShadows(
+        descriptor: MapperDescriptor,
+        availableIds: Set<MapperId>
+    ): MapperDescriptor {
+        var changed = false
+        val mappings = descriptor.propertyMappings.map { strategy ->
+            val shadow = (strategy as? PropertyMappingStrategy.ConverterFunction)?.shadowedNative
+            if (shadow is PropertyMappingStrategy.NestedMapper &&
+                shadow.nestedMappingDescriptor.nestedMapperId !in availableIds
+            ) {
+                changed = true
+                strategy.copy(shadowedNative = null)
+            } else {
+                strategy
+            }
+        }
+        return if (changed) descriptor.copy(propertyMappings = mappings) else descriptor
     }
 
     // ---------------------------

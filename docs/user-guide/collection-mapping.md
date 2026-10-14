@@ -154,6 +154,10 @@ When the source element type is nullable but the target element type is not, Kra
 
 Generated: `items = this.items.mapNotNull { it?.toItemDto() }`
 
+## Kraft warns when a converter duplicates native mapping
+
+You do not need a `@MapUsing` helper that only maps a collection element by element. If you write one anyway, for example `fun List<RowDto>?.toRows(): List<Row> = this?.map { it.toRow() } ?: emptyList()`, Kraft still uses it but reports warning [`KRAFT-W001`](errors.md#kraft-w001). The warning shows the line Kraft would generate (here `rows = this.rows?.map { it.toRow() } ?: emptyList()`). Delete the helper, or keep it with `@Suppress("KRAFT-W001")` if it filters or sorts.
+
 ## Renamed Collection Properties
 
 When the collection property has a different name on source and target, use `FieldMapping` to declare the rename. Auto-detection generates the child mapper:

@@ -51,10 +51,20 @@ class ClasspathConverterScanner(
      */
     fun lookupByName(key: ConverterTypeKey): ConverterEntry? {
         if (byNameCache.containsKey(key)) return byNameCache[key]
-        return resolveByName(key).also { byNameCache[key] = it }
+        return resolveByName(key, reportAmbiguity = true).also { byNameCache[key] = it }
     }
 
-    private fun resolveByName(key: ConverterTypeKey): ConverterEntry? {
+    /**
+     * [lookupByName] without side effects: it neither reports an ambiguity nor memoizes the
+     * result, so a later real [lookupByName] for the same key still reports. Used by the
+     * speculative `KRAFT-W001` probe, which must not emit or suppress diagnostics.
+     */
+    fun lookupByNameSilently(key: ConverterTypeKey): ConverterEntry? {
+        if (byNameCache.containsKey(key)) return byNameCache[key]
+        return resolveByName(key, reportAmbiguity = false)
+    }
+
+    private fun resolveByName(key: ConverterTypeKey, reportAmbiguity: Boolean): ConverterEntry? {
         val fqName = "${KraftKspConstants.GENERATED_REGISTRY_PACKAGE}.${DelegateNaming.delegateNameFor(key)}"
         val matches = resolver
             .getFunctionDeclarationsByName(resolver.getKSNameFromString(fqName), includeTopLevel = true)
@@ -62,7 +72,7 @@ class ClasspathConverterScanner(
             .filter { fn -> resolveDelegateKey(fn) == key }
             .toList()
 
-        if (matches.size > 1) {
+        if (reportAmbiguity && matches.size > 1) {
             reportClasspathAmbiguity(key, matches)
         }
         return matches.firstOrNull()?.let(ConverterEntry::Real)

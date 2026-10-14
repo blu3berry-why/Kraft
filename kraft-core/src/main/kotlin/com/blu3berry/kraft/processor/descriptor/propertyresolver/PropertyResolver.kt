@@ -2,7 +2,9 @@ package com.blu3berry.kraft.processor.descriptor.propertyresolver
 
 import com.blu3berry.kraft.model.descriptor.MappingContext
 import com.blu3berry.kraft.model.PropertyInfo
+import com.blu3berry.kraft.model.descriptor.ConverterSource
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
+import com.blu3berry.kraft.processor.diagnostics.MutedKspLogger
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ClassOverrideRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConfigOverrideRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConverterRule
@@ -26,11 +28,69 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
     ): PropertyMappingStrategy? {
 
         for (rule in rules) {
-            val result = rule.tryResolve(target, ctx)
-            if (result != null) return result
+            val result = rule.tryResolve(target, ctx) ?: continue
+            if (rule is ConverterRule &&
+                result is PropertyMappingStrategy.ConverterFunction &&
+                result.source is ConverterSource.Property
+            ) {
+                return result.copy(shadowedNative = probeShadowedNative(target, ctx, result.source))
+            }
+            return result
         }
 
         return null
+    }
+
+    /**
+     * Shadow probe for `KRAFT-W001`: what would Kraft have generated for [target] if the
+     * property-source `@MapUsing` had not claimed it? Runs every rule except [ConverterRule]
+     * and [RequiredFieldErrorRule], in order, and returns the first non-null strategy, or
+     * null when there is none, when the property would be ignored, or when the native
+     * strategy reads a different source property than the converter does (then the
+     * converter is not a duplicate).
+     *
+     * The probe must be inert. Audit of the rules it runs (agent-readable-diagnostics 4.1):
+     * - [NestedRule], [ValueClassRule], [GlobalConverterRule] (and the other rules) never
+     *   mutate [MappingContext]: it is an immutable data class holding read-only maps and
+     *   lists, and the rules only read it. [NestedRule] synthesises a
+     *   `NestedMappingDescriptor` inside the strategy it returns; nested mappers are only
+     *   registered by `DescriptorBuilder` from the *top-level* strategies, never from
+     *   [PropertyMappingStrategy.ConverterFunction.shadowedNative].
+     * - The rules log through `ctx.logger`, so the probe runs on a context copy whose logger
+     *   is [MutedKspLogger].
+     * - Shared state found: [GlobalConverterRule] can reach the classpath fallback of
+     *   `GlobalConverterRegistry`, which memoizes results and reports classpath ambiguity
+     *   through the scanner's own logger. The copy therefore also carries
+     *   `GlobalConverterRegistry.silent()`, whose fallback neither memoizes nor reports.
+     */
+    private fun probeShadowedNative(
+        target: PropertyInfo,
+        ctx: MappingContext,
+        converterSource: ConverterSource.Property
+    ): PropertyMappingStrategy? {
+        val probeCtx = ctx.copy(
+            logger = MutedKspLogger,
+            globalConverters = ctx.globalConverters.silent()
+        )
+        val native = rules
+            .asSequence()
+            .filterNot { it is ConverterRule || it is RequiredFieldErrorRule }
+            .firstNotNullOfOrNull { it.tryResolve(target, probeCtx) }
+            ?: return null
+        if (native is PropertyMappingStrategy.Ignored) return null
+        return native.takeIf { it.nativeSourceName() == converterSource.info.name }
+    }
+
+    /** The source property a native strategy reads, or null when it reads none. */
+    private fun PropertyMappingStrategy.nativeSourceName(): String? = when (this) {
+        is PropertyMappingStrategy.Direct -> sourceProperty.name
+        is PropertyMappingStrategy.Renamed -> sourceProperty.name
+        is PropertyMappingStrategy.NestedMapper -> sourceProperty.name
+        is PropertyMappingStrategy.ValueClassWrap -> sourceProperty.name
+        is PropertyMappingStrategy.ValueClassUnwrap -> sourceProperty.name
+        is PropertyMappingStrategy.ConverterFunction -> (source as? ConverterSource.Property)?.info?.name
+        is PropertyMappingStrategy.Constant -> null
+        is PropertyMappingStrategy.Ignored -> null
     }
 
     companion object {

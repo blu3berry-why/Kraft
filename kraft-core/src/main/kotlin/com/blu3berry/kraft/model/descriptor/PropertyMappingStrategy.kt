@@ -36,11 +36,17 @@ sealed interface PropertyMappingStrategy {
      * Use a `@MapUsing` converter function:
      * - Property source: `source.prop.converter()` (extension) or `ConfigObject.converter(source.prop)` (object)
      * - Whole-source: `this.converter()` (extension) or `ConfigObject.converter(this)` (object)
+     *
+     * @property shadowedNative The strategy Kraft would have used for this property had the
+     *                          property-source `@MapUsing` not claimed it, or null when Kraft
+     *                          has no native mapping for it. Only used to report `KRAFT-W001`;
+     *                          it is never generated. Internal to `kraft-core` / `kraft-ksp`.
      */
     data class ConverterFunction(
         override val targetProperty: PropertyInfo,
         val source: ConverterSource,
-        val converter: ConverterDescriptor
+        val converter: ConverterDescriptor,
+        val shadowedNative: PropertyMappingStrategy? = null
     ) : PropertyMappingStrategy
 
     /**

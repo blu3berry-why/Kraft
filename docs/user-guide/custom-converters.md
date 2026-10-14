@@ -75,6 +75,23 @@ fun Src.toDst(): Dst = Dst(
 )
 ```
 
+### Kraft warns when a converter duplicates native mapping
+
+A property-source converter is only needed when Kraft cannot map the property by itself. When it can (same name and type, a nested or collection mapping, a value class, or a registered `@KraftConverter`), Kraft still calls your converter but reports warning [`KRAFT-W001`](errors.md#kraft-w001) with the assignment it would have generated:
+
+```kotlin
+data class User(val name: String)
+data class UserDto(val name: String)
+
+@MapConfig(source = User::class, target = UserDto::class)
+object UserMapper {
+    @MapUsing(source = "name", target = "name") // KRAFT-W001: Kraft would generate `name = this.name`
+    fun keep(name: String): String = name
+}
+```
+
+Delete the converter, or add `@Suppress("KRAFT-W001")` to it if its body intentionally differs. Whole-source converters are never reported.
+
 ## Whole-Source Mode
 
 When `source` is omitted (or left blank), the function receives the entire source object. This is useful for computing a target value from multiple source properties.
