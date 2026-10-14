@@ -133,6 +133,10 @@ data class UserDto(val id: String) // error: Int -> String has no converter
 - Or align the declared types, including nullability.
 - When only nullability differs (`String?` to `String`), make the target nullable, give it a default and add `@MapIgnore`, or choose the fallback with a whole-source `@MapUsing(target = ...)`.
 
+#### Duplicated generated types
+
+When the two types share a simple name, live under different enclosing classes (`AuthResponse.User.Role` and `AuthMe200Response.Role`) and have identical enum entries or identical primary-constructor parameter names, the error opens with `Types differ only by enclosing class: ...`. That shape usually comes from a code generator (for example kmpgen) inlining the same `$ref` twice, so the real fix is in the generator. To bridge the pair anyway, use `@MapEnum(source = ..., target = ...)` for enums, or a `@MapConfig` or `@KraftConverter` for classes. The usual "How to fix" list still follows the hint. See [API-first client design](api-first-client-design.md) for how to structure generated clients.
+
 ### KRAFT-E006 — Invalid @MapField override {#kraft-e006}
 
 **Severity:** error

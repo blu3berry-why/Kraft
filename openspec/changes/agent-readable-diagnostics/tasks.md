@@ -54,8 +54,8 @@
 
 > Agent: sonnet · effort medium · scope: kraft-core/src/main/kotlin/com/blu3berry/kraft/processor/util/LoggerExtensions.kt, kraft-ksp/src/jvmTest/**, docs/user-guide/errors.md · verify: ./gradlew :kraft-ksp:jvmTest · after: 5
 
-- [ ] 6.1 Add the duplicated-types branch to `typeMismatchGuidance`: equal simple names, different qualified names, at least one nested, same enum entry names or the same constructor parameter names. Prepend the hint to whichever fix branch would already be chosen, with `@MapEnum` advice for enums and `@KraftConverter`/`@MapConfig` advice for classes. Verify with jvmTest `DuplicatedGeneratedTypeHintTest` covering all four spec scenarios: kmpgen enum, different shape (no hint), duplicated data class, and nullable source keeping its nullability guidance.
-- [ ] 6.2 Document the hint under the type-mismatch code in `errors.md`, cross-linking `docs/user-guide/api-first-client-design.md`. Verify with the completeness test plus a link check (`mkdocs build --strict` when available).
+- [x] 6.1 Add the duplicated-types branch to `typeMismatchGuidance`: equal simple names, different qualified names, at least one nested, same enum entry names or the same constructor parameter names. Prepend the hint to whichever fix branch would already be chosen, with `@MapEnum` advice for enums and `@KraftConverter`/`@MapConfig` advice for classes. Verify with jvmTest `DuplicatedGeneratedTypeHintTest` covering all four spec scenarios: kmpgen enum, different shape (no hint), duplicated data class, and nullable source keeping its nullability guidance.
+- [x] 6.2 Document the hint under the type-mismatch code in `errors.md`, cross-linking `docs/user-guide/api-first-client-design.md`. Verify with the completeness test plus a link check (`mkdocs build --strict` when available).
 
 ## 7. Agent-facing docs
 
