@@ -27,6 +27,8 @@ import com.blu3berry.kraft.processor.scanner.GlobalConverterScanner
 import com.blu3berry.kraft.processor.sides.SideRegistry
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 import java.util.ServiceLoader
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Main KSP [SymbolProcessor] that orchestrates the scan, build, and generate pipeline:
@@ -133,10 +135,18 @@ class AutoMapperProcessor(
     private fun parseSideRegistryOrNull(): SideRegistry? = try {
         SideRegistry.parseFromOptions(env.options)
     } catch (e: IllegalArgumentException) {
-        logger.error(e.message ?: "Kraft side configuration error.")
+        logger.report(
+            KraftDiagnostic.SIDE_CONFIGURATION_ERROR,
+            e.message ?: "Kraft side configuration error.",
+            null
+        )
         null
     } catch (e: IllegalStateException) {
-        logger.error(e.message ?: "Kraft side configuration error.")
+        logger.report(
+            KraftDiagnostic.SIDE_CONFIGURATION_ERROR,
+            e.message ?: "Kraft side configuration error.",
+            null
+        )
         null
     }
 
@@ -156,9 +166,11 @@ class AutoMapperProcessor(
             )
             providers.size == 1 -> providers.single().create(env)
             else -> {
-                logger.warn(
+                logger.report(
+                    KraftDiagnostic.MULTIPLE_MAPPER_GENERATOR_PROVIDERS,
                     "Multiple MapperGeneratorProviders found, " +
-                        "using first: ${providers.first()::class.qualifiedName}"
+                        "using first: ${providers.first()::class.qualifiedName}",
+                    null
                 )
                 providers.first().create(env)
             }
@@ -179,9 +191,11 @@ class AutoMapperProcessor(
             )
             providers.size == 1 -> providers.single().create(env)
             else -> {
-                logger.warn(
+                logger.report(
+                    KraftDiagnostic.MULTIPLE_ENUM_GENERATOR_PROVIDERS,
                     "Multiple EnumMapperGeneratorProviders found, " +
-                        "using first: ${providers.first()::class.qualifiedName}"
+                        "using first: ${providers.first()::class.qualifiedName}",
+                    null
                 )
                 providers.first().create(env)
             }

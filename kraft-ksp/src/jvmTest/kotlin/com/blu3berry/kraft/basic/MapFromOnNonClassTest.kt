@@ -25,6 +25,7 @@ class MapFromOnNonClassTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E001]")
         assertThat(result.messages).contains("Incorrect use of @")
         assertThat(result.messages).contains("Expected annotation target: class")
     }
@@ -44,6 +45,7 @@ class MapFromOnNonClassTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E001]")
         assertThat(result.messages).contains("Incorrect use of @")
         assertThat(result.messages).contains("Expected annotation target: class")
     }

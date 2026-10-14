@@ -17,6 +17,8 @@ import com.blu3berry.kraft.processor.codegen.className
 import com.blu3berry.kraft.processor.sides.SideRegistry
 import com.blu3berry.kraft.processor.util.CodeGenUtils
 import com.blu3berry.kraft.processor.util.enumEntryNames
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Generates enum -> enum mapper functions based on EnumMappingDescriptor.
@@ -120,11 +122,11 @@ class EnumMapperGenerator(
     private fun validateEnums(from: KSClassDeclaration, to: KSClassDeclaration): Boolean {
         var ok = true
         if (from.classKind != ClassKind.ENUM_CLASS) {
-            logger.error("'from' must be an enum class", from)
+            logger.report(KraftDiagnostic.MAP_ENUM_NOT_ENUM_CLASS, "'from' must be an enum class", from)
             ok = false
         }
         if (to.classKind != ClassKind.ENUM_CLASS) {
-            logger.error("'to' must be an enum class", to)
+            logger.report(KraftDiagnostic.MAP_ENUM_NOT_ENUM_CLASS, "'to' must be an enum class", to)
             ok = false
         }
         return ok
@@ -140,14 +142,16 @@ class EnumMapperGenerator(
         // Unknown source entries
         for (mapping in desc.entries) {
             if (mapping.source !in fromEntries) {
-                logger.error(
+                logger.report(
+                    KraftDiagnostic.MAP_ENUM_UNKNOWN_SOURCE_ENTRY,
                     "@MapEnum error: source entry '${mapping.source}' does not exist",
                     desc.sourceType.declaration
                 )
                 ok = false
             }
             if (mapping.target !in toEntries) {
-                logger.error(
+                logger.report(
+                    KraftDiagnostic.MAP_ENUM_UNKNOWN_TARGET_ENTRY,
                     "@MapEnum error: target entry '${mapping.target}' does not exist",
                     desc.targetType.declaration
                 )
@@ -200,7 +204,11 @@ class EnumMapperGenerator(
         val side = try {
             sideRegistry.resolveSide(targetFqn) ?: return null
         } catch (e: IllegalStateException) {
-            logger.error(e.message ?: "Kraft side configuration error.")
+            logger.report(
+                KraftDiagnostic.SIDE_CONFIGURATION_ERROR,
+                e.message ?: "Kraft side configuration error.",
+                null
+            )
             return null
         }
 
@@ -222,7 +230,7 @@ class EnumMapperGenerator(
         try {
             sideRegistry.recordAlias(fromClass.canonicalName, aliasName, mapperOrigin)
         } catch (e: IllegalStateException) {
-            logger.error(e.message ?: "Alias collision.", originDecl)
+            logger.report(KraftDiagnostic.ALIAS_COLLISION, e.message ?: "Alias collision.", originDecl)
             return null
         }
 

@@ -4,33 +4,18 @@ package com.blu3berry.kraft.processor.util
 
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSNode
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.TypeInfo
 import com.blu3berry.kraft.model.scan.FieldOverride
-
-/**
- * Base error format with code-like block.
- */
-private fun KSPLogger.err(message: String, symbol: KSNode) {
-    error(
-        """
-----------------------------------------
-Kraft KSP Error
-----------------------------------------
-
-$message
-
-----------------------------------------
-""".trimIndent(),
-        symbol
-    )
-}
 
 fun KSPLogger.annotationTargetError(
     annotationName: String,
     expectedTarget: String,
     actualNode: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.ANNOTATION_TARGET_INVALID,
     """
     Incorrect use of @$annotationName.
 
@@ -57,7 +42,8 @@ fun KSPLogger.missingAnnotationArgument(
     annotationName: String,
     argName: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.MISSING_ANNOTATION_ARGUMENT,
     """
     Missing required argument '$argName' in @$annotationName.
 
@@ -80,7 +66,8 @@ fun KSPLogger.invalidKClassArgument(
     argName: String,
     actualValue: Any?,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.INVALID_KCLASS_ARGUMENT,
     """
     Invalid @$annotationName argument type for '$argName'.
 
@@ -104,7 +91,8 @@ fun KSPLogger.detailedMissingMapping(
     classLevelOverrides: Map<String, String>,
     configOverrides: List<FieldOverride>,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.REQUIRED_PROPERTY_UNMAPPED,
     """
     Required property '${targetProperty.name}' in target type '$targetType'
     has no mapping source and is non-nullable.
@@ -162,7 +150,8 @@ fun KSPLogger.detailedTypeMismatch(
             targetShown = targetQualified
         }
     }
-    err(
+    report(
+        KraftDiagnostic.PROPERTY_TYPE_MISMATCH,
         """
     Type mismatch for property '${targetProperty.name}'.
 
@@ -268,7 +257,8 @@ fun KSPLogger.invalidMapFieldOverride(
     val available = sourceProperties.keys.toList()
     val suggestions = suggestNames(referencedSourceName, available)
 
-    err(
+    report(
+        KraftDiagnostic.INVALID_MAP_FIELD_OVERRIDE,
         """
         Invalid @MapField override for '$targetPropertyName'.
 
@@ -291,7 +281,8 @@ fun KSPLogger.invalidMapFieldOverride(
 /**
  * Missing primary constructor error.
  */
-fun KSPLogger.missingPrimaryConstructor(typeName: String, symbol: KSNode) = err(
+fun KSPLogger.missingPrimaryConstructor(typeName: String, symbol: KSNode) = report(
+    KraftDiagnostic.MISSING_PRIMARY_CONSTRUCTOR,
     """
     Type '$typeName' must declare a primary constructor.
 
@@ -316,7 +307,8 @@ fun KSPLogger.missingConstructorProperty(
 ) {
     val suggestions = suggestNames(parameterName, available)
 
-    err(
+    report(
+        KraftDiagnostic.CONSTRUCTOR_PARAMETER_WITHOUT_PROPERTY,
         """
         Constructor parameter '$parameterName' in '$typeName'
         has no corresponding property.
@@ -341,7 +333,8 @@ fun KSPLogger.unsupportedTypeInConstructor(
     parameterName: String,
     actualType: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.UNSUPPORTED_CONSTRUCTOR_PARAMETER_TYPE,
     """
     Unsupported type for constructor parameter '$parameterName' in '$typeName'.
 
@@ -362,7 +355,8 @@ fun KSPLogger.unsupportedTypeInConstructor(
 fun KSPLogger.constructorPropertyMismatch(
     typeName: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.CONSTRUCTOR_PROPERTY_MISMATCH,
     """
     Constructor parameters do not match declared properties in '$typeName'.
 
@@ -388,7 +382,8 @@ fun KSPLogger.unsupportedSourcePropertyType(
     ksTypeName: String,
     declarationKind: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.UNSUPPORTED_SOURCE_PROPERTY_TYPE,
     """
     Property '$propName' on '$typeName' has a type AutoMapper cannot map.
 
@@ -441,7 +436,8 @@ fun KSPLogger.unmappedEnumEntries(
     val snippetLines = unmappedEntries
         .joinToString("\n") { "            FieldMapping(source = \"$it\", target = \"???\")," }
 
-    err(
+    report(
+        KraftDiagnostic.UNMAPPED_ENUM_ENTRIES,
         """
     @MapEnum on '$declaringClass' has unmapped source entries.
 
@@ -486,7 +482,8 @@ fun KSPLogger.ignoredRequiredProperty(
     targetType: String,
     propertyName: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.IGNORED_REQUIRED_PROPERTY,
     """
     @MapIgnore / @MapIgnoreField targets '$propertyName' in '$targetType',
     but the property has no default value.
@@ -510,7 +507,8 @@ fun KSPLogger.nullableNestedSource(
     sourceTypeName: String,
     targetTypeName: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.NULLABLE_NESTED_SOURCE,
     """
     Nullable source for nested property '$propertyName'.
 
@@ -539,7 +537,8 @@ fun KSPLogger.nestedTypeNotMappable(
     propertyName: String,
     typeName: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.NESTED_TYPE_NOT_MAPPABLE,
     """
     Cannot generate nested mapper for property '$propertyName': type '$typeName' is not a concrete class.
 
@@ -565,7 +564,8 @@ fun KSPLogger.ambiguousNestedDescriptors(
     targetTypeName: String,
     matchCount: Int,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.AMBIGUOUS_NESTED_MAPPING,
     """
     Ambiguous @NestedMapping declarations: $matchCount entries target '$targetTypeName'.
 
@@ -589,7 +589,8 @@ fun KSPLogger.ambiguousNestedSourceProperty(
     nestedSourceType: String,
     matchingProps: List<String>,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.AMBIGUOUS_NESTED_SOURCE_PROPERTY,
     """
     Ambiguous source property for @NestedMapping(source = $nestedSourceType, ...):
     ${matchingProps.size} properties of type '$nestedSourceType' exist in '$sourceTypeName'.
@@ -617,7 +618,8 @@ fun KSPLogger.nestedMappingSourceNotFound(
     nestedSourceType: String,
     nestedTargetType: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.NESTED_MAPPING_SOURCE_NOT_FOUND,
     """
     @NestedMapping(source = $nestedSourceType, target = $nestedTargetType) declared in config
     but no property of type '$nestedSourceType' exists in source class '$sourceTypeName'.

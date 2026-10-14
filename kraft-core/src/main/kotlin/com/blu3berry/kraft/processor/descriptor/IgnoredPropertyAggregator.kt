@@ -7,6 +7,8 @@ import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.scan.ClassMappingScanResult
 import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import com.blu3berry.kraft.model.scan.IgnoredMappingConfig
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Aggregates the full set of target property names that should be ignored during mapping.
@@ -79,14 +81,16 @@ internal class IgnoredPropertyAggregator(private val logger: KSPLogger) {
                 if (ignored.name in targetPropNames) {
                     result.add(ignored.name)
                 } else if (ignored.direction == IgnoreSide.BOTH) {
-                    logger.warn(
+                    logger.report(
+                        KraftDiagnostic.IGNORE_FIELD_NOT_FOUND_BOTH,
                         "@MapIgnoreField(\"${ignored.name}\", BOTH): property not found in " +
                             "target '$targetTypeName' constructor; skipped for $directionLabel direction. " +
                             "Available: ${targetPropNames.sorted()}",
                         errorNode
                     )
                 } else {
-                    logger.error(
+                    logger.report(
+                        KraftDiagnostic.IGNORE_FIELD_NOT_FOUND,
                         "@MapIgnoreField(\"${ignored.name}\", ${ignored.direction.name}): property not found " +
                             "in target '$targetTypeName' constructor. " +
                             "Available: ${targetPropNames.sorted()}",

@@ -114,6 +114,7 @@ class CrossModuleConverterTest {
         // we expect the same RequiredFieldErrorRule diagnostic that fires when no
         // converter matches a mismatched-type pair.
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E004]")
         assertThat(result.messages).contains("Required property 'count'")
     }
 
@@ -156,6 +157,7 @@ class CrossModuleConverterTest {
         // Consumer must fail with the same missing-converter diagnostic; the flag
         // prevents it from picking up the classpath delegate.
         assertThat(result.consumer.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.consumer.messages).contains("[KRAFT-E004]")
         assertThat(result.consumer.messages).contains("Required property 'count'")
     }
 
@@ -228,6 +230,7 @@ class CrossModuleConverterTest {
         // The error must name the conflicting pair, identify BOTH producing modules
         // (delegates for the same pair share a function name, so the module ids are
         // the only distinguishing information), and tell the user how to resolve it.
+        assertThat(result.consumer.messages).contains("[KRAFT-E030]")
         assertThat(result.consumer.messages)
             .contains("Ambiguous @KraftConverter on the classpath for (kotlin.Int → kotlin.String)")
         assertThat(result.consumer.messages).contains("Kraft module 'upstreamA'")

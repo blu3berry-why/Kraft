@@ -10,6 +10,8 @@ import com.blu3berry.kraft.model.descriptor.MapperDescriptor
 import com.blu3berry.kraft.model.MapperId
 import com.blu3berry.kraft.model.descriptor.MappingDirection
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /** Top-level orchestrator that converts scan results into a list of [MapperDescriptor], resolving implicit nested dependencies via DFS. */
 class DescriptorBuilder(
@@ -95,7 +97,8 @@ class DescriptorBuilder(
                 ?.let {
                     val existing = builtDescriptors[it.id]
                     if (existing != null) {
-                        logger.error(
+                        logger.report(
+                            KraftDiagnostic.DUPLICATE_MAPPING,
                             "Duplicate mapping for ${it.id}: multiple @MapConfig objects declare " +
                                 "the same source → target pair. Only one mapping per type pair is allowed.",
                             config.configObject
@@ -288,7 +291,8 @@ class DescriptorBuilder(
     private fun reportCycleError(path: List<MapperId>, id: MapperId, source: KSClassDeclaration) {
         val cycleStart = path.indexOf(id)
         val cyclePath = (if (cycleStart >= 0) path.drop(cycleStart) else path) + id
-        logger.error(
+        logger.report(
+            KraftDiagnostic.CIRCULAR_NESTED_MAPPING,
             "Circular nested mapping: ${cyclePath.joinToString(" → ")}. " +
                 "Break the cycle with a @MapUsing converter on one side.",
             source
@@ -332,7 +336,8 @@ class DescriptorBuilder(
             descriptor.nestedDependencies
                 .filter { it !in builtDescriptors && it !in enumBackedIds }
                 .forEach { depId ->
-                    logger.error(
+                    logger.report(
+                        KraftDiagnostic.NESTED_MAPPER_NOT_BUILT,
                         "Nested mapper for $depId could not be built; " +
                             "mapper for ${descriptor.id} will generate code that does not compile.",
                         descriptor.sourceType.declaration

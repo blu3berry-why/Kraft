@@ -193,6 +193,7 @@ class EnumSideAliasTest {
         )
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E062]")
         assertThat(result.messages).contains("SourceToTargetAEnumMapper")
         assertThat(result.messages).contains("SourceToTargetBEnumMapper")
         assertThat(result.messages).contains("toShared")

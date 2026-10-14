@@ -115,6 +115,7 @@ class ValueClassMappingTest {
         )
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E005]")
         assertThat(result.messages).contains("Type mismatch for property 'id'")
     }
 
@@ -218,6 +219,7 @@ class ValueClassMappingTest {
         )
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E005]")
         assertThat(result.messages).contains("Type mismatch for property 'secret'")
     }
 

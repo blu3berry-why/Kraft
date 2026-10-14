@@ -32,6 +32,7 @@ class MapEnumInvalidSourceEntryTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E047]")
         assertThat(result.messages).contains("is not a value of source enum")
     }
 }

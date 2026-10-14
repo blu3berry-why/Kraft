@@ -125,6 +125,7 @@ class GlobalConverterTest {
         val result = TestKspRunner.compile(converters)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E050]")
         assertThat(result.messages).contains("Ambiguous @KraftConverter")
     }
 
@@ -144,6 +145,7 @@ class GlobalConverterTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E004]")
         assertThat(result.messages).contains("Required property 'count'")
     }
 
@@ -162,6 +164,7 @@ class GlobalConverterTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E052]")
         assertThat(result.messages).contains("must be an extension function")
     }
 
@@ -180,6 +183,7 @@ class GlobalConverterTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E049]")
         assertThat(result.messages).contains("parameterized receiver or return type")
         // The error must name both escape hatches: automatic element-wise
         // collection mapping and per-property @MapUsing.

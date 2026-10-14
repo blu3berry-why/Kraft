@@ -33,6 +33,7 @@ class MapNestedAndMapFieldBothPresentTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-W004]")
         assertThat(result.messages).contains("@MapNested takes precedence")
     }
 }

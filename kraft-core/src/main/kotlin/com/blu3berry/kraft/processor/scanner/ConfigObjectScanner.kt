@@ -30,6 +30,8 @@ import com.blu3berry.kraft.processor.util.getEnumArgOrNull
 import com.blu3berry.kraft.processor.util.getKClassArgOrNull
 import com.blu3berry.kraft.processor.util.getStringArgOrNull
 import com.blu3berry.kraft.processor.util.unwrapTypeAliases
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Scans for configuration objects annotated with @MapConfig and extracts mapping information.
@@ -73,7 +75,8 @@ class ConfigObjectScanner(
                 obj.findAnnotation(KraftKspConstants.FQ_MAP_TO) != null ||
                 obj.findAnnotation(KraftKspConstants.FQ_MAP_ENUM) != null
             if (!hasOtherMappingAnnotation) {
-                logger.error(
+                logger.report(
+                    KraftDiagnostic.MAP_REVERSE_WITHOUT_MAPPING,
                     "@MapReverse on '${obj.simpleName.asString()}' requires " +
                     "@MapConfig, @MapEnum, @MapFrom, or @MapTo on the same object.",
                     obj
@@ -313,7 +316,8 @@ class ConfigObjectScanner(
     ): ConverterDescriptor? {
         val parsed = parseConverterAnnotation(fn) ?: return null
         if (parsed.direction == ConverterDirection.REVERSE) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_USING_REVERSE_WITHOUT_MAP_REVERSE,
                 "@MapUsing(direction = REVERSE) on '${fn.simpleName.asString()}' " +
                     "in '${symbol.simpleName.asString()}' has no effect: the enclosing " +
                     "@MapConfig is not annotated with @MapReverse, so only forward " +
@@ -453,7 +457,8 @@ class ConfigObjectScanner(
         val existingFn = propertyPairs[parsed.toProp]
         if (existingFn != null) {
             val sourceDesc = if (parsed.isWholeSource) "<whole source>" else parsed.fromProp
-            logger.error(
+            logger.report(
+                KraftDiagnostic.DUPLICATE_MAP_USING_TARGET,
                 "Multiple @MapUsing converters target property " +
                     "'${parsed.toProp}': already defined in " +
                     "'${existingFn.simpleName.asString()}' " +
@@ -492,7 +497,8 @@ class ConfigObjectScanner(
         ) ?: return null
 
         val targetProp = targetPropertyMap[parsed.toProp] ?: run {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_USING_INTERNAL_LOOKUP_FAILED,
                 "Internal error: property '${parsed.toProp}' (target) " +
                     "passed validatePropertyExists but was not found " +
                     "in targetPropertyMap. Converter " +
@@ -547,7 +553,8 @@ class ConfigObjectScanner(
         )
 
         if (toProp.isNullOrBlank()) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_USING_BLANK_TARGET,
                 "@MapUsing must specify a non-empty 'target' value", fn
             )
             return null
@@ -565,7 +572,8 @@ class ConfigObjectScanner(
         val direction = try {
             ConverterDirection.valueOf(directionName)
         } catch (_: IllegalArgumentException) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_USING_UNKNOWN_DIRECTION,
                 "@MapUsing unknown direction '$directionName'", fn
             )
             return null
@@ -588,7 +596,8 @@ class ConfigObjectScanner(
         if (paramType.declaration.qualifiedName?.asString() !=
             sourceClass.qualifiedName?.asString()
         ) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.WHOLE_SOURCE_PARAMETER_MISMATCH,
                 "@MapUsing whole-source converter " +
                     "'${fn.simpleName.asString()}': parameter type " +
                     "'$paramType' must match source class " +
@@ -598,7 +607,8 @@ class ConfigObjectScanner(
             return null
         }
         if (!typesMatch(returnType, targetType)) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_USING_RETURN_TYPE_MISMATCH,
                 "Type mismatch in @MapUsing converter function " +
                     "'${fn.simpleName.asString()}': Return type " +
                     "'$returnType' doesn't match target property " +
@@ -640,7 +650,8 @@ class ConfigObjectScanner(
         ) return null
 
         val sourceProp = sourcePropertyMap[fromProp] ?: run {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_USING_INTERNAL_LOOKUP_FAILED,
                 "Internal error: property '$fromProp' (source) " +
                     "passed validatePropertyExists but was not found " +
                     "in sourcePropertyMap. Converter " +
@@ -686,7 +697,8 @@ class ConfigObjectScanner(
         propertyType: String
     ): Boolean {
         if (propertyName !in properties) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_USING_UNKNOWN_PROPERTY,
                 "Unknown $propertyType property '$propertyName' in @MapUsing of ${symbol.simpleName.asString()}. " +
                 "Available: ${properties.joinToString(", ")}",
                 fn
@@ -705,7 +717,8 @@ class ConfigObjectScanner(
             // Extension converters must have no value parameters: getParameterType() uses the
             // receiver and codegen emits a zero-argument call, so any declared params are unreachable.
             if (params.isNotEmpty()) {
-                logger.error(
+                logger.report(
+                    KraftDiagnostic.MAP_USING_EXTENSION_HAS_PARAMETERS,
                     "@MapUsing extension function '${fn.simpleName.asString()}' must not declare " +
                     "any value parameters — only the receiver is used. " +
                     "Found: ${params.map { it.name?.asString() }}",
@@ -714,7 +727,8 @@ class ConfigObjectScanner(
                 return false
             }
         } else if (params.size != 1) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_USING_INVALID_SIGNATURE,
                 "@MapUsing function must have exactly one parameter or be an extension function",
                 fn
             )
@@ -743,7 +757,8 @@ class ConfigObjectScanner(
     private fun getReturnType(fn: KSFunctionDeclaration): KSType? {
         val returnType = fn.returnType?.resolve()
         if (returnType == null) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_USING_MISSING_RETURN_TYPE,
                 "@MapUsing function must have a return type",
                 fn
             )
@@ -762,7 +777,8 @@ class ConfigObjectScanner(
     ): KSClassDeclaration? {
         val typeDecl = type.declaration as? KSClassDeclaration
         if (typeDecl == null) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_USING_TYPE_NOT_CLASS,
                 "@MapUsing function $typeName type must be a class",
                 fn
             )
@@ -784,7 +800,8 @@ class ConfigObjectScanner(
         fn: KSFunctionDeclaration
     ): Boolean {
         if (!typesMatch(paramType, sourceType)) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_USING_PARAMETER_MISMATCH,
                 "Type mismatch in @MapUsing converter function '${fn.simpleName.asString()}': " +
                 "Parameter type '${paramType}' doesn't match source property '${fromProp}' type '${sourceType}'",
                 fn
@@ -793,7 +810,8 @@ class ConfigObjectScanner(
         }
 
         if (!typesMatch(returnType, targetType)) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_USING_RETURN_TYPE_MISMATCH,
                 "Type mismatch in @MapUsing converter function '${fn.simpleName.asString()}': " +
                 "Return type '${returnType}' doesn't match target property '${toProp}' type '${targetType}'",
                 fn
@@ -851,7 +869,11 @@ class ConfigObjectScanner(
             ) ?: return@mapNotNull null
 
             if (name.isBlank()) {
-                logger.error("@MapIgnoreField name must not be blank.", symbol)
+                logger.report(
+                    KraftDiagnostic.MAP_IGNORE_FIELD_BLANK_NAME,
+                    "@MapIgnoreField name must not be blank.",
+                    symbol
+                )
                 return@mapNotNull null
             }
 
@@ -866,7 +888,8 @@ class ConfigObjectScanner(
             val direction = try {
                 IgnoreSide.valueOf(directionName)
             } catch (_: IllegalArgumentException) {
-                logger.error(
+                logger.report(
+                    KraftDiagnostic.MAP_IGNORE_FIELD_UNKNOWN_DIRECTION,
                     "@MapIgnoreField unknown direction '$directionName' on property '$name'.",
                     symbol
                 )

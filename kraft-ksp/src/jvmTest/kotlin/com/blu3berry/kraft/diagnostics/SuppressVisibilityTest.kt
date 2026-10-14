@@ -26,6 +26,11 @@ import org.junit.jupiter.api.Test
 @OptIn(ExperimentalCompilerApi::class)
 class SuppressVisibilityTest {
 
+    private companion object {
+        /** The two warnings the assertions below pin; the catalogue grows without touching this test. */
+        val PROBED = listOf(KraftDiagnostic.REDUNDANT_MAP_USING, KraftDiagnostic.NULLABLE_TWIN_CONVERTER)
+    }
+
     private class ProbeProvider : SymbolProcessorProvider {
         val results = mutableMapOf<String, Map<KraftDiagnostic, Boolean>>()
 
@@ -37,7 +42,7 @@ class SuppressVisibilityTest {
                         .filterIsInstance<KSFunctionDeclaration>()
                         .forEach { fn ->
                             results[fn.simpleName.asString()] =
-                                KraftDiagnostic.entries.associateWith { fn.isKraftSuppressed(it) }
+                                PROBED.associateWith { fn.isKraftSuppressed(it) }
                         }
                     return emptyList()
                 }

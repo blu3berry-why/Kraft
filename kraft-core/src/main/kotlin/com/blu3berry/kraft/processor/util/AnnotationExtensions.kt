@@ -2,6 +2,8 @@ package com.blu3berry.kraft.processor.util
 
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Find an annotation by its FQ name.
@@ -54,7 +56,8 @@ fun KSAnnotation.getStringArgOrNull(
 
     val value = arg.value as? String
     if (value == null) {
-        logger.error(
+        logger.report(
+            KraftDiagnostic.ANNOTATION_ARGUMENT_NOT_STRING,
             """
             @$annotationFqName argument '$name' must be a String.
             Found: ${arg.value?.let { it::class.simpleName }}
@@ -87,7 +90,8 @@ fun KSAnnotation.getEnumArgOrNull(
     // KSP surfaces enum annotation arguments as KSClassDeclaration (enum entry nodes),
     // not as KSType — cast accordingly.
     val enumEntry = arg.value as? KSClassDeclaration ?: run {
-        logger.error(
+        logger.report(
+            KraftDiagnostic.ANNOTATION_ARGUMENT_NOT_ENUM,
             "@$annotationFqName argument '$name' must be an enum value. " +
                 "Found: ${arg.value?.let { it::class.simpleName }}",
             symbol
@@ -119,7 +123,8 @@ fun <T> KSAnnotation.getArrayArgOrNull(
     return when (value) {
         is List<*> -> {
             value as? List<T> ?: run {
-                logger.error(
+                logger.report(
+                    KraftDiagnostic.ANNOTATION_ARGUMENT_NOT_ARRAY,
                     "@$annotationFqName argument '$name' must be a List<T>. " +
                         "Found List<${value.firstOrNull()?.let { it::class.simpleName }}>",
                     symbol
@@ -130,7 +135,8 @@ fun <T> KSAnnotation.getArrayArgOrNull(
 
         is Array<*> -> {
             value.toList() as? List<T> ?: run {
-                logger.error(
+                logger.report(
+                    KraftDiagnostic.ANNOTATION_ARGUMENT_NOT_ARRAY,
                     "@$annotationFqName argument '$name' must be an Array<T>. " +
                         "Found Array<${value.firstOrNull()?.let { it::class.simpleName }}>",
                     symbol
@@ -140,7 +146,8 @@ fun <T> KSAnnotation.getArrayArgOrNull(
         }
 
         else -> {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.ANNOTATION_ARGUMENT_NOT_ARRAY,
                 "@$annotationFqName argument '$name' must be an array/List. Found: ${value!!::class.simpleName}",
                 symbol
             )

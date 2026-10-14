@@ -74,6 +74,7 @@ class EnumAutoResolveTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E061]")
         assertThat(result.messages).contains("Ambiguous converter")
         assertThat(result.messages).contains("@MapEnum")
     }
@@ -99,6 +100,7 @@ class EnumAutoResolveTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E060]")
         assertThat(result.messages).contains("Ambiguous @MapEnum")
         assertThat(result.messages).contains("models.Status")
         assertThat(result.messages).contains("models.StatusDto")

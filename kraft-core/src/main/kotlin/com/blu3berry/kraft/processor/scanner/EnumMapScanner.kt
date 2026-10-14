@@ -17,6 +17,8 @@ import com.blu3berry.kraft.processor.util.findAnnotation
 import com.blu3berry.kraft.processor.util.getEnumArgOrNull
 import com.blu3berry.kraft.processor.util.getKClassArgOrNull
 import com.blu3berry.kraft.processor.util.unmappedEnumEntries
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Scanner for finding and processing @MapEnum annotations.
@@ -175,7 +177,8 @@ class EnumMapScanner(
         val toDecl = targetKSType.declaration as? KSClassDeclaration
 
         if (fromDecl == null || toDecl == null) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_ENUM_NOT_ENUM_CLASS,
                 "@MapEnum 'source' and 'target' must reference enum classes.",
                 decl
             )
@@ -185,7 +188,8 @@ class EnumMapScanner(
         if (fromDecl.classKind != ClassKind.ENUM_CLASS ||
             toDecl.classKind != ClassKind.ENUM_CLASS
         ) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_ENUM_NOT_ENUM_CLASS,
                 "@MapEnum supports only mapping between enum classes.",
                 decl
             )
@@ -208,7 +212,8 @@ class EnumMapScanner(
             .filter { it.value.size > 1 }
             .keys
         if (duplicateSources.isNotEmpty()) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_ENUM_DUPLICATE_SOURCE,
                 "@MapEnum has duplicate source entries: ${duplicateSources.sorted()}. " +
                     "Each source enum entry may only appear once in fieldMappings.",
                 decl
@@ -298,7 +303,8 @@ class EnumMapScanner(
             }
             ?.value as? String
         if (from == null) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_ENUM_MALFORMED_FIELD_MAPPING,
                 "@MapEnum: malformed @FieldMapping annotation" +
                     " — missing or non-String 'source' argument.",
                 decl
@@ -312,7 +318,8 @@ class EnumMapScanner(
             }
             ?.value as? String
         if (to == null) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_ENUM_MALFORMED_FIELD_MAPPING,
                 "@MapEnum: malformed @FieldMapping annotation" +
                     " — missing or non-String 'target' argument.",
                 decl
@@ -321,14 +328,16 @@ class EnumMapScanner(
         }
 
         if (from !in fromEntries) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_ENUM_UNKNOWN_SOURCE_ENTRY,
                 "@MapEnum: '$from' is not a value of source enum.",
                 decl
             )
         }
 
         if (to !in toEntries) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_ENUM_UNKNOWN_TARGET_ENTRY,
                 "@MapEnum: '$to' is not a value of target enum.",
                 decl
             )

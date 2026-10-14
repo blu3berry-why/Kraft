@@ -32,6 +32,7 @@ class MapNestedRedundantSourceNameTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-W005]")
         assertThat(result.messages).contains("sourceName is redundant")
     }
 }

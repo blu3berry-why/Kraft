@@ -10,6 +10,8 @@ import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.processor.util.DelegateNaming
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 import com.blu3berry.kraft.processor.util.buildConverterTypeKey
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Resolves `@KraftConverterDelegate` extension functions published by upstream Kraft
@@ -91,7 +93,8 @@ class ClasspathConverterScanner(
         val source = "${key.sourceFqName}${if (key.sourceNullable) "?" else ""}"
         val target = "${key.targetFqName}${if (key.targetNullable) "?" else ""}"
         val registeredBy = matches.joinToString(" and ") { describeDelegate(it) }
-        logger.error(
+        logger.report(
+            KraftDiagnostic.AMBIGUOUS_CLASSPATH_CONVERTER,
             "Ambiguous @KraftConverter on the classpath for ($source → $target): " +
                 "registered by $registeredBy. " +
                 "Disambiguate by adding a same-module @KraftConverter or a per-property @MapUsing.",

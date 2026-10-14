@@ -23,6 +23,7 @@ class ReverseWithoutMappingAnnotationTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E029]")
         assertThat(result.messages).contains("@MapReverse")
         assertThat(result.messages).contains("@MapFrom")
         assertThat(result.messages).contains("@MapTo")
@@ -41,6 +42,7 @@ class ReverseWithoutMappingAnnotationTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E029]")
         assertThat(result.messages).contains("@MapReverse")
         assertThat(result.messages).contains("@MapConfig")
     }

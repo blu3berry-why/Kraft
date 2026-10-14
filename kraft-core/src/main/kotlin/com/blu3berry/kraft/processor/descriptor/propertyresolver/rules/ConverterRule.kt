@@ -5,6 +5,8 @@ import com.blu3berry.kraft.model.descriptor.MappingContext
 import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /** [MappingRule] that resolves properties targeted by `@MapUsing` converter functions. */
 class ConverterRule : MappingRule {
@@ -16,7 +18,8 @@ class ConverterRule : MappingRule {
 
         val matching = ctx.converters.filter { conv -> conv.targetPropertyName == target.name }
         if (matching.size > 1) {
-            ctx.logger.error(
+            ctx.logger.report(
+                KraftDiagnostic.DUPLICATE_MAP_USING_TARGET,
                 "Multiple @MapUsing converters target property '${target.name}' — only one is allowed. " +
                 "Found: ${matching.map { it.functionName }}",
                 target.declaration
@@ -30,7 +33,8 @@ class ConverterRule : MappingRule {
         } else {
             val name = converter.sourcePropertyName
             val sourceProp = ctx.sourceProps[name] ?: run {
-                ctx.logger.error(
+                ctx.logger.report(
+                    KraftDiagnostic.MAP_USING_UNKNOWN_PROPERTY,
                     "Unknown source property '$name' in @MapUsing. " +
                     "Available: ${ctx.sourceProps.keys}",
                     converter.function ?: target.declaration

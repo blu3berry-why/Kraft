@@ -57,6 +57,7 @@ class ReverseGlobalConverterMissingReverseTest {
         // the diagnostic moved downstream of ReverseDescriptorBuilder
         // after the global-registry guard was added.
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E005]")
         assertThat(result.messages).contains("id")
     }
 }

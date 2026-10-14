@@ -19,6 +19,8 @@ import com.blu3berry.kraft.processor.codegen.className
 import com.blu3berry.kraft.processor.codegen.generatedMapperPackage
 import com.blu3berry.kraft.processor.sides.SideRegistry
 import com.blu3berry.kraft.processor.util.CodeGenUtils
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Built-in [MapperGenerator] that produces Kotlin extension functions
@@ -55,7 +57,11 @@ class ExtensionMapperGenerator(
         ).distinct()
 
         if (originatingFiles.isEmpty()) {
-            logger.warn("Skipping mapper generation for $fromClass → $toClass: no originating file found.")
+            logger.report(
+                KraftDiagnostic.MAPPER_GENERATION_SKIPPED,
+                "Skipping mapper generation for $fromClass → $toClass: no originating file found.",
+                null
+            )
             return
         }
 
@@ -98,7 +104,11 @@ class ExtensionMapperGenerator(
         val side = try {
             sideRegistry.resolveSide(targetFqn) ?: return null
         } catch (e: IllegalStateException) {
-            logger.error(e.message ?: "Kraft side configuration error.")
+            logger.report(
+                KraftDiagnostic.SIDE_CONFIGURATION_ERROR,
+                e.message ?: "Kraft side configuration error.",
+                null
+            )
             return null
         }
 
@@ -122,7 +132,7 @@ class ExtensionMapperGenerator(
         try {
             sideRegistry.recordAlias(fromClass.canonicalName, aliasName, mapperOrigin)
         } catch (e: IllegalStateException) {
-            logger.error(e.message ?: "Alias collision.", originSymbol)
+            logger.report(KraftDiagnostic.ALIAS_COLLISION, e.message ?: "Alias collision.", originSymbol)
             return null
         }
 

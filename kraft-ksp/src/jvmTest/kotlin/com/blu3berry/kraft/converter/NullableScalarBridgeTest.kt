@@ -92,6 +92,7 @@ class NullableScalarBridgeTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E005]")
         assertThat(result.messages).contains("Type mismatch for property 'reason'")
     }
 
@@ -241,6 +242,7 @@ class NullableScalarBridgeTest {
         // Both sides are kotlin.collections.List, so comparing qualified names alone
         // would wrongly report that only nullability differs — the element types
         // differ too.
+        assertThat(result.messages).contains("[KRAFT-E005]")
         assertThat(result.messages).contains("Type mismatch for property 'counts'")
         assertThat(result.messages).doesNotContain("only nullability differs")
     }
