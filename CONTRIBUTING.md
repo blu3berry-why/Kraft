@@ -190,30 +190,25 @@ The workflow authenticates with the `RELEASE_PLEASE_TOKEN` repository secret —
 
 ### Pre-releases (RCs)
 
-Pre-release versions (e.g. `0.13.0-RC01`) exist to validate Kraft against a new
-Kotlin/KSP pair in a real consumer project before promoting to stable.
+A release candidate lets a consumer project (e.g. Re-Claw) test what's on
+`main` before it becomes a stable release. RCs are one click and don't touch
+`main`, the CHANGELOG, or release-please:
 
-The chosen path is the one-off `Release-As` footer — no release-please config
-change (a sustained `prerelease` config cannot be used while Kraft is pre-1.0:
-release-please's `prerelease` option also marks every pre-major `0.x` release
-as a GitHub pre-release):
+1. **Cut the RC:** run the **Publish RC** workflow (`publish-rc.yml`, Actions →
+   Publish RC → Run workflow). It reads the version the open release PR
+   proposes (e.g. `0.14.0`), numbers the RC from the existing tags
+   (`0.14.0-RC1`, `-RC2`, …), publishes `main` HEAD to Maven Central with
+   automatic Central Portal publishing, and tags that commit. With no open
+   release PR there is nothing to release, and the workflow fails.
+2. **Test it:** bump the consumer to the RC version. If something is wrong,
+   fix it on `main` and run the workflow again for the next RC.
+3. **Promote to stable:** merge the release PR as usual. No `Release-As`
+   footer is needed: the stable version is the one the RCs were numbered from.
 
-1. **Cut the RC:** land a commit on `main` whose body contains
-   `Release-As: 0.13.0-RC01`. Release-please retargets the release PR to that
-   version; merging it tags `0.13.0-RC01`, creates the GitHub Release, and
-   `publish.yml` publishes the artifacts to Maven Central as normal.
-2. **Docs stay stable:** `docs-deploy.yml` skips any release whose tag contains
-   `-`, so an RC release never overwrites the stable GitHub Pages site. This
-   guard applies to automatic release-triggered deploys only — a manual
-   `workflow_dispatch` deploys whatever ref it is run on, so don't dispatch it
-   on an RC tag.
-3. **Promote to stable:** after validation, land a commit with
-   `Release-As: 0.13.0` and merge the retargeted release PR. Use the explicit
-   footer for the promotion — do not rely on the automatic bump from an RC
-   version, which is not deterministic across release-please versions.
+RCs never create a GitHub Release, so `publish.yml` and the docs deploy don't
+run for them. Consumers on `latest.release` or version ranges may still resolve
+an RC from Maven Central (Gradle doesn't treat `-RC` specially in
+`latest.release`), so announce RCs as opt-in and keep their validation window
+short.
 
-Consumers on `latest.release` or version ranges may still resolve an RC from
-Maven Central (Gradle does not treat `-RC` as special in `latest.release`), so
-announce RCs as opt-in and keep their validation window short.
-
-> **Transition note:** the legacy `create-release.yml` + `release-branch` flow is still present but dormant; it will be deleted after the first verified release-please release. Its `version-override` dispatch input is superseded by the `Release-As:` footer. Release PRs are opened by the `RELEASE_PLEASE_TOKEN` PAT's user, so PR CI runs on them like any other PR — they only touch version files and CHANGELOG.
+> Release PRs are opened by the `RELEASE_PLEASE_TOKEN` PAT's user, so PR CI runs on them like any other PR. They only touch version files and CHANGELOG.

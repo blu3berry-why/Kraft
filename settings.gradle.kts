@@ -24,7 +24,9 @@ nmcpSettings {
     centralPortal {
         username = providers.gradleProperty("maven.central.username").orNull
         password = providers.gradleProperty("maven.central.password").orNull
-        publishingType = "USER_MANAGED"
+        // Stable releases wait for a manual "Publish" click in the Central Portal;
+        // publish-rc.yml passes -Pkraft.publishingType=AUTOMATIC for RCs.
+        publishingType = providers.gradleProperty("kraft.publishingType").orNull ?: "USER_MANAGED"
     }
 }
 
