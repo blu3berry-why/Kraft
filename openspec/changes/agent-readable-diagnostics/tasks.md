@@ -61,8 +61,8 @@
 
 > Agent: haiku · effort low · scope: .claude/skills/kraft-mappers/SKILL.md, docs/user-guide/ai-integration.md · verify: every KRAFT- code in SKILL.md is present in kraft-core/src/main/kotlin/com/blu3berry/kraft/processor/diagnostics/KraftDiagnostic.kt (grep) · after: 6
 
-- [ ] 7.1 Re-key the common-errors table in `.claude/skills/kraft-mappers/SKILL.md` on `KRAFT-…` codes, linking each one to `errors.md`. Add W001/W002 as "delete your helper" rows, and add an anti-patterns subsection for C3 (hand-written enum `when` → `@MapEnum`), C4 (call-site imports of nested mappers are unnecessary) and C6 (keep converter bodies KMP-pure). Verify that every code in the table exists in `KraftDiagnostic` (grep each one).
-- [ ] 7.2 Update `docs/user-guide/ai-integration.md` with a "When a build fails" section: grep the `KRAFT-` code and open its `errors.md` entry. Verify that the page renders in the mkdocs nav.
+- [x] 7.1 Re-key the common-errors table in `.claude/skills/kraft-mappers/SKILL.md` on `KRAFT-…` codes, linking each one to `errors.md`. Add W001/W002 as "delete your helper" rows, and add an anti-patterns subsection for C3 (hand-written enum `when` → `@MapEnum`), C4 (call-site imports of nested mappers are unnecessary) and C6 (keep converter bodies KMP-pure). Verify that every code in the table exists in `KraftDiagnostic` (grep each one).
+- [x] 7.2 Update `docs/user-guide/ai-integration.md` with a "When a build fails" section: grep the `KRAFT-` code and open its `errors.md` entry. Verify that the page renders in the mkdocs nav.
 
 ## 8. Full gate
 

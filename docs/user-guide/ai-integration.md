@@ -190,3 +190,7 @@ Example addition:
 - This project uses `kraft.functionNameFormat = "map${source}To${target}"`.
 - Always add `@MapReverse` when both directions are needed.
 ````
+
+## When a build fails
+
+Every Kraft error and warning starts with its code in square brackets, `[KRAFT-E###]` or `[KRAFT-W###]`, and ends with a `See:` link to its entry. Grep the code in the project and read its entry in the [Errors Reference](errors.md) before changing any code. Warnings `KRAFT-W001` and `KRAFT-W002` mean "delete your helper": Kraft already generates that mapping. Suppress a warning only deliberately, with `@Suppress("KRAFT-W001")` or `@Suppress("KRAFT-W002")`, when the helper does something Kraft does not.
