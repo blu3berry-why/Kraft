@@ -68,7 +68,7 @@
 
 > Agent: inline (controller full gate)
 
-- [ ] 8.1 Run `./gradlew detekt :kraft-ksp:jvmTest :kraft-gradle-plugin:test` and the KMP integration tests (`./gradlew -p integration-tests build` or the CI integration task). Verify that all pass, recording test counts in the PR body.
+- [x] 8.1 Run `./gradlew detekt :kraft-ksp:jvmTest :kraft-gradle-plugin:test` and the KMP integration tests (`./gradlew -p integration-tests build` or the CI integration task). Verify that all pass, recording test counts in the PR body.
 
 ## Workflow follow-up
 
