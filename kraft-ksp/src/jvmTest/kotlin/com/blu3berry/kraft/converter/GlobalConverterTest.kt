@@ -3,6 +3,7 @@ package com.blu3berry.kraft.converter
 import com.google.common.truth.Truth.assertThat
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
+import com.tschuchort.compiletesting.sourcesGeneratedBySymbolProcessor
 import com.blu3berry.kraft.TestKspRunner
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
@@ -100,11 +101,14 @@ class GlobalConverterTest {
             """
         )
 
-        val generated = TestKspRunner.compileAndReturnGenerated(converters, models)
-        val text = generated.first { it.name.contains("Src") }.readText()
+        val result = TestKspRunner.compile(converters, models)
+        assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
+        val text = result.sourcesGeneratedBySymbolProcessor.first { it.name.contains("Src") }.readText()
 
         assertThat(text).contains("count = SrcMapper.localConvert(this.count)")
         assertThat(text).doesNotContain("toGlobal")
+        // A direct per-mapper override of a global converter is deliberate, not a duplicate.
+        assertThat(result.messages).doesNotContain("KRAFT-W001")
     }
 
     @Test

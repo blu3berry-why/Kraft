@@ -47,7 +47,10 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
      * and [RequiredFieldErrorRule], in order, and returns the first non-null strategy, or
      * null when there is none, when the property would be ignored, or when the native
      * strategy reads a different source property than the converter does (then the
-     * converter is not a duplicate).
+     * converter is not a duplicate). A global `@KraftConverter` applied directly to the same
+     * scalar pair is also not a duplicate: a `@MapUsing` there is a deliberate per-mapper
+     * override. Element-wise (`NestedMapper`) and null-lifted (`useSafeCall`) global-converter
+     * shadows are still reported.
      *
      * The probe must be inert. Audit of the rules it runs (agent-readable-diagnostics 4.1):
      * - [NestedRule], [ValueClassRule], [GlobalConverterRule] (and the other rules) never
@@ -78,8 +81,18 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
             .firstNotNullOfOrNull { it.tryResolve(target, probeCtx) }
             ?: return null
         if (native is PropertyMappingStrategy.Ignored) return null
+        if (native.isDirectGlobalConverter()) return null
         return native.takeIf { it.nativeSourceName() == converterSource.info.name }
     }
+
+    /**
+     * True for a global `@KraftConverter` call on the scalar pair itself. [ConverterRule] is
+     * excluded from the probe, so any [PropertyMappingStrategy.ConverterFunction] here comes
+     * from [GlobalConverterRule]'s direct match; its collection-element match yields a
+     * `NestedMapper` instead. `useSafeCall` marks the null-lift through `?.`.
+     */
+    private fun PropertyMappingStrategy.isDirectGlobalConverter(): Boolean =
+        this is PropertyMappingStrategy.ConverterFunction && !converter.useSafeCall
 
     /** The source property a native strategy reads, or null when it reads none. */
     private fun PropertyMappingStrategy.nativeSourceName(): String? = when (this) {

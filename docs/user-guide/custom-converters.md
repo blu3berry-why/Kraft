@@ -90,7 +90,7 @@ object UserMapper {
 }
 ```
 
-Delete the converter, or add `@Suppress("KRAFT-W001")` to it if its body intentionally differs. Whole-source converters are never reported.
+Delete the converter, or add `@Suppress("KRAFT-W001")` to it if its body intentionally differs. Whole-source converters are never reported, and neither is a `@MapUsing` that overrides a global `@KraftConverter` for the same property types in one mapper.
 
 ## Whole-Source Mode
 

@@ -1179,7 +1179,7 @@ object SourceToTargetBMapper
 
 **Severity:** warning
 
-**Cause:** A property-source `@MapUsing` (one with a `source`) claims a target property that Kraft would map on its own: a direct copy, a nested or element-wise collection mapping, a value-class wrap or unwrap, or a registered `@KraftConverter`. Kraft still calls your converter and still generates the mapper. The warning shows the assignment Kraft would have generated instead, so you can check that it is equivalent. Kraft cannot read function bodies, so it compares outcomes, not code. Whole-source `@MapUsing` (no `source`) is never reported.
+**Cause:** A property-source `@MapUsing` (one with a `source`) claims a target property that Kraft would map on its own: a direct copy, a nested or element-wise collection mapping, a value-class wrap or unwrap, or a registered `@KraftConverter`. Kraft still calls your converter and still generates the mapper. The warning shows the assignment Kraft would have generated instead, so you can check that it is equivalent. Kraft cannot read function bodies, so it compares outcomes, not code. Whole-source `@MapUsing` (no `source`) is never reported. Neither is a `@MapUsing` that replaces a global `@KraftConverter` for the same property types: Kraft treats that as a deliberate per-mapper override. A global converter applied element-wise to a collection, or through `?.` to a nullable value, is still reported.
 
 ```kotlin
 data class RowDto(val id: Int)

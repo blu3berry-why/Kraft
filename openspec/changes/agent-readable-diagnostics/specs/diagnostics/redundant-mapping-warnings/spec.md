@@ -22,6 +22,14 @@ When a property-source `@MapUsing` (non-blank `source`) claims a target property
 - **WHEN** the source declares `val birthDate: LocalDate`, the target declares `val age: Int`, and `@MapUsing(source = "birthDate", target = "age")` is present
 - **THEN** compilation succeeds and no `KRAFT-W001` is emitted
 
+#### Scenario: Per-mapper override of a global converter is not reported
+- **WHEN** a module declares `@KraftConverter fun Int.toGlobal(): Long`, source and target declare `val count: Int` / `val count: Long`, and the config object contains `@MapUsing(source = "count", target = "count") fun special(c: Int): Long = c * 100L`
+- **THEN** compilation succeeds, the generated mapper calls `special`, and no `KRAFT-W001` is emitted, because overriding a global converter for one mapper is a supported use
+
+#### Scenario: Global converter applied element-wise is still reported
+- **WHEN** `RowDto → Row` is bridged only by `@KraftConverter fun RowDto.toRow(): Row`, and the list-helper `@MapUsing` from the first scenario is present
+- **THEN** `KRAFT-W001` is emitted for `toRows`
+
 #### Scenario: Whole-source converter is never reported
 - **WHEN** `@MapUsing(target = "fullName") fun User.toFullName(): String = "$firstName $lastName"` is present, and the source also happens to declare `val fullName: String`
 - **THEN** no `KRAFT-W001` is emitted

@@ -150,6 +150,72 @@ class RedundantMapUsingWarningTest {
     }
 
     @Test
+    fun `per-mapper override of a global converter is not reported`() {
+        val result = compileOk(
+            SourceFile.kotlin(
+                "Models.kt",
+                """
+                package models
+
+                @com.blu3berry.kraft.config.KraftConverter
+                fun Int.toGlobal(): Long = this.toLong()
+
+                data class Src(val count: Int)
+                data class Dst(val count: Long)
+
+                @com.blu3berry.kraft.config.MapConfig(source = Src::class, target = Dst::class)
+                object SrcMapper {
+                    @com.blu3berry.kraft.config.MapUsing(source = "count", target = "count")
+                    fun special(c: Int): Long = c * 100L
+                }
+                """
+            )
+        )
+
+        assertThat(result.generatedTexts().values.joinToString(" "))
+            .contains("count = SrcMapper.special(this.count)")
+        assertThat(result.messages).doesNotContain(W001)
+    }
+
+    @Test
+    fun `global converter applied element-wise is still reported`() {
+        val result = compileOk(
+            SourceFile.kotlin(
+                "Models.kt",
+                """
+                package models
+
+                import com.blu3berry.kraft.config.KraftConverter
+                import com.blu3berry.kraft.config.MapConfig
+                import com.blu3berry.kraft.config.MapUsing
+
+                data class RowDto(val id: Int)
+                data class Row(val id: Int)
+
+                @KraftConverter
+                fun RowDto.toRow(): Row = Row(id)
+
+                data class ReportDto(val rows: List<RowDto>?)
+                data class Report(val rows: List<Row>)
+
+                @MapConfig(source = ReportDto::class, target = Report::class)
+                object ReportMapper {
+                    @MapUsing(source = "rows", target = "rows")
+                    fun List<RowDto>?.toRows(): List<Row> = this?.map { it.toRow() } ?: emptyList()
+                }
+                """
+            )
+        )
+
+        assertThat(result.messages).contains(
+            "[KRAFT-W001] @MapUsing 'toRows' on target property 'rows' duplicates a mapping Kraft already generates."
+        )
+        assertThat(result.messages).contains(
+            "Kraft would generate:\n    rows = this.rows?.map { it.toRow() } ?: emptyList()\n"
+        )
+    }
+
+    @Test
     fun `Suppress KRAFT-W001 silences the warning`() {
         val result = compileOk(listHelperSource("@Suppress(\"KRAFT-W001\")"))
 
