@@ -28,6 +28,7 @@ import com.blu3berry.kraft.processor.sides.SideRegistry
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 import java.util.ServiceLoader
 import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.NullableTwinConverterReporter
 import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
@@ -41,6 +42,7 @@ class AutoMapperProcessor(
 
     private val codeGenerator = env.codeGenerator
     private val logger = env.logger
+    private val nullableTwinReporter = NullableTwinConverterReporter(logger)
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
         val deferred = listOf(
@@ -102,6 +104,7 @@ class AutoMapperProcessor(
         // package-enumerated); eager same-module entries win, so a local
         // @KraftConverter shadows a classpath delegate by resolving first.
         val mergedConverters = withClasspathFallback(sameModuleConverters, resolver)
+        nullableTwinReporter.report(sameModuleConverters, mergedConverters)
 
         DelegateRegistryGenerator(
             logger = logger,

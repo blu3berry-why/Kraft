@@ -1224,9 +1224,38 @@ Suppressing the warning does not change the generated code.
 
 ### KRAFT-W002 — Nullable-twin @KraftConverter {#kraft-w002}
 
-A `@KraftConverter` for `S? → T?` duplicates the safe call Kraft already derives from an existing `S → T` converter.
+**Severity:** warning
 
-Full entry lands with the warning implementation.
+**Cause:** A same-module `@KraftConverter` maps `S? → T?` while a `S → T` converter is also registered, in the same module or upstream. Kraft already reuses the `S → T` converter for nullable `S? → T?` properties through a safe call (`this.<property>?.<fn>()`), so the nullable converter only lifts it through null. Both converters stay registered and the generated code is unchanged. A nullable converter in an upstream module is never reported.
+
+```kotlin
+@KraftConverter
+fun ReasonDto.toReason(): Reason = Reason(code)
+
+@KraftConverter // warning: only lifts toReason through null
+fun ReasonDto?.toReasonNullable(): Reason? = this?.toReason()
+```
+
+The warning reads:
+
+```text
+[KRAFT-W002] @KraftConverter 'toReasonNullable' (ReasonDto? → Reason?) only lifts 'toReason' (ReasonDto → Reason) through null.
+
+Kraft already generates 'this.<property>?.toReason()' for nullable ReasonDto? → Reason? properties. Remove 'toReasonNullable', or add @Suppress("KRAFT-W002") if it does more than a safe call.
+```
+
+When the non-null converter comes from an upstream module, the message names the generated delegate function instead of your original function.
+
+**Fix:**
+
+- Delete the nullable converter. Kraft generates the safe call for you.
+- If it does more than a safe call (for example it supplies a different value for `null`), keep it and suppress the warning on the function:
+
+```kotlin
+@Suppress("KRAFT-W002")
+@KraftConverter
+fun ReasonDto?.toReasonNullable(): Reason? = this?.toReason() ?: Reason.UNKNOWN
+```
 
 ### KRAFT-W003 — @MapIgnoreField(BOTH) property not found {#kraft-w003}
 

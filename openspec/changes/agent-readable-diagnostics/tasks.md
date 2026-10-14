@@ -46,9 +46,9 @@
 
 > Agent: sonnet · effort medium · scope: kraft-ksp/src/main/**, kraft-core/src/main/**, kraft-ksp/src/jvmTest/**, docs/user-guide/errors.md, docs/user-guide/custom-converters.md · verify: ./gradlew :kraft-ksp:jvmTest · after: 4
 
-- [ ] 5.1 After the same-module and classpath converter registries are merged in `AutoMapperProcessor`, emit W002 for each same-module `(S?, T?)` entry whose `(S, T)` twin exists, unless it is suppressed. Verify with jvmTest `NullableTwinConverterWarningTest` covering both scenarios: the twin is warned with the exact first line and fix text; a nullable-only converter is not warned.
-- [ ] 5.2 Add cross-module and suppression cases: the non-null converter upstream with the nullable twin local produces a warning; the nullable twin upstream with the non-null converter local produces none; `@Suppress("KRAFT-W002")` silences it. Verify with `compileWithUpstream`-based tests that pass.
-- [ ] 5.3 Write the W002 entry in `errors.md` and update the nullable-scalar section of `docs/user-guide/custom-converters.md`. Verify with the completeness test.
+- [x] 5.1 After the same-module and classpath converter registries are merged in `AutoMapperProcessor`, emit W002 for each same-module `(S?, T?)` entry whose `(S, T)` twin exists, unless it is suppressed. Verify with jvmTest `NullableTwinConverterWarningTest` covering both scenarios: the twin is warned with the exact first line and fix text; a nullable-only converter is not warned.
+- [x] 5.2 Add cross-module and suppression cases: the non-null converter upstream with the nullable twin local produces a warning; the nullable twin upstream with the non-null converter local produces none; `@Suppress("KRAFT-W002")` silences it. Verify with `compileWithUpstream`-based tests that pass.
+- [x] 5.3 Write the W002 entry in `errors.md` and update the nullable-scalar section of `docs/user-guide/custom-converters.md`. Verify with the completeness test.
 
 ## 6. Duplicated-types hint on type mismatch (C5)
 
