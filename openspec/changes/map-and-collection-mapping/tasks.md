@@ -71,7 +71,7 @@
 
 > Agent: sonnet · effort medium · scope: integration-tests/** (only if a failure needs a fix) · verify: the commands below · after: 7
 
-- [ ] 8.1 Add a KMP case to `integration-tests/kmp-consumer`: a `commonMain` mapper with `Map<String, List<ItemDto>>` and `Array<UserId>` fields. Verify that it compiles and maps correctly in the consumer's JVM test.
+- [x] 8.1 Add a KMP case to `integration-tests/kmp-consumer`: a `commonMain` mapper with `Map<String, List<ItemDto>>` and `Array<UserId>` fields. Verify that it compiles and maps correctly in the consumer's JVM test.
 - [ ] 8.2 Run the full gate: `./gradlew detekt :kraft-ksp:jvmTest :kraft-gradle-plugin:test` plus the KMP integration-test tasks, all green. Verify by recording the test counts in the task.
 
 ## Workflow follow-up
