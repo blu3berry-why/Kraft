@@ -263,16 +263,36 @@ If Kraft would add more boilerplate (lots of `@MapUsing` overrides per field) th
 
 ## Common errors and where to look
 
-| Error | Cause | Fix |
-|---|---|---|
-| `Type mismatch for property X` | Source field type ≠ target field type, no converter registered | Add `@KraftConverter` for the type pair, `@MapEnum` for enum pairs, or `@MapUsing` (whole-source) for composite/constant/default cases |
-| `Type mismatch` where the ONLY difference is `?` on the source | Nullable source, non-null target — never auto-lifted (K5) | Make the target nullable, or add a whole-source `@MapUsing` that supplies the default |
-| `Type mismatch` on a `List`/`Set` property | The ELEMENT pair has no mapping — the collection itself is never the problem | Register `@MapConfig` (classes) or `@MapEnum` (enums) for the element types; do not write a `List → List` converter (parameterized receivers are rejected). A plain `@KraftConverter` does not cover element position — see K6 |
-| Opt-in error (`This declaration needs opt-in`) in a generated mapper | Kraft < 0.13.0 dropped file-level `@file:OptIn` (K4) | Upgrade to 0.13.0+; do not paper over it with module-wide `-opt-in` compiler args |
-| `Required property X has no mapping source` | Target has a field with no matching source field | Add `@FieldMapping` rename, make target field nullable, supply a default, or use whole-source `@MapUsing` for constant injection |
-| `Unresolved reference 'toXFromY'` in a generated file | Cross-package extension import missing in generated file | Open the generated file, add the FQN import; flag as an upstream Kraft bug |
-| `FileAlreadyExistsException ... _EnumMapper.kt.kt` | Two `@MapEnum`s with same target simpleName (K-A1) | Upgrade to Kraft 0.8.x+; on older versions, replace one with hand-written `@KraftConverter` extensions |
-| KSP succeeds but call site fails to compile | Stale generated files after annotation edits | `./gradlew clean` then rebuild |
+| Code | Error | Cause | Fix |
+|---|---|---|---|
+| [KRAFT-E005](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e005) | `Type mismatch for property X` | Source field type ≠ target field type, no converter registered | Add `@KraftConverter` for the type pair, `@MapEnum` for enum pairs, or `@MapUsing` (whole-source) for composite/constant/default cases |
+| [KRAFT-E005](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e005) | `Type mismatch` where the ONLY difference is `?` on the source | Nullable source, non-null target — never auto-lifted (K5) | Make the target nullable, or add a whole-source `@MapUsing` that supplies the default |
+| [KRAFT-E005](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e005) | `Type mismatch` on a `List`/`Set` property | The ELEMENT pair has no mapping — the collection itself is never the problem | Register `@MapConfig` (classes) or `@MapEnum` (enums) for the element types; do not write a `List → List` converter (parameterized receivers are rejected). A plain `@KraftConverter` does not cover element position — see K6 |
+| — | Opt-in error (`This declaration needs opt-in`) in a generated mapper | Kraft < 0.13.0 dropped file-level `@file:OptIn` (K4) | Upgrade to 0.13.0+; do not paper over it with module-wide `-opt-in` compiler args |
+| [KRAFT-E004](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e004) | `Required property X has no mapping source` | Target has a field with no matching source field | Add `@FieldMapping` rename, make target field nullable, supply a default, or use whole-source `@MapUsing` for constant injection |
+| — | `Unresolved reference 'toXFromY'` in a generated file | Cross-package extension import missing in generated file | Open the generated file, add the FQN import; flag as an upstream Kraft bug |
+| — | `FileAlreadyExistsException ... _EnumMapper.kt.kt` | Two `@MapEnum`s with same target simpleName (K-A1) | Upgrade to Kraft 0.8.x+; on older versions, replace one with hand-written `@KraftConverter` extensions |
+| — | KSP succeeds but call site fails to compile | Stale generated files after annotation edits | `./gradlew clean` then rebuild |
+| [KRAFT-W001](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-w001) | `@MapUsing ... duplicates a mapping Kraft already generates` | Your converter re-implements native mapping (element-wise List/Set, null lift, value class, direct match) | Delete the `@MapUsing` function; keep it only with `@Suppress("KRAFT-W001")` if its body intentionally differs |
+| [KRAFT-W002](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-w002) | `@KraftConverter ... only lifts ... through null` | A nullable twin `S?.toT(): T?` next to `S.toT(): T` | Delete the nullable twin; Kraft lifts the non-null converter through `?.` |
+
+### Anti-patterns Kraft cannot detect
+
+Kraft does not warn about these; they compile and only drift or break later.
+
+- **Hand-written `when` between two enums** drifts when a constant is added. Use `@MapEnum` (plus `@MapReverse` if needed) instead:
+  ```kotlin
+  fun toKind(d: KindDto) = when (d) { KindDto.A -> Kind.A; KindDto.B -> Kind.B } // don't
+  @MapEnum(source = Kind::class, target = KindDto::class) object KindMapper // do
+  ```
+- **Importing a nested mapper at the call site "to be safe"** is unnecessary. The parent's generated file already imports the child mapper:
+  ```kotlin
+  private val nestedMappersInUse = listOf(::toOrderLine) // unnecessary, delete
+  ```
+- **JVM-only APIs in converter bodies in `commonMain`** only compile through platform source sets. Keep bodies KMP-pure:
+  ```kotlin
+  @KraftConverter fun String.toId(): Uuid = Uuid.parse(this) // not UUID.fromString(this)
+  ```
 
 ---
 

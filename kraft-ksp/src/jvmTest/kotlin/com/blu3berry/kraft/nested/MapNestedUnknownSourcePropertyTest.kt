@@ -32,6 +32,7 @@ class MapNestedUnknownSourcePropertyTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E027]")
         assertThat(result.messages).contains("source property 'typo' does not exist")
     }
 }

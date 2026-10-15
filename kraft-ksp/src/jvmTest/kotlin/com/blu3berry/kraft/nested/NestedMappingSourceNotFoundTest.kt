@@ -38,6 +38,7 @@ class NestedMappingSourceNotFoundTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E018]")
         assertThat(result.messages).contains("exists in source class")
     }
 }

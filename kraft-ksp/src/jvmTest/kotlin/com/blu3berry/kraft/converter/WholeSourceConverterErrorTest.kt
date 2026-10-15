@@ -32,6 +32,7 @@ class WholeSourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E035]")
         assertThat(result.messages).contains("source class")
     }
 
@@ -57,6 +58,7 @@ class WholeSourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E035]")
         assertThat(result.messages).contains("source class")
     }
 
@@ -82,6 +84,7 @@ class WholeSourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E036]")
         assertThat(result.messages).contains("mismatch")
     }
 
@@ -110,6 +113,7 @@ class WholeSourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E025]")
         assertThat(result.messages).contains("Multiple")
     }
 
@@ -135,6 +139,7 @@ class WholeSourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E026]")
         assertThat(result.messages).contains("target")
         assertThat(result.messages).contains("nonexistent")
     }

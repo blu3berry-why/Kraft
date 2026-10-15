@@ -27,6 +27,8 @@ import com.blu3berry.kraft.processor.codegen.className
 import com.blu3berry.kraft.processor.util.DelegateNaming
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 import com.blu3berry.kraft.processor.util.unwrapTypeAliases
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Emits a single Kotlin file at `kraft.generated.registry.Converters_<moduleId>.kt`
@@ -100,10 +102,12 @@ class DelegateRegistryGenerator(
             val pairs = colliding.joinToString(" and ") { (key, _) ->
                 "(${key.sourceFqName} → ${key.targetFqName})"
             }
-            logger.error(
+            logger.report(
+                KraftDiagnostic.DELEGATE_NAME_COLLISION,
                 "Kraft delegate name collision: converters for $pairs both derive the " +
                     "generated name '$name'. This is a hash collision between distinct type " +
-                    "pairs — please report it to the Kraft issue tracker with these type names."
+                    "pairs — please report it to the Kraft issue tracker with these type names.",
+                null
             )
         }
         return collisions.isNotEmpty()

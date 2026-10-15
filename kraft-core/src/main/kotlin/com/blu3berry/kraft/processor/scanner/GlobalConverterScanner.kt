@@ -10,6 +10,8 @@ import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 import com.blu3berry.kraft.processor.util.buildConverterTypeKey
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Scans for top-level extension functions annotated with
@@ -58,7 +60,8 @@ class GlobalConverterScanner(
         val returnType = fn.returnType?.resolve() ?: return
 
         if (receiverType.arguments.isNotEmpty() || returnType.arguments.isNotEmpty()) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.CONVERTER_PARAMETERIZED_TYPE,
                 "@KraftConverter on '${fn.simpleName.asString()}' has a parameterized receiver or " +
                     "return type. Converters are registered by their raw (source → target) class " +
                     "pair, so type arguments cannot be matched — even concrete ones like " +
@@ -93,7 +96,8 @@ class GlobalConverterScanner(
         val target = "${key.targetFqName}${nullSuffix(key.targetNullable)}"
         val existingName = existing.qualifiedName?.asString() ?: existing.simpleName.asString()
         val duplicateName = duplicate.qualifiedName?.asString() ?: duplicate.simpleName.asString()
-        logger.error(
+        logger.report(
+            KraftDiagnostic.AMBIGUOUS_KRAFT_CONVERTER,
             "Ambiguous @KraftConverter for ($source → $target): " +
                 "already registered by '$existingName', now also '$duplicateName'. " +
                 "Remove one or wrap the alternative call site with @MapUsing.",
@@ -103,7 +107,8 @@ class GlobalConverterScanner(
 
     private fun validateFunction(fn: KSFunctionDeclaration): Boolean {
         if (fn.functionKind != FunctionKind.TOP_LEVEL) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.CONVERTER_NOT_TOP_LEVEL,
                 "@KraftConverter must be applied to a top-level extension function. " +
                     "'${fn.simpleName.asString()}' is declared at " +
                     "${fn.functionKind.name.lowercase()} scope.",
@@ -112,7 +117,8 @@ class GlobalConverterScanner(
             return false
         }
         if (fn.extensionReceiver == null) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.CONVERTER_NOT_EXTENSION,
                 "@KraftConverter function '${fn.simpleName.asString()}' must be an extension function. " +
                     "The receiver type is the source type of the conversion.",
                 fn
@@ -120,7 +126,8 @@ class GlobalConverterScanner(
             return false
         }
         if (fn.parameters.isNotEmpty()) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.CONVERTER_HAS_PARAMETERS,
                 "@KraftConverter extension function '${fn.simpleName.asString()}' must not declare " +
                     "any value parameters — only the receiver is used as input.",
                 fn
@@ -128,7 +135,8 @@ class GlobalConverterScanner(
             return false
         }
         if (fn.returnType == null) {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.CONVERTER_MISSING_RETURN_TYPE,
                 "@KraftConverter function '${fn.simpleName.asString()}' must declare a return type.",
                 fn
             )

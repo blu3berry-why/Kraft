@@ -105,6 +105,7 @@ class MapEnumReverseTest {
         // The reverse inverts both A→X and A→Y, producing a duplicate
         // source 'A' on the reverse side — the existing duplicate-source
         // check fires.
+        assertThat(result.messages).contains("[KRAFT-E045]")
         assertThat(result.messages).contains("duplicate source entries")
     }
 
@@ -133,6 +134,7 @@ class MapEnumReverseTest {
         // the same name). Reverse fails because StatusDto.EXTRA has no
         // inverse on Status.
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E012]")
         assertThat(result.messages).contains("EXTRA")
     }
 
@@ -151,6 +153,7 @@ class MapEnumReverseTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E029]")
         assertThat(result.messages).contains("@MapReverse on 'Orphan'")
     }
 }

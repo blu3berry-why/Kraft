@@ -2,6 +2,8 @@ package com.blu3berry.kraft.processor.util
 
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Find an annotation by its FQ name.
@@ -22,7 +24,9 @@ fun KSAnnotation.getKClassArgOrNull(
 ): KSType? {
     val arg = arguments.firstOrNull { it.name?.asString() == name }
         ?: run {
-            logger.missingAnnotationArgument(annotationFqName, name, symbol)
+            logger.missingAnnotationArgument(
+                annotationFqName.substringAfterLast('.'), name, ArgumentKind.CLASS, symbol
+            )
             return null
         }
 
@@ -48,13 +52,16 @@ fun KSAnnotation.getStringArgOrNull(
 ): String? {
     val arg = arguments.firstOrNull { it.name?.asString() == name }
         ?: run {
-            logger.missingAnnotationArgument(annotationFqName, name, symbol)
+            logger.missingAnnotationArgument(
+                annotationFqName.substringAfterLast('.'), name, ArgumentKind.STRING, symbol
+            )
             return null
         }
 
     val value = arg.value as? String
     if (value == null) {
-        logger.error(
+        logger.report(
+            KraftDiagnostic.ANNOTATION_ARGUMENT_NOT_STRING,
             """
             @$annotationFqName argument '$name' must be a String.
             Found: ${arg.value?.let { it::class.simpleName }}
@@ -66,6 +73,34 @@ fun KSAnnotation.getStringArgOrNull(
 
     return value
 }
+
+/**
+ * Extract a String argument that has a declared default. An absent argument yields
+ * [default] without logging; a present but mistyped one is still reported.
+ */
+fun KSAnnotation.getStringArgOrDefault(
+    name: String,
+    default: String,
+    logger: KSPLogger,
+    symbol: KSNode,
+    annotationFqName: String
+): String {
+    if (arguments.none { it.name?.asString() == name }) return default
+    return getStringArgOrNull(name, logger, symbol, annotationFqName) ?: default
+}
+
+/**
+ * Extract an enum argument that has a declared default, as the entry's simple name.
+ * An absent argument yields [default] without logging; a present but mistyped one
+ * is still reported (and also yields [default]).
+ */
+fun KSAnnotation.getEnumArgOrDefault(
+    name: String,
+    default: String,
+    logger: KSPLogger,
+    symbol: KSNode,
+    annotationFqName: String
+): String = getEnumArgOrNull(name, logger, symbol, annotationFqName) ?: default
 
 /**
  * Extract an enum annotation argument as its constant name string.
@@ -87,7 +122,8 @@ fun KSAnnotation.getEnumArgOrNull(
     // KSP surfaces enum annotation arguments as KSClassDeclaration (enum entry nodes),
     // not as KSType — cast accordingly.
     val enumEntry = arg.value as? KSClassDeclaration ?: run {
-        logger.error(
+        logger.report(
+            KraftDiagnostic.ANNOTATION_ARGUMENT_NOT_ENUM,
             "@$annotationFqName argument '$name' must be an enum value. " +
                 "Found: ${arg.value?.let { it::class.simpleName }}",
             symbol
@@ -119,7 +155,8 @@ fun <T> KSAnnotation.getArrayArgOrNull(
     return when (value) {
         is List<*> -> {
             value as? List<T> ?: run {
-                logger.error(
+                logger.report(
+                    KraftDiagnostic.ANNOTATION_ARGUMENT_NOT_ARRAY,
                     "@$annotationFqName argument '$name' must be a List<T>. " +
                         "Found List<${value.firstOrNull()?.let { it::class.simpleName }}>",
                     symbol
@@ -130,7 +167,8 @@ fun <T> KSAnnotation.getArrayArgOrNull(
 
         is Array<*> -> {
             value.toList() as? List<T> ?: run {
-                logger.error(
+                logger.report(
+                    KraftDiagnostic.ANNOTATION_ARGUMENT_NOT_ARRAY,
                     "@$annotationFqName argument '$name' must be an Array<T>. " +
                         "Found Array<${value.firstOrNull()?.let { it::class.simpleName }}>",
                     symbol
@@ -140,7 +178,8 @@ fun <T> KSAnnotation.getArrayArgOrNull(
         }
 
         else -> {
-            logger.error(
+            logger.report(
+                KraftDiagnostic.ANNOTATION_ARGUMENT_NOT_ARRAY,
                 "@$annotationFqName argument '$name' must be an array/List. Found: ${value!!::class.simpleName}",
                 symbol
             )

@@ -14,6 +14,8 @@ import com.blu3berry.kraft.processor.util.KraftKspConstants
 import com.blu3berry.kraft.processor.util.annotationTargetError
 import com.blu3berry.kraft.processor.util.findAnnotation
 import com.blu3berry.kraft.processor.util.getKClassArgOrNull
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 class ClassAnnotationScanner(
     private val resolver: Resolver,
@@ -33,7 +35,8 @@ class ClassAnnotationScanner(
 
         val bothAnnotations = classesWithMapFrom.intersect(classesWithMapTo)
         bothAnnotations.forEach { decl ->
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_FROM_AND_MAP_TO_CONFLICT,
                 "Class ${decl.simpleName.asString()} has both " +
                     "@MapFrom and @MapTo annotations. " +
                     "Only one mapping annotation is allowed per class.",
@@ -115,7 +118,8 @@ class ClassAnnotationScanner(
         val orphaned = (classesWithReverse - classesWithMapFrom - classesWithMapTo)
             .filter { it.findAnnotation(KraftKspConstants.FQ_MAP_ENUM) == null }
         orphaned.forEach { decl ->
-            logger.error(
+            logger.report(
+                KraftDiagnostic.MAP_REVERSE_WITHOUT_MAPPING,
                 "@MapReverse on '${decl.simpleName.asString()}' " +
                     "requires @MapFrom, @MapTo, or @MapEnum on the same class.",
                 decl
@@ -204,7 +208,7 @@ class ClassAnnotationScanner(
                 else -> {
                     val sourceName = mapNestedAnn.arguments
                         .firstOrNull { it.name?.asString() == KraftKspConstants.ARG_SOURCE_NAME }
-                        ?.value as? String ?: ""
+                        ?.value as? String ?: KraftKspConstants.DEFAULT_MAP_NESTED_SOURCE_NAME
                     if (sourceName.isEmpty()) MapNestedAnnotation.SameName
                     else MapNestedAnnotation.Renamed(sourceName)
                 }

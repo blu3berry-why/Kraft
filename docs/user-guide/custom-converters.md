@@ -75,6 +75,23 @@ fun Src.toDst(): Dst = Dst(
 )
 ```
 
+### Kraft warns when a converter duplicates native mapping
+
+A property-source converter is only needed when Kraft cannot map the property by itself. When it can (same name and type, a nested or collection mapping, a value class, or a registered `@KraftConverter`), Kraft still calls your converter but reports warning [`KRAFT-W001`](errors.md#kraft-w001) with the assignment it would have generated:
+
+```kotlin
+data class User(val name: String)
+data class UserDto(val name: String)
+
+@MapConfig(source = User::class, target = UserDto::class)
+object UserMapper {
+    @MapUsing(source = "name", target = "name") // KRAFT-W001: Kraft would generate `name = this.name`
+    fun keep(name: String): String = name
+}
+```
+
+Delete the converter, or add `@Suppress("KRAFT-W001")` to it if its body intentionally differs. Whole-source converters are never reported, and neither is a `@MapUsing` that overrides a global `@KraftConverter` for the same property types in one mapper.
+
 ## Whole-Source Mode
 
 When `source` is omitted (or left blank), the function receives the entire source object. This is useful for computing a target value from multiple source properties.
@@ -373,4 +390,6 @@ Both placements are honoured: a marker on the declaration itself **and** a file-
 
 - Only top-level extension functions are accepted; member functions and free-standing functions with a value parameter are rejected at compile time.
 - Lookup matches the source/target qualified names *and* nullability, with one lift: a `X? → Y?` property pair reuses a registered non-null `X → Y` converter through a safe call (`this.field?.toY()`), so `Uuid → String` covers `Uuid? → String?` without a second declaration. A **nullable source with a non-null target is deliberately not lifted** — a safe call yields `Y?`, and unlike collections (which fall back to `emptyList()`) a scalar has no natural empty value. For that pair, declare an explicit `X? → Y` converter, or use a whole-source `@MapUsing` that supplies the default (see [Pattern 4](#pattern-4)).
+
+    A hand-written `X? → Y?` converter next to an `X → Y` one therefore only repeats that safe call, and Kraft warns about it with `KRAFT-W002`; see [KRAFT-W002](errors.md#kraft-w002) for when to remove it and when to suppress the warning.
 - Kraft does not ship a built-in primitives or stdlib converter set yet. Each module that needs `Int → Long`, `Uuid → String`, etc. must declare the converters itself.

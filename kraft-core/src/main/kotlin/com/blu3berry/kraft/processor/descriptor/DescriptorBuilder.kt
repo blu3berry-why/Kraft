@@ -9,7 +9,11 @@ import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
 import com.blu3berry.kraft.model.MapperId
 import com.blu3berry.kraft.model.descriptor.MappingDirection
+import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
+import com.blu3berry.kraft.processor.diagnostics.MutedKspLogger
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /** Top-level orchestrator that converts scan results into a list of [MapperDescriptor], resolving implicit nested dependencies via DFS. */
 class DescriptorBuilder(
@@ -40,7 +44,82 @@ class DescriptorBuilder(
         resolveImplicitDependencies(builtDescriptors, configMappings, globalConverters, enumBackedIds)
         validateNestedDependencies(builtDescriptors, enumBackedIds)
 
-        return builtDescriptors.values.toList()
+        val shadowNestedCheck = ShadowNestedCheck(
+            available = builtDescriptors.keys + enumBackedIds,
+            configMappings = configMappings,
+            globalConverters = globalConverters.silent(),
+        )
+        return builtDescriptors.values.map { dropUnavailableShadows(it, shadowNestedCheck) }
+    }
+
+    /**
+     * Clears [PropertyMappingStrategy.ConverterFunction.shadowedNative] when it is a nested
+     * mapper call that Kraft could not actually generate. The `KRAFT-W001` probe is not
+     * allowed to build nested mappers, so this answers "would the mapper exist?" here: it
+     * exists if it was built, is enum-backed, or could be built implicitly (checked with a
+     * muted logger and nothing registered).
+     */
+    private fun dropUnavailableShadows(
+        descriptor: MapperDescriptor,
+        check: ShadowNestedCheck
+    ): MapperDescriptor {
+        var changed = false
+        val mappings = descriptor.propertyMappings.map { strategy ->
+            val shadow = (strategy as? PropertyMappingStrategy.ConverterFunction)?.shadowedNative
+            if (shadow is PropertyMappingStrategy.NestedMapper &&
+                !check.isAvailable(shadow.nestedMappingDescriptor)
+            ) {
+                changed = true
+                strategy.copy(shadowedNative = null)
+            } else {
+                strategy
+            }
+        }
+        return if (changed) descriptor.copy(propertyMappings = mappings) else descriptor
+    }
+
+    /**
+     * Side-effect-free "could this nested mapper exist?" check for `KRAFT-W001` shadows.
+     * Mirrors [resolveImplicit] (including its dependencies, recursively) with a
+     * [MutedKspLogger], a silent converter registry, and no registration. A cycle counts as
+     * unavailable, because the real build reports it as an error.
+     */
+    private class ShadowNestedCheck(
+        private val available: Set<MapperId>,
+        private val configMappings: List<ConfigObjectScanResult>,
+        private val globalConverters: GlobalConverterRegistry,
+    ) {
+        private val mutedBuilder = DescriptorBuilder(MutedKspLogger)
+        private val verdicts = mutableMapOf<MapperId, Boolean>()
+
+        fun isAvailable(nested: NestedMappingDescriptor): Boolean =
+            isAvailable(
+                nested.nestedMapperId,
+                nested.sourceType.declaration,
+                nested.targetType.declaration,
+                mutableSetOf()
+            )
+
+        private fun isAvailable(
+            id: MapperId,
+            source: KSClassDeclaration,
+            target: KSClassDeclaration,
+            visiting: MutableSet<MapperId>
+        ): Boolean {
+            if (id in available) return true
+            verdicts[id]?.let { return it }
+            if (!visiting.add(id)) return false
+            val descriptor = mutedBuilder.buildMinimalDescriptor(source, target, configMappings, globalConverters)
+            val verdict = descriptor != null && descriptor.propertyMappings
+                .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
+                .all {
+                    val dep = it.nestedMappingDescriptor
+                    isAvailable(dep.nestedMapperId, dep.sourceType.declaration, dep.targetType.declaration, visiting)
+                }
+            visiting -= id
+            verdicts[id] = verdict
+            return verdict
+        }
     }
 
     // ---------------------------
@@ -95,7 +174,8 @@ class DescriptorBuilder(
                 ?.let {
                     val existing = builtDescriptors[it.id]
                     if (existing != null) {
-                        logger.error(
+                        logger.report(
+                            KraftDiagnostic.DUPLICATE_MAPPING,
                             "Duplicate mapping for ${it.id}: multiple @MapConfig objects declare " +
                                 "the same source → target pair. Only one mapping per type pair is allowed.",
                             config.configObject
@@ -288,7 +368,8 @@ class DescriptorBuilder(
     private fun reportCycleError(path: List<MapperId>, id: MapperId, source: KSClassDeclaration) {
         val cycleStart = path.indexOf(id)
         val cyclePath = (if (cycleStart >= 0) path.drop(cycleStart) else path) + id
-        logger.error(
+        logger.report(
+            KraftDiagnostic.CIRCULAR_NESTED_MAPPING,
             "Circular nested mapping: ${cyclePath.joinToString(" → ")}. " +
                 "Break the cycle with a @MapUsing converter on one side.",
             source
@@ -332,7 +413,8 @@ class DescriptorBuilder(
             descriptor.nestedDependencies
                 .filter { it !in builtDescriptors && it !in enumBackedIds }
                 .forEach { depId ->
-                    logger.error(
+                    logger.report(
+                        KraftDiagnostic.NESTED_MAPPER_NOT_BUILT,
                         "Nested mapper for $depId could not be built; " +
                             "mapper for ${descriptor.id} will generate code that does not compile.",
                         descriptor.sourceType.declaration

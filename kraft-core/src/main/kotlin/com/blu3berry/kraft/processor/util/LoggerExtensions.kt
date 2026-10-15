@@ -3,34 +3,21 @@
 package com.blu3berry.kraft.processor.util
 
 import com.google.devtools.ksp.processing.KSPLogger
+import com.google.devtools.ksp.symbol.ClassKind
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSNode
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.TypeInfo
 import com.blu3berry.kraft.model.scan.FieldOverride
-
-/**
- * Base error format with code-like block.
- */
-private fun KSPLogger.err(message: String, symbol: KSNode) {
-    error(
-        """
-----------------------------------------
-Kraft KSP Error
-----------------------------------------
-
-$message
-
-----------------------------------------
-""".trimIndent(),
-        symbol
-    )
-}
 
 fun KSPLogger.annotationTargetError(
     annotationName: String,
     expectedTarget: String,
     actualNode: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.ANNOTATION_TARGET_INVALID,
     """
     Incorrect use of @$annotationName.
 
@@ -56,13 +43,20 @@ fun KSPLogger.annotationTargetError(
 fun KSPLogger.missingAnnotationArgument(
     annotationName: String,
     argName: String,
-    symbol: KSNode
-) = err(
+    kind: ArgumentKind,
+    symbol: KSNode,
+    enumExample: String? = null
+) = report(
+    KraftDiagnostic.MISSING_ANNOTATION_ARGUMENT,
     """
     Missing required argument '$argName' in @$annotationName.
 
     ✔ Correct usage:
-        @$annotationName($argName = MyClass::class)
+        @$annotationName($argName = ${when (kind) {
+            ArgumentKind.CLASS -> "MyType::class"
+            ArgumentKind.STRING -> "\"propertyName\""
+            ArgumentKind.ENUM -> enumExample ?: "<enum entry>"
+        }})
 
     ✘ Found: argument '$argName' was not provided.
 
@@ -80,7 +74,8 @@ fun KSPLogger.invalidKClassArgument(
     argName: String,
     actualValue: Any?,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.INVALID_KCLASS_ARGUMENT,
     """
     Invalid @$annotationName argument type for '$argName'.
 
@@ -104,7 +99,8 @@ fun KSPLogger.detailedMissingMapping(
     classLevelOverrides: Map<String, String>,
     configOverrides: List<FieldOverride>,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.REQUIRED_PROPERTY_UNMAPPED,
     """
     Required property '${targetProperty.name}' in target type '$targetType'
     has no mapping source and is non-nullable.
@@ -162,7 +158,8 @@ fun KSPLogger.detailedTypeMismatch(
             targetShown = targetQualified
         }
     }
-    err(
+    report(
+        KraftDiagnostic.PROPERTY_TYPE_MISMATCH,
         """
     Type mismatch for property '${targetProperty.name}'.
 
@@ -190,6 +187,15 @@ ${typeMismatchGuidance(sourceProperty, targetProperty)}
  * "align nullability" there hides the actual rule.
  */
 private fun typeMismatchGuidance(
+    sourceProperty: PropertyInfo,
+    targetProperty: PropertyInfo
+): String {
+    val hint = duplicatedTypesHint(sourceProperty, targetProperty)
+    val fix = fixGuidance(sourceProperty, targetProperty)
+    return if (hint == null) fix else "$hint\n\n$fix"
+}
+
+private fun fixGuidance(
     sourceProperty: PropertyInfo,
     targetProperty: PropertyInfo
 ): String {
@@ -252,6 +258,68 @@ private fun typeMismatchGuidance(
     """.trimIndent().prependIndent("    ")
 }
 
+/**
+ * Detects the "same type declared twice" shape: equal simple names, different
+ * qualified names, at least one nested, and identical enum entries (enums) or
+ * primary-constructor parameter names (classes). Typical of a code generator
+ * inlining the same `$ref` into two places.
+ */
+private fun duplicatedTypesHint(
+    sourceProperty: PropertyInfo,
+    targetProperty: PropertyInfo
+): String? {
+    val (source, target) = duplicatedPair(sourceProperty, targetProperty) ?: return null
+    val s = source.displayName()
+    val t = target.displayName()
+
+    val ref = "${'$'}ref"
+    val sourceIsEnum = source.classKind == ClassKind.ENUM_CLASS
+    val targetIsEnum = target.classKind == ClassKind.ENUM_CLASS
+    val text = when {
+        sourceIsEnum && targetIsEnum && enumEntryNames(source) == enumEntryNames(target) -> """
+            Types differ only by enclosing class: $s vs $t, with identical entries.
+            This is usually a code generator inlining the same $ref twice (e.g. kmpgen). Fix it in the generator, or bridge the pair with @MapEnum(source = $s::class, target = $t::class).
+        """.trimIndent()
+        !sourceIsEnum && !targetIsEnum && sameConstructorParameters(source, target) -> """
+            Types differ only by enclosing class: $s vs $t, with identical constructor parameters.
+            This is usually a code generator inlining the same $ref twice (e.g. kmpgen). Fix it in the generator, or bridge the pair with @MapConfig(source = $s::class, target = $t::class) or a @KraftConverter.
+        """.trimIndent()
+        else -> null
+    }
+    return text?.prependIndent("    ")
+}
+
+/** Both declarations when they have equal simple names, different qualified names and one is nested. */
+private fun duplicatedPair(
+    sourceProperty: PropertyInfo,
+    targetProperty: PropertyInfo
+): Pair<KSClassDeclaration, KSClassDeclaration>? {
+    val source = sourceProperty.type.ksType.makeNotNullable().declaration as? KSClassDeclaration
+    val target = targetProperty.type.ksType.makeNotNullable().declaration as? KSClassDeclaration
+    if (source == null || target == null) return null
+    val sameSimpleName = source.simpleName.asString() == target.simpleName.asString()
+    val differentQualified = source.qualifiedName?.asString() != target.qualifiedName?.asString()
+    val nested = source.parentDeclaration is KSClassDeclaration || target.parentDeclaration is KSClassDeclaration
+    return if (sameSimpleName && differentQualified && nested) source to target else null
+}
+
+/** Qualified name without its package prefix, e.g. `AuthResponse.User.Role`. */
+private fun KSClassDeclaration.displayName(): String =
+    (qualifiedName?.asString() ?: simpleName.asString()).removePrefix(packageName.asString() + ".")
+
+private fun enumEntryNames(declaration: KSClassDeclaration): Set<String> =
+    declaration.declarations
+        .filterIsInstance<KSClassDeclaration>()
+        .filter { it.classKind == ClassKind.ENUM_ENTRY }
+        .map { it.simpleName.asString() }
+        .toSet()
+
+private fun sameConstructorParameters(source: KSClassDeclaration, target: KSClassDeclaration): Boolean {
+    val sourceParams = source.primaryConstructor?.parameters?.map { it.name?.asString() } ?: return false
+    val targetParams = target.primaryConstructor?.parameters?.map { it.name?.asString() } ?: return false
+    return sourceParams == targetParams
+}
+
 private fun TypeInfo.qualifiedRendering(): String =
     qualifiedName + if (isNullable) "?" else ""
 
@@ -268,7 +336,8 @@ fun KSPLogger.invalidMapFieldOverride(
     val available = sourceProperties.keys.toList()
     val suggestions = suggestNames(referencedSourceName, available)
 
-    err(
+    report(
+        KraftDiagnostic.INVALID_MAP_FIELD_OVERRIDE,
         """
         Invalid @MapField override for '$targetPropertyName'.
 
@@ -291,7 +360,8 @@ fun KSPLogger.invalidMapFieldOverride(
 /**
  * Missing primary constructor error.
  */
-fun KSPLogger.missingPrimaryConstructor(typeName: String, symbol: KSNode) = err(
+fun KSPLogger.missingPrimaryConstructor(typeName: String, symbol: KSNode) = report(
+    KraftDiagnostic.MISSING_PRIMARY_CONSTRUCTOR,
     """
     Type '$typeName' must declare a primary constructor.
 
@@ -316,7 +386,8 @@ fun KSPLogger.missingConstructorProperty(
 ) {
     val suggestions = suggestNames(parameterName, available)
 
-    err(
+    report(
+        KraftDiagnostic.CONSTRUCTOR_PARAMETER_WITHOUT_PROPERTY,
         """
         Constructor parameter '$parameterName' in '$typeName'
         has no corresponding property.
@@ -341,7 +412,8 @@ fun KSPLogger.unsupportedTypeInConstructor(
     parameterName: String,
     actualType: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.UNSUPPORTED_CONSTRUCTOR_PARAMETER_TYPE,
     """
     Unsupported type for constructor parameter '$parameterName' in '$typeName'.
 
@@ -362,7 +434,8 @@ fun KSPLogger.unsupportedTypeInConstructor(
 fun KSPLogger.constructorPropertyMismatch(
     typeName: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.CONSTRUCTOR_PROPERTY_MISMATCH,
     """
     Constructor parameters do not match declared properties in '$typeName'.
 
@@ -388,7 +461,8 @@ fun KSPLogger.unsupportedSourcePropertyType(
     ksTypeName: String,
     declarationKind: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.UNSUPPORTED_SOURCE_PROPERTY_TYPE,
     """
     Property '$propName' on '$typeName' has a type AutoMapper cannot map.
 
@@ -441,7 +515,8 @@ fun KSPLogger.unmappedEnumEntries(
     val snippetLines = unmappedEntries
         .joinToString("\n") { "            FieldMapping(source = \"$it\", target = \"???\")," }
 
-    err(
+    report(
+        KraftDiagnostic.UNMAPPED_ENUM_ENTRIES,
         """
     @MapEnum on '$declaringClass' has unmapped source entries.
 
@@ -486,7 +561,8 @@ fun KSPLogger.ignoredRequiredProperty(
     targetType: String,
     propertyName: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.IGNORED_REQUIRED_PROPERTY,
     """
     @MapIgnore / @MapIgnoreField targets '$propertyName' in '$targetType',
     but the property has no default value.
@@ -510,7 +586,8 @@ fun KSPLogger.nullableNestedSource(
     sourceTypeName: String,
     targetTypeName: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.NULLABLE_NESTED_SOURCE,
     """
     Nullable source for nested property '$propertyName'.
 
@@ -539,7 +616,8 @@ fun KSPLogger.nestedTypeNotMappable(
     propertyName: String,
     typeName: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.NESTED_TYPE_NOT_MAPPABLE,
     """
     Cannot generate nested mapper for property '$propertyName': type '$typeName' is not a concrete class.
 
@@ -565,7 +643,8 @@ fun KSPLogger.ambiguousNestedDescriptors(
     targetTypeName: String,
     matchCount: Int,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.AMBIGUOUS_NESTED_MAPPING,
     """
     Ambiguous @NestedMapping declarations: $matchCount entries target '$targetTypeName'.
 
@@ -589,7 +668,8 @@ fun KSPLogger.ambiguousNestedSourceProperty(
     nestedSourceType: String,
     matchingProps: List<String>,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.AMBIGUOUS_NESTED_SOURCE_PROPERTY,
     """
     Ambiguous source property for @NestedMapping(source = $nestedSourceType, ...):
     ${matchingProps.size} properties of type '$nestedSourceType' exist in '$sourceTypeName'.
@@ -617,7 +697,8 @@ fun KSPLogger.nestedMappingSourceNotFound(
     nestedSourceType: String,
     nestedTargetType: String,
     symbol: KSNode
-) = err(
+) = report(
+    KraftDiagnostic.NESTED_MAPPING_SOURCE_NOT_FOUND,
     """
     @NestedMapping(source = $nestedSourceType, target = $nestedTargetType) declared in config
     but no property of type '$nestedSourceType' exists in source class '$sourceTypeName'.

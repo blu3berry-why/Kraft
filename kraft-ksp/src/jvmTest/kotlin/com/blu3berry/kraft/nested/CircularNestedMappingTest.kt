@@ -36,6 +36,7 @@ class CircularNestedMappingTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E020]")
         assertThat(result.messages).contains("Circular nested mapping")
     }
 }

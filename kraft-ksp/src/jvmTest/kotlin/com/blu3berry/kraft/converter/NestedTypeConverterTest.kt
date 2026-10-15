@@ -93,6 +93,7 @@ class NestedTypeConverterTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E004]")
         assertThat(result.messages).contains("Required property 'role'")
     }
 }

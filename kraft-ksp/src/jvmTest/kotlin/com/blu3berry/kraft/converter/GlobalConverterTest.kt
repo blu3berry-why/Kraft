@@ -3,6 +3,7 @@ package com.blu3berry.kraft.converter
 import com.google.common.truth.Truth.assertThat
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
+import com.tschuchort.compiletesting.sourcesGeneratedBySymbolProcessor
 import com.blu3berry.kraft.TestKspRunner
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
@@ -100,11 +101,14 @@ class GlobalConverterTest {
             """
         )
 
-        val generated = TestKspRunner.compileAndReturnGenerated(converters, models)
-        val text = generated.first { it.name.contains("Src") }.readText()
+        val result = TestKspRunner.compile(converters, models)
+        assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
+        val text = result.sourcesGeneratedBySymbolProcessor.first { it.name.contains("Src") }.readText()
 
         assertThat(text).contains("count = SrcMapper.localConvert(this.count)")
         assertThat(text).doesNotContain("toGlobal")
+        // A direct per-mapper override of a global converter is deliberate, not a duplicate.
+        assertThat(result.messages).doesNotContain("KRAFT-W001")
     }
 
     @Test
@@ -125,6 +129,7 @@ class GlobalConverterTest {
         val result = TestKspRunner.compile(converters)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E050]")
         assertThat(result.messages).contains("Ambiguous @KraftConverter")
     }
 
@@ -144,6 +149,7 @@ class GlobalConverterTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E004]")
         assertThat(result.messages).contains("Required property 'count'")
     }
 
@@ -162,6 +168,7 @@ class GlobalConverterTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E052]")
         assertThat(result.messages).contains("must be an extension function")
     }
 
@@ -180,6 +187,7 @@ class GlobalConverterTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E049]")
         assertThat(result.messages).contains("parameterized receiver or return type")
         // The error must name both escape hatches: automatic element-wise
         // collection mapping and per-property @MapUsing.

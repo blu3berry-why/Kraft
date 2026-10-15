@@ -17,6 +17,8 @@ import com.blu3berry.kraft.processor.util.isMappableClass
 import com.blu3berry.kraft.processor.util.nestedMappingSourceNotFound
 import com.blu3berry.kraft.processor.util.nestedTypeNotMappable
 import com.blu3berry.kraft.processor.util.nullableNestedSource
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 class NestedRule : MappingRule {
 
@@ -61,7 +63,8 @@ class NestedRule : MappingRule {
         mapNested: MapNestedAnnotation
     ): PropertyMappingStrategy? {
         if (target.name in ctx.classRenames) {
-            ctx.logger.warn(
+            ctx.logger.report(
+                KraftDiagnostic.MAP_NESTED_OVERRIDES_MAP_FIELD,
                 "@MapNested and @MapField both present on " +
                     "'${target.name}' — @MapNested takes precedence.",
                 target.declaration
@@ -70,7 +73,8 @@ class NestedRule : MappingRule {
 
         val sourceName = resolveSourceName(target, ctx, mapNested)
         val sourceProp = ctx.sourceProps[sourceName] ?: run {
-            ctx.logger.error(
+            ctx.logger.report(
+                KraftDiagnostic.MAP_NESTED_SOURCE_NOT_FOUND,
                 "@MapNested on '${target.name}': source property " +
                     "'$sourceName' does not exist in " +
                     "${ctx.sourceTypeName}. Available: " +
@@ -120,7 +124,8 @@ class NestedRule : MappingRule {
         is MapNestedAnnotation.SameName -> target.name
         is MapNestedAnnotation.Renamed -> {
             if (mapNested.sourceName == target.name) {
-                ctx.logger.warn(
+                ctx.logger.report(
+                    KraftDiagnostic.REDUNDANT_MAP_NESTED_SOURCE_NAME,
                     "@MapNested sourceName '${mapNested.sourceName}'" +
                         " equals the property name" +
                         " — sourceName is redundant here.",

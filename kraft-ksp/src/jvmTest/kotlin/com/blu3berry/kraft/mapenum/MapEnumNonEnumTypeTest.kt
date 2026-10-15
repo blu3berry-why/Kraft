@@ -29,6 +29,7 @@ class MapEnumNonEnumTypeTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E044]")
         assertThat(result.messages).contains("only mapping between enum classes")
     }
 
@@ -51,6 +52,7 @@ class MapEnumNonEnumTypeTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E044]")
         assertThat(result.messages).contains("only mapping between enum classes")
     }
 }

@@ -85,6 +85,7 @@ class ConverterRuleTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E025]")
         assertThat(result.messages).contains("Multiple")
     }
 
@@ -110,6 +111,7 @@ class ConverterRuleTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E026]")
         assertThat(result.messages).contains("ghost")
     }
 }

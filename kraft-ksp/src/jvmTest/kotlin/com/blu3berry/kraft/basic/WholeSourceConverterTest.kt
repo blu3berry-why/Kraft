@@ -82,6 +82,7 @@ class WholeSourceConverterTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E035]")
         assertThat(result.messages).contains("source class")
     }
 }

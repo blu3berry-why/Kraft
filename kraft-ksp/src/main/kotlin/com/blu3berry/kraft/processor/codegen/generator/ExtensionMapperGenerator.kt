@@ -3,14 +3,18 @@ package com.blu3berry.kraft.processor.codegen.generator
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
+import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ksp.writeTo
 import com.blu3berry.kraft.config.AliasEmitMode
+import com.blu3berry.kraft.model.MapperId
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
 import com.blu3berry.kraft.model.descriptor.MappingSource
+import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.processor.codegen.GenerationConfig
 import com.blu3berry.kraft.processor.codegen.MapperGenerator
 import com.blu3berry.kraft.processor.codegen.OptInMarker
@@ -19,6 +23,9 @@ import com.blu3berry.kraft.processor.codegen.className
 import com.blu3berry.kraft.processor.codegen.generatedMapperPackage
 import com.blu3berry.kraft.processor.sides.SideRegistry
 import com.blu3berry.kraft.processor.util.CodeGenUtils
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.isKraftSuppressed
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Built-in [MapperGenerator] that produces Kotlin extension functions
@@ -35,6 +42,9 @@ class ExtensionMapperGenerator(
 ) : MapperGenerator {
 
     private val ctorCallBuilder = CtorCallBuilder(config)
+
+    /** (converter function, target property, mapper) triples already reported as `KRAFT-W001`. */
+    private val reportedRedundantConverters = mutableSetOf<Triple<KSFunctionDeclaration, String, MapperId>>()
 
     override fun generate(descriptor: MapperDescriptor, codeGenerator: CodeGenerator) {
         val fromClass = descriptor.sourceType.className
@@ -55,9 +65,15 @@ class ExtensionMapperGenerator(
         ).distinct()
 
         if (originatingFiles.isEmpty()) {
-            logger.warn("Skipping mapper generation for $fromClass → $toClass: no originating file found.")
+            logger.report(
+                KraftDiagnostic.MAPPER_GENERATION_SKIPPED,
+                "Skipping mapper generation for $fromClass → $toClass: no originating file found.",
+                null
+            )
             return
         }
+
+        reportRedundantConverters(descriptor, packageName, functionName)
 
         val verboseFn = FunSpec.builder(functionName)
             .receiver(fromClass)
@@ -98,7 +114,11 @@ class ExtensionMapperGenerator(
         val side = try {
             sideRegistry.resolveSide(targetFqn) ?: return null
         } catch (e: IllegalStateException) {
-            logger.error(e.message ?: "Kraft side configuration error.")
+            logger.report(
+                KraftDiagnostic.SIDE_CONFIGURATION_ERROR,
+                e.message ?: "Kraft side configuration error.",
+                null
+            )
             return null
         }
 
@@ -122,7 +142,7 @@ class ExtensionMapperGenerator(
         try {
             sideRegistry.recordAlias(fromClass.canonicalName, aliasName, mapperOrigin)
         } catch (e: IllegalStateException) {
-            logger.error(e.message ?: "Alias collision.", originSymbol)
+            logger.report(KraftDiagnostic.ALIAS_COLLISION, e.message ?: "Alias collision.", originSymbol)
             return null
         }
 
@@ -132,6 +152,39 @@ class ExtensionMapperGenerator(
             .addKdoc("Alias generated for side ${side.name} (template = ${side.template.raw})")
             .addCode("return %N()\n", verboseFunctionName)
             .build()
+    }
+
+    /**
+     * Emits `KRAFT-W001` for each property-source `@MapUsing` that claims a property Kraft
+     * would map natively ([PropertyMappingStrategy.ConverterFunction.shadowedNative]), unless
+     * the converter function carries `@Suppress("KRAFT-W001")`. The shown assignment is
+     * rendered by the same [CtorCallBuilder] path as the generated mapper. Generated code is
+     * not affected: the user's converter keeps priority.
+     */
+    private fun reportRedundantConverters(
+        descriptor: MapperDescriptor,
+        packageName: String,
+        functionName: String,
+    ) {
+        descriptor.propertyMappings
+            .filterIsInstance<PropertyMappingStrategy.ConverterFunction>()
+            .forEach { strategy ->
+                val native = strategy.shadowedNative ?: return@forEach
+                val function = strategy.converter.function ?: return@forEach
+                if (function.isKraftSuppressed(KraftDiagnostic.REDUNDANT_MAP_USING)) return@forEach
+                val key = Triple(function, strategy.targetProperty.name, descriptor.id)
+                if (!reportedRedundantConverters.add(key)) return@forEach
+
+                val assignment = renderStandalone(
+                    ctorCallBuilder.renderAssignment(native, functionName),
+                    packageName
+                )
+                logger.report(
+                    KraftDiagnostic.REDUNDANT_MAP_USING,
+                    redundantMapUsingMessage(strategy.converter.functionName, strategy.targetProperty.name, assignment),
+                    function
+                )
+            }
     }
 
     @Suppress("SpreadOperator")
@@ -144,3 +197,32 @@ class ExtensionMapperGenerator(
             .build()
     }
 }
+
+private const val RENDER_PROBE_FUNCTION = "kraftRenderProbe"
+
+/**
+ * Renders [assignment] the way it appears in a generated file in [packageName]: member
+ * references become imports, so `it.toRow()` reads as in the real mapper rather than
+ * fully qualified. KotlinPoet line wrapping is undone, so the result is one line.
+ */
+internal fun renderStandalone(assignment: CodeBlock, packageName: String): String {
+    val probe = FunSpec.builder(RENDER_PROBE_FUNCTION).addCode("%L\n", assignment).build()
+    val text = FileSpec.builder(packageName, RENDER_PROBE_FUNCTION).addFunction(probe).build().toString()
+    return text
+        .substringAfter("fun $RENDER_PROBE_FUNCTION() {")
+        .substringBeforeLast("}")
+        .lines()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .joinToString(" ")
+}
+
+/** The `KRAFT-W001` message body; [report] adds the code prefix, banner and docs link. */
+internal fun redundantMapUsingMessage(functionName: String, propertyName: String, assignment: String): String =
+    "@MapUsing '$functionName' on target property '$propertyName' duplicates a mapping Kraft already generates.\n" +
+        "\n" +
+        "Kraft would generate:\n" +
+        "    $assignment\n" +
+        "\n" +
+        "Remove '$functionName', or add @Suppress(\"KRAFT-W001\") to it if its body intentionally differs " +
+        "(filtering, sorting, defaults)."

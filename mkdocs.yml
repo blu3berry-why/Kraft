@@ -66,6 +66,7 @@ nav:
       - KSP Options: user-guide/ksp-options.md
       - Side Aliases: user-guide/side-aliases.md
       - AI Integration: user-guide/ai-integration.md
+      - Errors Reference: user-guide/errors.md
       - API-First Client Design: user-guide/api-first-client-design.md
   - Developer Guide:
       - Architecture: developer-guide/architecture.md

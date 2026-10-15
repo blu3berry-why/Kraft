@@ -36,6 +36,7 @@ class MapIgnoreFieldUnknownPropertyTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E022]")
         assertThat(result.messages).contains("nonExistent")
         assertThat(result.messages).contains("not found")
     }

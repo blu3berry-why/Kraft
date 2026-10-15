@@ -32,6 +32,7 @@ class PropertySourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E026]")
         assertThat(result.messages).contains("source")
         assertThat(result.messages).contains("nonexistent")
     }
@@ -58,6 +59,7 @@ class PropertySourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E026]")
         assertThat(result.messages).contains("target")
         assertThat(result.messages).contains("nonexistent")
     }
@@ -84,6 +86,7 @@ class PropertySourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E041]")
         assertThat(result.messages).contains("mismatch")
     }
 
@@ -109,6 +112,7 @@ class PropertySourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E036]")
         assertThat(result.messages).contains("mismatch")
     }
 
@@ -134,6 +138,7 @@ class PropertySourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E033]")
         assertThat(result.messages).contains("target")
     }
 
@@ -159,6 +164,7 @@ class PropertySourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E041]")
         assertThat(result.messages).contains("mismatch")
     }
 
@@ -184,6 +190,7 @@ class PropertySourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E041]")
         assertThat(result.messages).contains("mismatch")
     }
 
@@ -212,6 +219,7 @@ class PropertySourceConverterErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E025]")
         assertThat(result.messages).contains("Multiple")
     }
 }

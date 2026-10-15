@@ -71,6 +71,7 @@ class ClassOverrideRuleTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E006]")
         assertThat(result.messages).contains("nonexistent")
     }
 
@@ -92,6 +93,7 @@ class ClassOverrideRuleTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E005]")
         assertThat(result.messages).contains("mismatch")
     }
 }

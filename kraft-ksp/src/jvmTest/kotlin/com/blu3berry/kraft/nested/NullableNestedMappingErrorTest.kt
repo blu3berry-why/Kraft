@@ -28,6 +28,7 @@ class NullableNestedMappingErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E014]")
         assertThat(result.messages).contains("nullable")
         assertThat(result.messages).contains("address")
     }
@@ -54,6 +55,7 @@ class NullableNestedMappingErrorTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E014]")
         assertThat(result.messages).contains("nullable")
         assertThat(result.messages).contains("employer")
     }

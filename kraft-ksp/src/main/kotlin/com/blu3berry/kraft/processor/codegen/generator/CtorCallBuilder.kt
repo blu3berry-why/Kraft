@@ -56,6 +56,13 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
         return block.build()
     }
 
+    /**
+     * Renders one `name = expression` assignment exactly as [build] emits it inside the
+     * constructor call. Used to show the native assignment in `KRAFT-W001`.
+     */
+    fun renderAssignment(strategy: PropertyMappingStrategy, receiverLabel: String): CodeBlock =
+        CodeBlock.builder().also { addMappingLine(it, strategy, receiverLabel) }.build()
+
     @Suppress("kotlin:S1871")
     private fun addMappingLine(
         block: CodeBlock.Builder,

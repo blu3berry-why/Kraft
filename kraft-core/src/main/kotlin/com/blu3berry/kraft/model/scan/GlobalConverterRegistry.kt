@@ -73,13 +73,24 @@ sealed class ConverterEntry {
  *                delegate's deterministic name from the key and resolves it directly.
  *                Eager [entries] always win, so a same-module `@KraftConverter`
  *                shadows a classpath delegate exactly as it does on the JVM path.
+ * @param silentClasspathFallback The same lookup as [classpathFallback], but one that reports
+ *                nothing and leaves no trace (no memoized results, no diagnostics). Used by
+ *                [silent] for speculative resolution. Defaults to [classpathFallback].
  */
 class GlobalConverterRegistry(
     val entries: Map<ConverterTypeKey, ConverterEntry>,
-    private val classpathFallback: ((ConverterTypeKey) -> ConverterEntry?)? = null
+    private val classpathFallback: ((ConverterTypeKey) -> ConverterEntry?)? = null,
+    private val silentClasspathFallback: ((ConverterTypeKey) -> ConverterEntry?)? = classpathFallback
 ) {
     fun lookup(key: ConverterTypeKey): ConverterEntry? =
         entries[key] ?: classpathFallback?.invoke(key)
+
+    /**
+     * A view of this registry whose classpath lookups are side-effect free, for speculative
+     * rule evaluation (the `KRAFT-W001` shadow probe). Lookups return the same entries.
+     */
+    fun silent(): GlobalConverterRegistry =
+        GlobalConverterRegistry(entries, silentClasspathFallback, silentClasspathFallback)
 
     /** True when no converter can possibly resolve — no entries and no lazy fallback. */
     fun isEmpty(): Boolean = entries.isEmpty() && classpathFallback == null

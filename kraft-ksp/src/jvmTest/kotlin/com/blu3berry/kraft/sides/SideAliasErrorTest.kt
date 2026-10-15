@@ -46,6 +46,7 @@ class SideAliasErrorTest {
         )
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E062]")
         assertThat(result.messages).contains("SourceToTargetAMapper")
         assertThat(result.messages).contains("SourceToTargetBMapper")
         assertThat(result.messages).contains("toShared")
@@ -75,6 +76,7 @@ class SideAliasErrorTest {
         )
 
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E058]")
         assertThat(result.messages).contains("build.gradle.kts")
         assertThat(result.messages).contains("subset")
     }

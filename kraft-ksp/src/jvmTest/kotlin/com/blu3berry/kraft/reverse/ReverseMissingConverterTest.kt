@@ -33,6 +33,7 @@ class ReverseMissingConverterTest {
         val result = TestKspRunner.compile(source)
 
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E023]")
         assertThat(result.messages).contains("@MapReverse")
         assertThat(result.messages).contains("no reverse converter")
     }

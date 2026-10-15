@@ -10,6 +10,8 @@ import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.processor.util.DelegateNaming
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 import com.blu3berry.kraft.processor.util.buildConverterTypeKey
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Resolves `@KraftConverterDelegate` extension functions published by upstream Kraft
@@ -49,10 +51,20 @@ class ClasspathConverterScanner(
      */
     fun lookupByName(key: ConverterTypeKey): ConverterEntry? {
         if (byNameCache.containsKey(key)) return byNameCache[key]
-        return resolveByName(key).also { byNameCache[key] = it }
+        return resolveByName(key, reportAmbiguity = true).also { byNameCache[key] = it }
     }
 
-    private fun resolveByName(key: ConverterTypeKey): ConverterEntry? {
+    /**
+     * [lookupByName] without side effects: it neither reports an ambiguity nor memoizes the
+     * result, so a later real [lookupByName] for the same key still reports. Used by the
+     * speculative `KRAFT-W001` probe, which must not emit or suppress diagnostics.
+     */
+    fun lookupByNameSilently(key: ConverterTypeKey): ConverterEntry? {
+        if (byNameCache.containsKey(key)) return byNameCache[key]
+        return resolveByName(key, reportAmbiguity = false)
+    }
+
+    private fun resolveByName(key: ConverterTypeKey, reportAmbiguity: Boolean): ConverterEntry? {
         val fqName = "${KraftKspConstants.GENERATED_REGISTRY_PACKAGE}.${DelegateNaming.delegateNameFor(key)}"
         val matches = resolver
             .getFunctionDeclarationsByName(resolver.getKSNameFromString(fqName), includeTopLevel = true)
@@ -60,7 +72,7 @@ class ClasspathConverterScanner(
             .filter { fn -> resolveDelegateKey(fn) == key }
             .toList()
 
-        if (matches.size > 1) {
+        if (reportAmbiguity && matches.size > 1) {
             reportClasspathAmbiguity(key, matches)
         }
         return matches.firstOrNull()?.let(ConverterEntry::Real)
@@ -91,7 +103,8 @@ class ClasspathConverterScanner(
         val source = "${key.sourceFqName}${if (key.sourceNullable) "?" else ""}"
         val target = "${key.targetFqName}${if (key.targetNullable) "?" else ""}"
         val registeredBy = matches.joinToString(" and ") { describeDelegate(it) }
-        logger.error(
+        logger.report(
+            KraftDiagnostic.AMBIGUOUS_CLASSPATH_CONVERTER,
             "Ambiguous @KraftConverter on the classpath for ($source → $target): " +
                 "registered by $registeredBy. " +
                 "Disambiguate by adding a same-module @KraftConverter or a per-property @MapUsing.",
@@ -109,7 +122,8 @@ class ClasspathConverterScanner(
             ?.arguments
             ?.firstOrNull { it.name?.asString() == "moduleId" }
             ?.value as? String
+            ?: KraftKspConstants.DEFAULT_KRAFT_CONVERTER_DELEGATE_MODULE_ID
         val fqName = fn.qualifiedName?.asString() ?: fn.simpleName.asString()
-        return if (moduleId.isNullOrBlank()) "'$fqName'" else "Kraft module '$moduleId' ('$fqName')"
+        return if (moduleId.isBlank()) "'$fqName'" else "Kraft module '$moduleId' ('$fqName')"
     }
 }

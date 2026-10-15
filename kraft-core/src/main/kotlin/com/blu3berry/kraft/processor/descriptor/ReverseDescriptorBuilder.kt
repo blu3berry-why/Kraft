@@ -16,6 +16,8 @@ import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolver
 import com.blu3berry.kraft.processor.descriptor.util.toPropertyInfoMap
 import com.blu3berry.kraft.processor.util.missingPrimaryConstructor
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Builds a reverse [MapperDescriptor] by swapping source/target of a forward descriptor.
@@ -220,7 +222,8 @@ class ReverseDescriptorBuilder(
                 else
                     "@MapUsing(target = \"$reversePropSource\") with a reverse whole-source converter"
 
-                logger.error(
+                logger.report(
+                    KraftDiagnostic.MISSING_REVERSE_CONVERTER,
                     "@MapReverse: property '${reversePropTarget ?: reversePropSource}' in reverse target " +
                         "'$newTargetTypeName' uses a forward converter but no reverse converter is defined.\n" +
                         "  Forward:  $fwdSourceDesc fun ${fwdConverter.functionName}(...)\n" +

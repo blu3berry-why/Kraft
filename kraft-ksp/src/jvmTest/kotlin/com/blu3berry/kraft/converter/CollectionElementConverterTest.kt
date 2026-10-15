@@ -77,6 +77,7 @@ class CollectionElementConverterTest {
 
         // The scalar form of this same pair resolves; the collection form does not.
         assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).contains("[KRAFT-E005]")
         assertThat(result.messages).contains("Type mismatch for property 'totals'")
     }
 

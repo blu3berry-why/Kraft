@@ -7,6 +7,8 @@ import com.blu3berry.kraft.model.scan.ConverterEntry
 import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.codegen.EnumMapperGeneratorSpi
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
  * Builds the synthetic-converter index for `@MapEnum`-derived mappers — one
@@ -77,7 +79,8 @@ private fun reportDuplicateEnumMapping(
     val firstLocation = first.declaration?.qualifiedName?.asString()
         ?: first.declaration?.simpleName?.asString()
         ?: "<unknown>"
-    logger.error(
+    logger.report(
+        KraftDiagnostic.AMBIGUOUS_MAP_ENUM,
         "Ambiguous @MapEnum: ($source → $target) is registered by more than one " +
             "@MapEnum declaration. First seen at '$firstLocation'. " +
             "Remove one of the @MapEnum declarations or change one of the source/target pairs.",
@@ -122,7 +125,8 @@ private fun reportAmbiguity(
     val source = "${key.sourceFqName}${if (key.sourceNullable) "?" else ""}"
     val target = "${key.targetFqName}${if (key.targetNullable) "?" else ""}"
     val existingName = existing.function.qualifiedName?.asString() ?: existing.simpleName
-    logger.error(
+    logger.report(
+        KraftDiagnostic.ENUM_CONVERTER_CONFLICT,
         "Ambiguous converter for ($source → $target): registered both as " +
             "@KraftConverter '$existingName' and as @MapEnum-generated " +
             "'${duplicate.packageName}.${duplicate.simpleName}'. " +
