@@ -11,10 +11,9 @@ import com.blu3berry.kraft.model.scan.ClassMappingScanResult
 import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.util.collectPropertyTypeRefs
-import com.blu3berry.kraft.processor.util.collectionKindOf
-import com.blu3berry.kraft.processor.util.elementTypeInfo
 import com.blu3berry.kraft.processor.util.enumEntryNames
 import com.blu3berry.kraft.processor.util.isMappableClass
+import com.blu3berry.kraft.processor.util.mappedContainerOf
 
 /**
  * Walks every parent `@MapConfig` / `@MapTo` mapping pair and synthesizes an
@@ -128,26 +127,24 @@ class AutoEnumMappingDeriver {
     /**
      * Returns the pair of types the deriver should treat as the candidates for
      * recursion. When [sourceType] and [targetType] are the same kind of
-     * single-element collection wrapper (`List`/`List` or `Set`/`Set`), peels
+     * mapped container (`List`/`List` or `Set`/`Set`, see `mappedContainerOf`), peels
      * them to their element types so the mappability gate runs against the
      * elements (e.g. `Set<User>` → `User`). Returns `null` when one side is a
-     * collection and the other isn't, or when the kinds differ — neither
-     * `NestedRule` nor the deriver auto-maps mismatched wrappers. For
-     * non-collection inputs returns the inputs unchanged.
+     * container and the other isn't, or when the kinds differ — neither
+     * `ContainerRule` nor the deriver auto-maps mismatched wrappers. For
+     * non-container inputs returns the inputs unchanged.
      */
     @Suppress("ReturnCount")
     private fun resolveRecursableTypes(
         sourceType: KSType,
         targetType: KSType,
     ): Pair<KSType, KSType>? {
-        val srcInfo = TypeInfo.fromKSType(sourceType)
-        val tgtInfo = TypeInfo.fromKSType(targetType)
-        val srcKind = collectionKindOf(srcInfo)
-        val tgtKind = collectionKindOf(tgtInfo)
-        if (srcKind == null && tgtKind == null) return sourceType to targetType
-        if (srcKind != tgtKind) return null
-        val srcElement = elementTypeInfo(srcInfo) ?: return null
-        val tgtElement = elementTypeInfo(tgtInfo) ?: return null
+        val srcContainer = mappedContainerOf(TypeInfo.fromKSType(sourceType))
+        val tgtContainer = mappedContainerOf(TypeInfo.fromKSType(targetType))
+        if (srcContainer == null && tgtContainer == null) return sourceType to targetType
+        if (srcContainer?.kind != tgtContainer?.kind) return null
+        val srcElement = srcContainer?.element ?: return null
+        val tgtElement = tgtContainer?.element ?: return null
         return srcElement.ksType to tgtElement.ksType
     }
 

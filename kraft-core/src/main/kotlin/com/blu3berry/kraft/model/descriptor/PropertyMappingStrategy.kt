@@ -51,7 +51,8 @@ sealed interface PropertyMappingStrategy {
 
     /**
      * Delegates to another generated mapper for a nested type:
-     * `target.child = source.child.toChildDto()`
+     * `target.child = source.child.toChildDto()`.
+     * Element-wise nested mapping is a [ContainerMapping] with an [ElementOp.Nested] leaf.
      */
     data class NestedMapper(
         override val targetProperty: PropertyInfo,
@@ -61,36 +62,45 @@ sealed interface PropertyMappingStrategy {
 
     /**
      * Wraps the source value into a value class:
-     * `target.id = UserId(source.id)`, `source.id?.let { UserId(it) }`,
-     * or element-wise `source.ids.map { UserId(it) }` when [collectionKind] is set.
+     * `target.id = UserId(source.id)` or `source.id?.let { UserId(it) }`.
+     * Element-wise wraps are [ContainerMapping]s with an [ElementOp.Wrap] leaf.
      *
-     * @property valueClass     The value class constructed (the element type for collections).
-     * @property safeCall       Whether the source (or the source collection) is nullable and must be safe-called.
-     * @property collectionKind Non-null when the wrap applies to each element of a `List` / `Set`.
+     * @property valueClass     The value class constructed.
+     * @property safeCall       Whether the source is nullable and must be safe-called.
      */
     data class ValueClassWrap(
         override val targetProperty: PropertyInfo,
         val sourceProperty: PropertyInfo,
         val valueClass: TypeInfo,
-        val safeCall: Boolean,
-        val collectionKind: CollectionKind? = null
+        val safeCall: Boolean
     ) : PropertyMappingStrategy
 
     /**
      * Unwraps a value class to its underlying property:
-     * `target.id = source.id.value`, `source.id?.value`,
-     * or element-wise `source.ids.map { it.value }` when [collectionKind] is set.
+     * `target.id = source.id.value` or `source.id?.value`.
+     * Element-wise unwraps are [ContainerMapping]s with an [ElementOp.Unwrap] leaf.
      *
      * @property underlyingPropertyName The value class's single public property.
-     * @property safeCall               Whether the source (or the source collection) is nullable.
-     * @property collectionKind         Non-null when the unwrap applies to each element of a `List` / `Set`.
+     * @property safeCall               Whether the source is nullable.
      */
     data class ValueClassUnwrap(
         override val targetProperty: PropertyInfo,
         val sourceProperty: PropertyInfo,
         val underlyingPropertyName: String,
-        val safeCall: Boolean,
-        val collectionKind: CollectionKind? = null
+        val safeCall: Boolean
+    ) : PropertyMappingStrategy
+
+    /**
+     * Maps a container-typed property level by level, as described by [shape]:
+     * `target.items = source.items.map { it.toItemDto() }`,
+     * `source.ids?.map { UserId(it) }?.toSet()`, etc.
+     *
+     * @property shape The container tree, from the property's own type down to the element operations.
+     */
+    data class ContainerMapping(
+        override val targetProperty: PropertyInfo,
+        val sourceProperty: PropertyInfo,
+        val shape: ContainerShape
     ) : PropertyMappingStrategy
 
     /**
@@ -111,4 +121,14 @@ sealed interface PropertyMappingStrategy {
     data class Ignored(
         override val targetProperty: PropertyInfo
     ) : PropertyMappingStrategy
+}
+
+/**
+ * The nested-mapper descriptors this strategy calls: the one of a [PropertyMappingStrategy.NestedMapper],
+ * the leaves of a [PropertyMappingStrategy.ContainerMapping], and none for every other strategy.
+ */
+fun PropertyMappingStrategy.nestedDescriptors(): List<NestedMappingDescriptor> = when (this) {
+    is PropertyMappingStrategy.NestedMapper -> listOf(nestedMappingDescriptor)
+    is PropertyMappingStrategy.ContainerMapping -> shape.nestedDescriptors()
+    else -> emptyList()
 }

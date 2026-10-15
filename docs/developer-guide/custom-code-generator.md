@@ -130,7 +130,6 @@ classDiagram
         +nestedMapperId: MapperId
         +sourceType: TypeInfo
         +targetType: TypeInfo
-        +collectionKind: CollectionKind?
     }
     class EnumMappingDescriptor {
         +sourceType: TypeInfo
@@ -191,13 +190,15 @@ classDiagram
         +sourceProperty: PropertyInfo
         +valueClass: TypeInfo
         +safeCall: Boolean
-        +collectionKind: CollectionKind?
     }
     class ValueClassUnwrap {
         +sourceProperty: PropertyInfo
         +underlyingPropertyName: String
         +safeCall: Boolean
-        +collectionKind: CollectionKind?
+    }
+    class ContainerMapping {
+        +sourceProperty: PropertyInfo
+        +shape: ContainerShape
     }
     class Constant {
         +expression: String
@@ -220,6 +221,7 @@ classDiagram
     PropertyMappingStrategy <|-- NestedMapper
     PropertyMappingStrategy <|-- ValueClassWrap
     PropertyMappingStrategy <|-- ValueClassUnwrap
+    PropertyMappingStrategy <|-- ContainerMapping
     PropertyMappingStrategy <|-- Constant
     PropertyMappingStrategy <|-- Ignored
 
@@ -230,7 +232,22 @@ classDiagram
 
 `Ignored` really has no fields of its own — the empty box is accurate: it carries only the inherited `targetProperty`, and the generator simply emits no constructor argument for it.
 
-`ValueClassWrap` / `ValueClassUnwrap` (added in 0.14) wrap a value into a value class (`UserId(x)`) or read its underlying property (`x.value`). `safeCall` means the source is nullable; a non-null `collectionKind` means the conversion applies to each element of a `List` / `Set`. The strategy hierarchy is `sealed` and grows with new features. The generator SPI is `@ExperimentalKraftApi` for that reason, so expect an exhaustive `when` to need new branches on upgrade.
+`ValueClassWrap` / `ValueClassUnwrap` (added in 0.14) wrap a value into a value class (`UserId(x)`) or read its underlying property (`x.value`). `safeCall` means the source is nullable. `NestedMapper`, `ValueClassWrap` and `ValueClassUnwrap` always describe a single value.
+
+`ContainerMapping` maps a container-typed property (`List<ItemSource>` → `List<ItemDto>`) level by level. Its `shape` is a `ContainerShape` tree that mirrors the property's type:
+
+| Node | Fields | Meaning |
+|---|---|---|
+| `ContainerShape.Linear` | `sourceKind`, `targetKind`, `element` | One single-element container level (`List`, `Set`, …), whose elements map by `element` |
+| `ContainerShape.Keyed` | `sourceKind`, `targetKind`, `key`, `value` | One map level; `key` is always a `Leaf` |
+| `ContainerShape.Leaf` | `op: ElementOp` | The operation applied to each element, key or value |
+
+Every node also carries `sourceNullable` / `targetNullable` for its own level, so a generator can safe-call, fall back to an empty container, or drop null elements at each level. `ElementOp` is one of `Identity`, `Nested(descriptor: NestedMappingDescriptor)`, `Converter(converter: ConverterDescriptor)`, `Wrap(valueClass: TypeInfo)` or `Unwrap(propertyName: String)`. The kinds are `ContainerKind` values. Use `shape.nestedDescriptors()` (or `strategy.nestedDescriptors()` on any strategy) to collect the nested mappers a property calls.
+
+The strategy hierarchy is `sealed` and grows with new features. The generator SPI is `@ExperimentalKraftApi` for that reason, so expect an exhaustive `when` to need new branches on upgrade.
+
+!!! warning "SPI change: element-wise mapping moved to `ContainerMapping`"
+    Before `ContainerMapping`, element-wise mapping was carried by a nullable `collectionKind` field (a `LIST` / `SET` enum) on `NestedMappingDescriptor`, `ValueClassWrap` and `ValueClassUnwrap`. That field, its enum and `NestedMappingDescriptor.isCollection` are removed. A generator that read them must handle `PropertyMappingStrategy.ContainerMapping` instead, and an exhaustive `when` over strategies needs the new branch.
 
 ---
 
@@ -354,9 +371,21 @@ fun processStrategies(descriptor: MapperDescriptor) {
                 val targetName = strategy.targetProperty.name
             }
             is PropertyMappingStrategy.NestedMapper -> {
-                // Delegates to a child mapper
+                // Delegates to a child mapper for a single object
                 val nested = strategy.nestedMappingDescriptor
-                val isCollection = nested.isCollection
+            }
+            is PropertyMappingStrategy.ValueClassWrap -> {
+                // UserId(source.id)
+                val valueClass = strategy.valueClass
+            }
+            is PropertyMappingStrategy.ValueClassUnwrap -> {
+                // source.id.value
+                val underlying = strategy.underlyingPropertyName
+            }
+            is PropertyMappingStrategy.ContainerMapping -> {
+                // Element-wise mapping of a List / Set (and later Map) property
+                val shape = strategy.shape
+                val nestedMappers = shape.nestedDescriptors()
             }
             is PropertyMappingStrategy.Constant -> {
                 // Literal expression. No built-in MappingRule produces this yet,
@@ -488,4 +517,4 @@ The same logic applies independently to `EnumMapperGeneratorProvider`.
     ```
 
 - **Accessing nested info**: `descriptor.nestedDependencies` gives you the set of `MapperId`s this mapper depends on — useful if your output format needs to declare imports or references to child mappers.
-- **Collection handling**: Check `NestedMappingDescriptor.collectionKind` to distinguish `List` vs `Set` wrappers on nested properties.
+- **Collection handling**: Container properties are `PropertyMappingStrategy.ContainerMapping`s. Walk `strategy.shape` recursively: `ContainerShape.Linear.sourceKind` / `targetKind` tell `List` from `Set` (and the other `ContainerKind`s), and each `ContainerShape.Leaf.op` says how one element maps.

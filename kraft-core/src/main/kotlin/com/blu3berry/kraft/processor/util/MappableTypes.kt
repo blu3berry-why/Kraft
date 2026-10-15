@@ -2,9 +2,10 @@ package com.blu3berry.kraft.processor.util
 
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import com.blu3berry.kraft.model.TypeInfo
-import com.blu3berry.kraft.model.descriptor.CollectionKind
+import com.blu3berry.kraft.model.descriptor.ContainerKind
 
 /**
  * Returns `true` when [type] denotes a class Kraft is willing to synthesise
@@ -25,28 +26,52 @@ fun isMappableClass(type: TypeInfo): Boolean {
 }
 
 /**
- * Returns the [CollectionKind] (`List` or `Set`) of [type], or `null` when
- * [type] is not one of the supported wrapper types. Matches the wrapper set
- * `NestedRule` already recognises — `Map`, `Iterable`, arrays, etc. are
- * intentionally excluded.
+ * A recognised container type (see [ContainerKind]) with its resolved type arguments.
+ *
+ * @property kind          The container kind.
+ * @property typeArguments The type arguments in declaration order (`[K, V]` for a map). An entry
+ *                         is null when the argument cannot be resolved to a class-backed type
+ *                         (star projections, type parameters) — those are never auto-mapped.
  */
-fun collectionKindOf(type: TypeInfo): CollectionKind? =
-    when (type.declaration.qualifiedName?.asString()) {
-        "kotlin.collections.List" -> CollectionKind.LIST
-        "kotlin.collections.Set" -> CollectionKind.SET
-        else -> null
-    }
+data class ContainerTypeInfo(
+    val kind: ContainerKind,
+    val typeArguments: List<TypeInfo?>
+) {
+    /** The element type of a single-element container, or the value type of a map. */
+    val element: TypeInfo? get() = typeArguments.lastOrNull()
+
+    /** The key type of a map; null for single-element containers. */
+    val key: TypeInfo? get() = if (kind.isKeyed) typeArguments.firstOrNull() else null
+}
 
 /**
- * Returns the [TypeInfo] of the first type argument of [type] when it is a
- * recognised single-element collection wrapper (see [collectionKindOf]).
- * Returns `null` for non-collections or for collections whose argument
- * cannot be resolved as a [KSClassDeclaration]-backed type (typically
- * unresolved or projected types — those should not be auto-mapped).
+ * Returns the container kind and type arguments of [type], or `null` when [type] is not one
+ * of the [ContainerKind]s. Recognition alone does not make a pair mappable; see
+ * [mappedContainerOf] for the kinds Kraft maps element-wise.
  */
-fun elementTypeInfo(type: TypeInfo): TypeInfo? {
-    val arg = type.ksType.arguments.firstOrNull() ?: return null
-    val argType = arg.type?.resolve()?.unwrapTypeAliases() ?: return null
-    if (argType.declaration !is KSClassDeclaration) return null
-    return TypeInfo.fromKSType(argType)
+fun containerKindOf(type: TypeInfo): ContainerTypeInfo? {
+    val kind = ContainerKind.of(type.declaration.qualifiedName?.asString()) ?: return null
+    return ContainerTypeInfo(kind, type.ksType.arguments.map { it.type?.resolve()?.toClassTypeInfo() })
+}
+
+/** The container kinds Kraft maps element-wise. */
+val MAPPED_CONTAINER_KINDS: Set<ContainerKind> = setOf(ContainerKind.LIST, ContainerKind.SET)
+
+/** [containerKindOf], restricted to the [MAPPED_CONTAINER_KINDS]. */
+fun mappedContainerOf(type: TypeInfo): ContainerTypeInfo? =
+    containerKindOf(type)?.takeIf { it.kind in MAPPED_CONTAINER_KINDS }
+
+/**
+ * `true` when [source] and [target] are both [mappedContainerOf] containers of the same kind:
+ * the pairs `ContainerRule` maps element-wise, and the scalar rules leave alone.
+ */
+fun isMappedContainerPair(source: TypeInfo, target: TypeInfo): Boolean {
+    val sourceKind = mappedContainerOf(source)?.kind ?: return false
+    return sourceKind == mappedContainerOf(target)?.kind
+}
+
+private fun KSType.toClassTypeInfo(): TypeInfo? {
+    val unwrapped = unwrapTypeAliases()
+    if (unwrapped.declaration !is KSClassDeclaration) return null
+    return TypeInfo.fromKSType(unwrapped)
 }
