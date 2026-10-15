@@ -296,14 +296,11 @@ raises questions about ambiguity against user-declared converters (local should 
 registry already models) and about the "no runtime dependency" promise. Worth an RFC before
 any code.
 
-### 20. `Map<K, V>` and arrays are unsupported — L
+### 20. ~~`Map<K, V>` and arrays are unsupported~~ — done in 0.14
 
-`collectionKindOf` recognises `List` and `Set` only. `Map<String, ADto>` → `Map<String, A>`
-is a common DTO shape and currently needs a hand-written `@MapUsing`.
-
-*Scope:* extend `CollectionKind`, `elementTypeInfo` (two type arguments), and the
-`CtorCallBuilder` rendering (`mapValues`), with the nullable permutations matching what
-`List`/`Set` already do.
+Shipped by the `map-and-collection-mapping` OpenSpec change (PR #120): `Map`/`MutableMap`,
+`Array`, `Collection`, `Iterable` and the `Mutable*` kinds, lossless conversions between them,
+one-to-one key mapping (KRAFT-E064 otherwise) and nesting to any depth.
 
 ### 21. Remove the deprecated nested-mapping annotations at 1.0 — S
 

@@ -14,13 +14,13 @@ All behavior is specified by compile-testing tests in `kraft-ksp/src/jvmTest`: e
 
 ## Anatomy of a feature
 
-How `Set<T>` collection mapping actually landed — the template for most "support a new shape" features. One property kind, four touch points, one pass through the pipeline:
+How container mapping (`List`, `Set`, `Array`, `Map`, … nested to any depth) is wired — the template for most "support a new shape" features. One rule, one IR type, one renderer, one pass through the pipeline:
 
 ```mermaid
 flowchart LR
-    T["<span style='color:#141120'>jvmTest fixture<br/>Set&lt;OrderDto&gt; → Set&lt;Order&gt;</span>"] --> N["<span style='color:#f4f0e6'>NestedRule<br/>detect the collection</span>"]
-    N --> CK["<span style='color:#f4f0e6'>CollectionKind<br/>add SET variant</span>"]
-    CK --> CB["<span style='color:#f4f0e6'>CtorCallBuilder<br/>emit .map { it.toX() }.toSet()</span>"]
+    T["<span style='color:#141120'>jvmTest fixture<br/>Map&lt;String, OrderDto&gt; → Map&lt;String, Order&gt;</span>"] --> N["<span style='color:#f4f0e6'>ContainerRule<br/>build the shape</span>"]
+    N --> CK["<span style='color:#f4f0e6'>ContainerShape<br/>Linear / Keyed / Leaf</span>"]
+    CK --> CB["<span style='color:#f4f0e6'>ContainerShapeRenderer<br/>emit .mapValues { it.value.toX() }</span>"]
 
     classDef anno fill:#fec14e,stroke:#141120,color:#141120
     classDef scan fill:#4f5f83,stroke:#141120,color:#ffffff
@@ -30,16 +30,16 @@ flowchart LR
     class CB gen
 ```
 
-1. **Test first** — a fixture with a `Set<OrderDto>` property and an assertion on the generated mapper.
-2. **Detection** (`descriptor/propertyresolver/rules/NestedRule.kt`) — teach the rule to recognize the new shape and record it on the strategy.
-3. **Model** (`model/descriptor/CollectionKind.kt`) — add the variant so the IR carries the fact to the generator.
-4. **Emission** (`kraft-ksp/.../CtorCallBuilder.kt`) — handle the variant when building the constructor call.
+1. **Test first** — a fixture with a `Map<String, OrderDto>` property and an assertion on the generated mapper (`kraft-ksp/src/jvmTest/.../containers/`).
+2. **Detection** (`descriptor/propertyresolver/rules/ContainerRule.kt`, `ContainerShapeBuilder.kt`) — recognise the container pair and build its shape; element operations come from `LeafOperationResolver`, shared with scalar properties.
+3. **Model** (`model/descriptor/ContainerShape.kt`) — `ContainerKind` plus the `ContainerShape` tree carry the fact to the generator as `PropertyMappingStrategy.ContainerMapping`.
+4. **Emission** (`kraft-ksp/.../ContainerShapeRenderer.kt`) — render the shape recursively inside the constructor call.
 
 Notice the shape: *rule → IR → generator*, never a shortcut from rule to generator. If your change wants to skip the IR, it is probably in the wrong place.
 
 ## Good first contributions
 
-- **`Map<K,V>` collection mapping** — the exact same four touch points as the `Set<T>` walkthrough above (emit `.mapValues { (_, v) -> v.toX() }`). The pattern is proven; the walkthrough is your map.
+- **Primitive arrays or `Sequence`** (`IntArray`, `Sequence<T>`) — out of scope for 0.14's container mapping; the same four touch points as the walkthrough above (a `ContainerKind` entry, detection, suffix/empty-value tables in the renderer).
 - **Error-message improvements** — all compiler errors live in one file (`kraft-core/.../util/LoggerExtensions.kt`); making one clearer is a self-contained PR with an error-path test.
 - **Docs fixes** — every page of this site is markdown under `docs/`; the site builds with `mkdocs serve`.
 

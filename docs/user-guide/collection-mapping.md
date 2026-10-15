@@ -248,7 +248,7 @@ Two shapes are errors:
 - **Nullable values into non-null values** (`Map<String, ItemSource?>` into `Map<String, ItemDto>`) fail with [`KRAFT-E005`](errors.md#kraft-e005). Unlike a list, a map cannot drop the null: removing the value would also remove its key.
 - **A map and a non-map** (`Map<String, ItemSource>` into `List<ItemDto>`) fail with [`KRAFT-E005`](errors.md#kraft-e005).
 
-Maps whose values are collections are not mapped yet and also report `KRAFT-E005`. A hand-written `@MapUsing` that only repeats the `mapValues` call triggers [`KRAFT-W001`](errors.md#kraft-w001).
+Map values and collection elements nest in each other to any depth: `Map<String, List<ItemSource>>` into `Map<String, List<ItemDto>>` generates `groups = this.groups.mapValues { e0 -> e0.value.map { it.toItemDto() } }`, and `List<Map<String, ItemSource>>` generates `pages = this.pages.map { e0 -> e0.mapValues { it.value.toItemDto() } }`. Each level follows its own rules, so a non-`Set` into a `Set` inside a map value is still [`KRAFT-E063`](errors.md#kraft-e063). A hand-written `@MapUsing` that only repeats the `mapValues` call triggers [`KRAFT-W001`](errors.md#kraft-w001).
 
 ### Map keys
 
