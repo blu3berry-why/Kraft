@@ -12,6 +12,13 @@ cd Kraft
 
 All behavior is specified by compile-testing tests in `kraft-ksp/src/jvmTest`: each test compiles a small fixture with the processor attached and asserts on the generated code or the compiler error. Write the test **first** — it is the fastest way to see the pipeline run end to end. Before writing one, skim the [KSP Compile-Testing Gotchas](ksp-compile-testing-gotchas.md); both gotchas on that page cost real debugging hours.
 
+**Budget for detekt's size limits.** `detekt` runs in CI with `TooManyFunctions`,
+`CyclomaticComplexMethod` and `ReturnCount` enabled. A new rule or renderer that grows past a
+handful of private helpers, or a branching `when` over several kinds, will trip them. Plan the
+helper-file split up front (e.g. `ContainerShapeBuilder.kt` / `MapKeyInjectivity.kt` beside
+`ContainerRule.kt`) rather than discovering it at the end of the task. Prefer splitting over
+`@Suppress`.
+
 ## Anatomy of a feature
 
 How container mapping (`List`, `Set`, `Array`, `Map`, … nested to any depth) is wired — the template for most "support a new shape" features. One rule, one IR type, one renderer, one pass through the pipeline:

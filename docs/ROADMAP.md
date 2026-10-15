@@ -316,6 +316,25 @@ output stays clean and real warnings stay visible.
 
 *Scope:* align, and consider Dependabot for `github-actions` so this does not recur.
 
+### 23. `agp9Test` fails on Windows — S · Test
+
+Found 2026-10-15 while gating the `map-and-collection-mapping` change. `KraftGradlePluginFunctionalTest.kt`
+(lines 37 and 45) builds its test repositories as `maven(url = "file://$testRepo")`, so a
+drive-letter path fails with `Cannot convert URI 'file://V:/…' to a file`. Linux CI is
+unaffected, which is why it went unnoticed.
+
+*Scope:* use `testRepo.toURI()` / `libsRepo.toURI()`; ship as its own `fix:` PR.
+
+### 24. One cause, three errors for KRAFT-E015 — S · DX
+
+A `@MapNested` property whose element type is not a mappable class (e.g. an interface)
+reports KRAFT-E015, then a follow-on KRAFT-E005 and KRAFT-E004 for the same property. 0.14
+added `RuleOutcome.Reported` so a rule can stop the chain after reporting; E063 and E064
+already use it.
+
+*Scope:* return `RuleOutcome.Reported` after `nestedTypeNotMappable` in `NestedRule`, and
+assert in the existing E015 test that no `[KRAFT-E005]` follows.
+
 ---
 
 ## Suggested order
