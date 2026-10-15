@@ -1,7 +1,9 @@
 package com.blu3berry.kraft.processor.codegen.generator
 
 import com.google.devtools.ksp.processing.KSPLogger
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.Nullability
+import com.blu3berry.kraft.model.descriptor.EnumKeyCollision
 import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import com.blu3berry.kraft.model.scan.ConverterEntry
 import com.blu3berry.kraft.model.scan.ConverterTypeKey
@@ -9,6 +11,7 @@ import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.codegen.EnumMapperGeneratorSpi
 import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
 import com.blu3berry.kraft.processor.diagnostics.report
+import com.blu3berry.kraft.processor.util.enumEntryNames
 
 /**
  * Builds the synthetic-converter index for `@MapEnum`-derived mappers — one
@@ -62,11 +65,16 @@ fun enumMappingsToConverterEntries(
                 desc.sourceType.declaration.containingFile,
                 desc.targetType.declaration.containingFile,
                 desc.declaration?.containingFile,
-            ).distinct()
+            ).distinct(),
+            keyCollision = EnumKeyCollision.of(desc.entries, sourceDeclarationOrder(desc))
         )
     }
     return out
 }
+
+/** The source enum's entries in declaration order, so a collision names them as the user wrote them. */
+private fun sourceDeclarationOrder(desc: EnumMappingDescriptor): List<String> =
+    (desc.sourceType.declaration as? KSClassDeclaration)?.enumEntryNames().orEmpty()
 
 private fun reportDuplicateEnumMapping(
     key: ConverterTypeKey,

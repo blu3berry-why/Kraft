@@ -95,23 +95,33 @@ class AutoEnumMappingDeriver {
     ) {
         tryDeriveEnumDescriptor(sourceType, targetType, covered, out)
             ?.also { out.putIfAbsent(it.fqKey(), it) }
-        // Element-position enum pairs (e.g. List<Status>/List<StatusDto>) — the
-        // walker would otherwise miss these because `enqueueIfNestedClassPair`
-        // bails when the unwrapped element types fail isMappableClass (which
-        // enums always do).
-        val (elementSource, elementTarget) = resolveRecursableTypes(sourceType, targetType) ?: return
-        if (elementSource === sourceType) return  // not a collection — already handled by the leaf call above
-        tryDeriveEnumDescriptor(elementSource, elementTarget, covered, out)
-            ?.also { out.putIfAbsent(it.fqKey(), it) }
+        // Element-position enum pairs (e.g. List<Status>/List<StatusDto>, or map keys
+        // and values) — the walker would otherwise miss these because
+        // `enqueueIfNestedClassPair` bails when the unwrapped element types fail
+        // isMappableClass (which enums always do).
+        for ((elementSource, elementTarget) in resolveRecursableTypes(sourceType, targetType)) {
+            if (elementSource === sourceType) continue  // not a container — already handled by the leaf call above
+            tryDeriveEnumDescriptor(elementSource, elementTarget, covered, out)
+                ?.also { out.putIfAbsent(it.fqKey(), it) }
+        }
     }
 
-    @Suppress("ReturnCount")
     private fun enqueueIfNestedClassPair(
         sourceType: KSType,
         targetType: KSType,
         worklist: ArrayDeque<ClassPair>,
     ) {
-        val (resolvedSource, resolvedTarget) = resolveRecursableTypes(sourceType, targetType) ?: return
+        for ((resolvedSource, resolvedTarget) in resolveRecursableTypes(sourceType, targetType)) {
+            enqueueLeafPair(resolvedSource, resolvedTarget, worklist)
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun enqueueLeafPair(
+        resolvedSource: KSType,
+        resolvedTarget: KSType,
+        worklist: ArrayDeque<ClassPair>,
+    ) {
         val srcDecl = resolvedSource.declaration as? KSClassDeclaration ?: return
         val tgtDecl = resolvedTarget.declaration as? KSClassDeclaration ?: return
         val srcFq = srcDecl.qualifiedName?.asString() ?: return
@@ -125,31 +135,35 @@ class AutoEnumMappingDeriver {
     }
 
     /**
-     * Returns the pair of types the deriver should treat as the candidates for
+     * Returns the pairs of types the deriver should treat as the candidates for
      * recursion. When [sourceType] and [targetType] are both mapped containers
      * (any pair of kinds, see `mappedContainerOf`), peels them, at every nesting
      * depth, to their element types so the mappability gate runs against the elements
-     * (e.g. `Array<User>` → `User`). Returns `null` when only one side is a
-     * container — `ContainerRule` does not auto-map a container against a
-     * scalar. For non-container inputs returns the inputs unchanged.
+     * (e.g. `Array<User>` → `User`). A map pair yields its key pair and its value
+     * pair (`Map<StatusDto, ItemSource>` → `StatusDto`/`Status` and
+     * `ItemSource`/`ItemDto`). Yields nothing for a level where only one side is
+     * a container (or one side is a map and the other is not) — `ContainerRule`
+     * does not auto-map those. For non-container inputs returns the inputs unchanged.
      */
-    @Suppress("ReturnCount")
     private fun resolveRecursableTypes(
         sourceType: KSType,
         targetType: KSType,
-    ): Pair<KSType, KSType>? {
-        var source = sourceType
-        var target = targetType
+    ): List<Pair<KSType, KSType>> {
+        val srcContainer = mappedContainerOf(TypeInfo.fromKSType(sourceType))
+        val tgtContainer = mappedContainerOf(TypeInfo.fromKSType(targetType))
+        if (srcContainer == null && tgtContainer == null) return listOf(sourceType to targetType)
+        if (srcContainer == null || tgtContainer == null) return emptyList()
+        if (srcContainer.kind.isKeyed != tgtContainer.kind.isKeyed) return emptyList()
         // Peel one container level per step, so List<List<StatusDto>> reaches StatusDto.
-        while (true) {
-            val srcContainer = mappedContainerOf(TypeInfo.fromKSType(source))
-            val tgtContainer = mappedContainerOf(TypeInfo.fromKSType(target))
-            if (srcContainer == null && tgtContainer == null) return source to target
-            if (srcContainer == null || tgtContainer == null) return null
-            source = srcContainer.element?.ksType ?: return null
-            target = tgtContainer.element?.ksType ?: return null
-        }
+        val levels = listOfNotNull(
+            pairOf(srcContainer.key, tgtContainer.key),
+            pairOf(srcContainer.element, tgtContainer.element),
+        )
+        return levels.flatMap { (source, target) -> resolveRecursableTypes(source, target) }
     }
+
+    private fun pairOf(source: TypeInfo?, target: TypeInfo?): Pair<KSType, KSType>? =
+        if (source != null && target != null) source.ksType to target.ksType else null
 
     private fun ClassPair.fqKey(): Pair<String, String>? {
         val s = source.qualifiedName?.asString() ?: return null

@@ -211,6 +211,9 @@ enum class KraftDiagnostic(
     /** A collection would be converted into a `Set` from a non-`Set`, silently dropping duplicate elements. */
     LOSSY_COLLECTION_CONVERSION("KRAFT-E063", Severity.ERROR, "Lossy collection conversion"),
 
+    /** `Map` keys would be mapped by an operation Kraft cannot prove one-to-one, which could merge entries. */
+    NON_INJECTIVE_MAP_KEY("KRAFT-E064", Severity.ERROR, "Map key mapping can merge entries"),
+
     /** A `BOTH`-direction `@MapIgnoreField` names a property missing from one direction's target. */
     IGNORE_FIELD_NOT_FOUND_BOTH("KRAFT-W003", Severity.WARNING, "@MapIgnoreField(BOTH) property not found"),
 

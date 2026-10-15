@@ -3,6 +3,7 @@ package com.blu3berry.kraft.model.scan
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.blu3berry.kraft.model.TypeInfo
+import com.blu3berry.kraft.model.descriptor.EnumKeyCollision
 
 /**
  * Identifies a converter by its source/target type pair.
@@ -47,14 +48,23 @@ sealed class ConverterEntry {
      * can emit a `@KraftConverterDelegate` wrapper for cross-module discovery
      * without needing the original `KSFunctionDeclaration`. [originatingFiles] is
      * forwarded to KSP's [com.google.devtools.ksp.processing.Dependencies].
+     *
+     * [keyCollision] is computed from the enum mapping's entry table: the source entries that
+     * map to one target entry, or null when the mapping is one-to-one. Only a one-to-one
+     * mapping may map `Map` keys (KRAFT-E064). Auto-derived mappings are one-to-one by
+     * construction.
      */
     data class Synthetic(
         override val packageName: String,
         override val simpleName: String,
         val sourceTypeInfo: TypeInfo,
         val targetTypeInfo: TypeInfo,
-        val originatingFiles: List<KSFile>
-    ) : ConverterEntry()
+        val originatingFiles: List<KSFile>,
+        val keyCollision: EnumKeyCollision?
+    ) : ConverterEntry() {
+        /** True when no two source entries map to the same target entry. */
+        val isInjective: Boolean get() = keyCollision == null
+    }
 }
 
 /**

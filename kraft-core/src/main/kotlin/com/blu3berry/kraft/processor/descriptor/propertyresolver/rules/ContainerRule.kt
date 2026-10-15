@@ -250,7 +250,8 @@ class ContainerRule : MappingRule {
         val srcElement = source.element ?: return RuleOutcome.Pass
         val tgtElement = targetContainer.element ?: return RuleOutcome.Pass
 
-        if (srcElement.ksType != tgtElement.ksType) return resolveRecursive(sourceProp, target, ctx)
+        val keysDiffer = source.key?.ksType != targetContainer.key?.ksType
+        if (srcElement.ksType != tgtElement.ksType || keysDiffer) return resolveRecursive(sourceProp, target, ctx)
 
         if (isLossyContainerConversion(source.kind, targetContainer.kind)) {
             ContainerShapeBuilder.reportLossy(target, ctx, sourceProp.type, target.type)
@@ -294,12 +295,11 @@ class ContainerRule : MappingRule {
     // ---------- Shared helpers ----------
 
     /**
-     * False for a map against a single-element container, and for two maps whose key types differ
-     * (a later group maps those): the property is left to the rest of the chain (KRAFT-E005).
+     * False for a map against a single-element container: the property is left to the rest of the
+     * chain (KRAFT-E005).
      */
     private fun claimsMapShape(source: ContainerTypeInfo, target: ContainerTypeInfo): Boolean =
-        source.kind.isKeyed == target.kind.isKeyed &&
-            (!source.kind.isKeyed || source.key?.ksType == target.key?.ksType)
+        source.kind.isKeyed == target.kind.isKeyed
 
     /** A `Map` -> `MutableMap` copy: same keys, same values. */
     private fun keyedMapping(

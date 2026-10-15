@@ -6,6 +6,7 @@ import com.blu3berry.kraft.model.descriptor.ContainerShape
 import com.blu3berry.kraft.model.descriptor.ElementOp
 import com.blu3berry.kraft.model.descriptor.MappingContext
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.LeafOperationResolver
+import com.blu3berry.kraft.processor.util.nonInjectiveMapKey
 import com.blu3berry.kraft.processor.util.ContainerTypeInfo
 import com.blu3berry.kraft.processor.util.isContainerSubtype
 import com.blu3berry.kraft.processor.util.isLossyContainerConversion
@@ -37,7 +38,7 @@ internal object ContainerShapeBuilder {
         val source = mappedContainerOf(srcType) ?: return Built.Fail
         val targetContainer = mappedContainerOf(tgtType) ?: return Built.Fail
         if (source.kind.isKeyed != targetContainer.kind.isKeyed) return Built.Fail
-        if (source.kind.isKeyed) return buildKeyed(srcType, tgtType, source, targetContainer, ctx)
+        if (source.kind.isKeyed) return buildKeyed(srcType, tgtType, source, targetContainer, target, ctx)
         val srcElement = source.element ?: return Built.Fail
         val tgtElement = targetContainer.element ?: return Built.Fail
 
@@ -66,24 +67,33 @@ internal object ContainerShapeBuilder {
     }
 
     /**
-     * The [ContainerShape.Keyed] for a `Map` / `MutableMap` pair with identical key types and
-     * differing value types. [Built.Fail] for different keys and for container values (neither is
-     * mapped yet), and for nullable values into non-null values: dropping a null value would also
-     * drop its key, so KRAFT-E005 reports it.
+     * The [ContainerShape.Keyed] for a `Map` / `MutableMap` pair whose key or value types differ.
+     * Keys map only through a one-to-one operation (see [buildKey]). [Built.Fail] for container
+     * values (not mapped yet), and for nullable values into non-null values: dropping a null value
+     * would also drop its key, so KRAFT-E005 reports it. [Built.Reported] once KRAFT-E064 is
+     * reported for the keys.
      */
-    @Suppress("ReturnCount")
+    @Suppress("ReturnCount", "LongParameterList")
     private fun buildKeyed(
         srcType: TypeInfo,
         tgtType: TypeInfo,
         source: ContainerTypeInfo,
         targetContainer: ContainerTypeInfo,
+        target: PropertyInfo,
         ctx: MappingContext
     ): Built {
         val srcKey = source.key ?: return Built.Fail
         val tgtKey = targetContainer.key ?: return Built.Fail
         val srcValue = source.element ?: return Built.Fail
         val tgtValue = targetContainer.element ?: return Built.Fail
-        if (srcKey.ksType != tgtKey.ksType) return Built.Fail
+        val key = if (srcKey.ksType == tgtKey.ksType) {
+            leaf(ElementOp.Identity, srcKey, tgtKey)
+        } else {
+            when (val built = buildKey(srcType, tgtType, srcKey, tgtKey, target, ctx)) {
+                is Built.Ok -> built.shape as ContainerShape.Leaf
+                else -> return built
+            }
+        }
 
         val value = if (srcValue.ksType == tgtValue.ksType) {
             leaf(ElementOp.Identity, srcValue, tgtValue)
@@ -97,12 +107,45 @@ internal object ContainerShapeBuilder {
             ContainerShape.Keyed(
                 sourceKind = source.kind,
                 targetKind = targetContainer.kind,
-                key = leaf(ElementOp.Identity, srcKey, tgtKey),
+                key = key,
                 value = value,
                 sourceNullable = srcType.isNullable,
                 targetNullable = tgtType.isNullable
             )
         )
+    }
+
+    /**
+     * The key leaf for differing key types. The key operation is resolved as for an element, and
+     * accepted only when it is one-to-one: a value-class wrap or unwrap, or an enum mapping whose
+     * entry table maps no two entries to one (see [MapKeyInjectivity]). Any other
+     * operation (a nested mapper, a `@KraftConverter`, a many-to-one `@MapEnum`, a converter from
+     * another module) could merge two keys and drop an entry, so KRAFT-E064 is reported.
+     * [Built.Fail] when no operation applies, and for nullable keys, which are not mapped: the
+     * rest of the chain reports KRAFT-E005.
+     */
+    @Suppress("ReturnCount", "LongParameterList")
+    private fun buildKey(
+        parentSource: TypeInfo,
+        parentTarget: TypeInfo,
+        srcKey: TypeInfo,
+        tgtKey: TypeInfo,
+        target: PropertyInfo,
+        ctx: MappingContext
+    ): Built {
+        if (srcKey.isNullable || tgtKey.isNullable) return Built.Fail
+        if (mappedContainerOf(srcKey) != null || mappedContainerOf(tgtKey) != null) return Built.Fail
+        val op = autoElementOp(parentSource, parentTarget, srcKey, tgtKey, ctx) ?: return Built.Fail
+        val refusal = MapKeyInjectivity.refusal(op, srcKey, tgtKey, ctx) ?: return Built.Ok(leaf(op, srcKey, tgtKey))
+        ctx.logger.nonInjectiveMapKey(
+            propertyName = target.name,
+            sourceKey = typeName(srcKey),
+            targetKey = typeName(tgtKey),
+            operation = refusal.operation,
+            effect = refusal.effect,
+            symbol = target.declaration
+        )
+        return Built.Reported
     }
 
     /** The element shape for differing element types: a nested container level, or a leaf operation. */

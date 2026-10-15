@@ -224,7 +224,7 @@ You do not need a `@MapUsing` helper that only maps a collection element by elem
 
 ## Maps
 
-`Map` and `MutableMap` properties are mapped value by value when the key types are identical on both sides. Each value uses the operation Kraft would use for a single property of the value types: a nested mapper, an enum mapper, a `@KraftConverter`, or a value-class wrap or unwrap.
+`Map` and `MutableMap` properties are mapped value by value, and their keys are mapped when the key types differ (see [Map keys](#map-keys)). Each value uses the operation Kraft would use for a single property of the value types: a nested mapper, an enum mapper, a `@KraftConverter`, or a value-class wrap or unwrap.
 
 ```kotlin
 // Source: val byId: Map<String, ItemSource>
@@ -248,7 +248,32 @@ Two shapes are errors:
 - **Nullable values into non-null values** (`Map<String, ItemSource?>` into `Map<String, ItemDto>`) fail with [`KRAFT-E005`](errors.md#kraft-e005). Unlike a list, a map cannot drop the null: removing the value would also remove its key.
 - **A map and a non-map** (`Map<String, ItemSource>` into `List<ItemDto>`) fail with [`KRAFT-E005`](errors.md#kraft-e005).
 
-Maps with different key types, and maps whose values are collections, are not mapped yet and also report `KRAFT-E005`. A hand-written `@MapUsing` that only repeats the `mapValues` call triggers [`KRAFT-W001`](errors.md#kraft-w001).
+Maps whose values are collections are not mapped yet and also report `KRAFT-E005`. A hand-written `@MapUsing` that only repeats the `mapValues` call triggers [`KRAFT-W001`](errors.md#kraft-w001).
+
+### Map keys
+
+A map holds one entry per key, so a key mapping that turns two different keys into one would silently drop an entry. Kraft maps keys only through operations that are one-to-one:
+
+- a **value-class wrap** (`String` key into a `UserId` key),
+- a **value-class unwrap** (`UserId` key into a `String` key),
+- an **enum mapping in which no two source entries map to the same target entry**: an auto-derived enum mapping (same-named entries, always one-to-one) or a one-to-one `@MapEnum`.
+
+| Source | Target | Generated |
+|---|---|---|
+| `Map<String, ItemSource>` | `Map<UserId, ItemDto>` | `this.byUser.entries.associate { UserId(it.key) to it.value.toItemDto() }` |
+| `Map<UserId, Int>` | `Map<String, Int>` | `this.counts.mapKeys { it.key.value }` |
+| `Map<StatusDto, Int>` | `Map<Status, Int>` | `this.counts.mapKeys { it.key.toStatus() }` |
+
+`mapKeys` is used when only the keys change, `mapValues` when only the values change, and `entries.associate { … }` when both do. A `MutableMap` target adds `.toMutableMap()`, and a nullable source map is safe-called as for values.
+
+Any other key operation fails with [`KRAFT-E064`](errors.md#kraft-e064), because Kraft cannot prove it one-to-one:
+
+- a **nested mapper** (`Map<KeySource, Int>` into `Map<KeyDto, Int>`),
+- a **`@KraftConverter`** (`@KraftConverter fun Long.toKey(): String` for `Map<Long, Int>` into `Map<String, Int>`),
+- a **`@MapEnum` that maps two or more source entries to the same target entry**,
+- an enum mapper or converter **compiled in another module**, whose entry table Kraft cannot see.
+
+A many-to-one `@MapEnum` is still fine for map **values**: `Map<String, StatusDto>` into `Map<String, Status>` generates `this.m.mapValues { it.value.toStatus() }`. Nullable keys are not mapped and report `KRAFT-E005`. To map keys some other way, map the property with `@MapUsing`.
 
 ## Renamed Collection Properties
 
@@ -275,3 +300,4 @@ Generated: `tags = this.articleTags.map { it.toTagDto() }`
 
 - **Element type is not a concrete class** (e.g., an interface): compile-time error ([`KRAFT-E015`](errors.md#kraft-e015)) naming the element type that "is not a concrete class"
 - **Lossy collection conversion** (e.g., `List` on source, `Set` on target): fails with [`KRAFT-E063`](errors.md#kraft-e063), see [The Set rule](#the-set-rule)
+- **Map keys that could merge entries** (a nested mapper, a `@KraftConverter` or a many-to-one `@MapEnum` on the keys): fails with [`KRAFT-E064`](errors.md#kraft-e064), see [Map keys](#map-keys)

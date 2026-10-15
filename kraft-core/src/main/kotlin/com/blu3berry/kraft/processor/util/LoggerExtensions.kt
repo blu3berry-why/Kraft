@@ -682,6 +682,41 @@ fun KSPLogger.lossyCollectionConversion(
 )
 
 /**
+ * `Map` keys would be mapped by an operation Kraft cannot prove one-to-one, so two keys could
+ * become one and an entry would be dropped.
+ *
+ * @param sourceKey The source key type as shown to the user, e.g. `KeySource`.
+ * @param targetKey The target key type as shown to the user, e.g. `KeyDto`.
+ * @param operation The operation the keys would go through, e.g. `a nested mapper`.
+ * @param effect    What that operation does to the keys, completing the sentence after "which",
+ *                  e.g. `can map two different keys to the same key and silently drop entries`.
+ */
+@Suppress("LongParameterList")
+fun KSPLogger.nonInjectiveMapKey(
+    propertyName: String,
+    sourceKey: String,
+    targetKey: String,
+    operation: String,
+    effect: String,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.NON_INJECTIVE_MAP_KEY,
+    """
+    Cannot map property '$propertyName': keys $sourceKey → $targetKey would go through $operation, which $effect.
+
+    Why:
+    A map holds one entry per key. If two source keys map to the same target key, all but one
+    of their entries disappear without a trace. Kraft maps keys only through operations it can
+    prove one-to-one: a value-class wrap or unwrap, or an enum mapping that maps no two entries
+    to the same entry.
+
+    How to fix:
+      ✓ Keep the key type the same on both sides, use a value-class or one-to-one enum key, or map the property with @MapUsing.
+    """.trimIndent(),
+    symbol
+)
+
+/**
  * Multiple @NestedMapping declarations in @MapConfig share the same target type,
  * making it impossible to unambiguously select one for the current target property.
  */

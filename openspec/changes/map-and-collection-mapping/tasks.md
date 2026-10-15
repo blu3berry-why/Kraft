@@ -55,10 +55,10 @@
 
 > Agent: opus · effort high · scope: kraft-core/src/main/**, kraft-ksp/src/main/**, kraft-ksp/src/jvmTest/**, docs/user-guide/errors.md, docs/user-guide/collection-mapping.md · verify: ./gradlew :kraft-ksp:jvmTest · after: 5
 
-- [ ] 6.1 Expose enum-mapping injectivity on `ConverterEntry.Synthetic` (design D4), computed from the `EnumMappingDescriptor` entry table. Verify with a jvmTest unit test: an auto-derived mapping is injective, and a `@MapEnum` mapping two entries to one is not.
-- [ ] 6.2 Add key leaves (`mapKeys`, `entries.associate`) for `Identity`, `Wrap`, `Unwrap` and injective enum ops. Verify with jvmTest `MapKeyTest`, covering "Value class keys and nested values", "Keys only", "Auto-derived enum keys" and "One-to-one @MapEnum keys".
-- [ ] 6.3 Add `KraftDiagnostic.NON_INJECTIVE_MAP_KEY` (KRAFT-E064) and its `errors.md` entry, with the operation-specific message text. Verify with `MapKeyTest` scenarios "Nested-mapper keys" (both quoted strings), "@KraftConverter keys", "Many-to-one @MapEnum keys" and "Many-to-one enum as a value is still allowed", plus a green `ErrorsReferenceCompletenessTest`.
-- [ ] 6.4 Document the key rules in `collection-mapping.md`. Verify that the doc lists exactly the allowed key operations from the spec.
+- [x] 6.1 Expose enum-mapping injectivity on `ConverterEntry.Synthetic` (design D4), computed from the `EnumMappingDescriptor` entry table. Verify with a jvmTest unit test: an auto-derived mapping is injective, and a `@MapEnum` mapping two entries to one is not.
+- [x] 6.2 Add key leaves (`mapKeys`, `entries.associate`) for `Identity`, `Wrap`, `Unwrap` and injective enum ops. Verify with jvmTest `MapKeyTest`, covering "Value class keys and nested values", "Keys only", "Auto-derived enum keys" and "One-to-one @MapEnum keys".
+- [x] 6.3 Add `KraftDiagnostic.NON_INJECTIVE_MAP_KEY` (KRAFT-E064) and its `errors.md` entry, with the operation-specific message text. Verify with `MapKeyTest` scenarios "Nested-mapper keys" (both quoted strings), "@KraftConverter keys", "Many-to-one @MapEnum keys" and "Many-to-one enum as a value is still allowed", plus a green `ErrorsReferenceCompletenessTest`.
+- [x] 6.4 Document the key rules in `collection-mapping.md`. Verify that the doc lists exactly the allowed key operations from the spec.
 
 ## 7. Maps nested with collections
 
