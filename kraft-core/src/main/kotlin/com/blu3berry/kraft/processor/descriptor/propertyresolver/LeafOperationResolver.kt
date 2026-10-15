@@ -42,7 +42,13 @@ object LeafOperationResolver {
         autoNested(source, target)?.let { return ElementOp.Nested(it) }
         val key = converterKey(source, target)
         val converter = key?.let { ctx.globalConverters.lookup(it) }
-        if (converter is ConverterEntry.Synthetic) return ElementOp.Nested(nestedDescriptor(source, target))
+        // Enum mappers are registered for the non-null pair only; like a real converter, that
+        // entry also serves nullable elements, rendered as `it?.toB()` / `mapNotNull`.
+        val synthetic = converter as? ConverterEntry.Synthetic
+            ?: key?.takeIf { converter == null }
+                ?.let { ctx.globalConverters.lookup(it.copy(sourceNullable = false, targetNullable = false)) }
+                as? ConverterEntry.Synthetic
+        if (synthetic != null) return ElementOp.Nested(nestedDescriptor(source, target))
         realConverterOp(source, target, key, converter, ctx)?.let { return it }
         return valueClassElementOp(source, target)
     }

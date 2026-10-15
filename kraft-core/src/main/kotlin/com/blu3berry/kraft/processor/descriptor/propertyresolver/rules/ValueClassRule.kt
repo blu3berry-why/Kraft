@@ -5,7 +5,7 @@ import com.blu3berry.kraft.model.descriptor.MappingContext
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.LeafOperationResolver
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
-import com.blu3berry.kraft.processor.util.mappedContainerOf
+import com.blu3berry.kraft.processor.util.isMappedContainerPair
 
 /**
  * Auto-wraps and unwraps value classes against their underlying type:
@@ -30,8 +30,9 @@ class ValueClassRule : MappingRule {
         val source = ctx.sourceProps[sourceName] ?: return null
         if (source.type.ksType == target.type.ksType) return null
 
-        // Container properties are ContainerRule's; a container is never wrapped or unwrapped whole.
-        if (mappedContainerOf(source.type) != null || mappedContainerOf(target.type) != null) return null
+        // Container-to-container pairs are ContainerRule's. A value class may still wrap a whole
+        // container (`value class Attrs(val value: Map<String, String>)`), as in 0.13.
+        if (isMappedContainerPair(source.type, target.type)) return null
         return resolveScalar(target, source)
     }
 

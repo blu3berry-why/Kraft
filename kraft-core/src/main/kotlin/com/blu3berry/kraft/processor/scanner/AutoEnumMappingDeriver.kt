@@ -101,7 +101,9 @@ class AutoEnumMappingDeriver {
         // isMappableClass (which enums always do).
         for ((elementSource, elementTarget) in resolveRecursableTypes(sourceType, targetType)) {
             if (elementSource === sourceType) continue  // not a container — already handled by the leaf call above
-            tryDeriveEnumDescriptor(elementSource, elementTarget, covered, out)
+            // A nullable element (List<StatusDto?>) still needs the non-null mapper: the
+            // generated call safe-calls it (`it?.toStatus()`), so derive the non-null pair.
+            tryDeriveEnumDescriptor(elementSource.makeNotNullable(), elementTarget.makeNotNullable(), covered, out)
                 ?.also { out.putIfAbsent(it.fqKey(), it) }
         }
     }
