@@ -22,6 +22,9 @@ enum class ContainerKind(val qualifiedName: String, val isKeyed: Boolean = false
     MAP("kotlin.collections.Map", isKeyed = true),
     MUTABLE_MAP("kotlin.collections.MutableMap", isKeyed = true);
 
+    /** The declaration's simple name (`List`), as shown in diagnostics. */
+    val simpleName: String get() = qualifiedName.substringAfterLast('.')
+
     companion object {
         private val byQualifiedName = entries.associateBy { it.qualifiedName }
 

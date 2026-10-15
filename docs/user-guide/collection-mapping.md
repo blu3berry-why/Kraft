@@ -1,6 +1,6 @@
 # Collection Mapping
 
-Kraft supports nested mapping inside `List<T>` and `Set<T>` collections. When the source and target have collection properties with different element types, Kraft automatically generates both a parent mapper and a child mapper for the element type pair.
+Kraft maps collection properties element by element: `List`, `Set`, `Collection`, `Iterable`, `Array`, `MutableList`, `MutableSet` and `MutableCollection`. When the source and target have collection properties with different element types, Kraft automatically generates both a parent mapper and a child mapper for the element type pair.
 
 ## How It Works
 
@@ -60,6 +60,60 @@ fun OrderSource.toOrderDto(): OrderDto = OrderDto(
     items = this.items.map { it.toItemDto() }.toSet()
 )
 ```
+
+## Supported Collection Types
+
+Source and target may each be any of these types, and they need not be the same one:
+
+| Type | Appended after `.map { ... }` |
+|---|---|
+| `List`, `Collection`, `Iterable` | nothing |
+| `Set` | `.toSet()` |
+| `Array` | `.toTypedArray()` |
+| `MutableList`, `MutableCollection` | `.toMutableList()` |
+| `MutableSet` | `.toMutableSet()` |
+
+```kotlin
+// Source: val items: Array<ItemSource>
+// Target: val items: Array<ItemDto>
+```
+
+Generated: `items = this.items.map { it.toItemDto() }.toTypedArray()`
+
+### Converting between collection types
+
+When the source and target types differ, Kraft converts as long as every element survives:
+
+| Source | Target | Generated |
+|---|---|---|
+| `Array<ItemSource>` | `List<ItemDto>` | `this.items.map { it.toItemDto() }` |
+| `Set<ItemSource>` | `List<ItemDto>` | `this.items.map { it.toItemDto() }` |
+| `Iterable<ItemSource>` | `MutableCollection<ItemDto>` | `this.items.map { it.toItemDto() }.toMutableList()` |
+| `Set<ItemSource>` | `MutableSet<ItemDto>` | `this.items.map { it.toItemDto() }.toMutableSet()` |
+| `Array<String>` | `List<String>` | `this.tags.toList()` |
+| `List<String>` | `Collection<String>` | `this.tags` (already a supertype, no copy) |
+
+Any source type converts into `List`, `Collection`, `Iterable`, `Array`, `MutableList` and `MutableCollection`. Only a `Set` or `MutableSet` converts into a `Set` or `MutableSet`.
+
+### The Set rule
+
+A `List`, `Array` or other collection that may hold duplicates is never converted into a `Set` or `MutableSet`, because the duplicates would be dropped without a trace. Kraft fails compilation with [`KRAFT-E063`](errors.md#kraft-e063):
+
+```kotlin
+// Source: val items: List<ItemSource>
+// Target: val items: Set<ItemDto>
+```
+
+```text
+[KRAFT-E063] Cannot map property 'items': converting List<ItemSource> to Set<ItemDto> would drop duplicate elements.
+Change the target to List<ItemDto>, or map it with @MapUsing and call .toSet() explicitly.
+```
+
+The same check applies to the reverse mapper that `@MapReverse` generates: a `Set<ItemSource>` to `List<ItemDto>` mapper compiles, but its reverse would turn a `List` into a `Set` and is refused.
+
+### Deprecated nested-mapping annotations
+
+`@MapNested` and `@MapConfig(nestedMappings = ...)` are deprecated and stay frozen at their 0.13 behaviour: they work only for `List` and `Set` of the same kind, with the output they always had (including the existing `List` to `Set` conversion through an explicit `NestedMapping` with a `FieldMapping` rename, which is not checked by E063). The other collection types and conversions on this page come from auto-detection and `@MapField` / `FieldMapping` renames only.
 
 ## Auto-Detection
 
@@ -181,5 +235,5 @@ Generated: `tags = this.articleTags.map { it.toTagDto() }`
 
 ## Error Cases
 
-- **Element type is not a concrete class** (e.g., an interface): compile-time error stating the element type "is not a concrete class"
-- **Mismatched collection kinds** (e.g., `List` on source, `Set` on target with the same element type): produces a type mismatch compilation error
+- **Element type is not a concrete class** (e.g., an interface): compile-time error ([`KRAFT-E015`](errors.md#kraft-e015)) naming the element type that "is not a concrete class"
+- **Lossy collection conversion** (e.g., `List` on source, `Set` on target): fails with [`KRAFT-E063`](errors.md#kraft-e063), see [The Set rule](#the-set-rule)

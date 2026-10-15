@@ -609,8 +609,9 @@ fun KSPLogger.nullableNestedSource(
 )
 
 /**
- * @MapNested used on a property whose type is not a concrete mappable class
- * (e.g. interface, generic type parameter, collection).
+ * A nested mapping involves a type that is not a concrete mappable class
+ * (e.g. an interface or a generic type parameter). For a collection property,
+ * [typeName] names the element type that is not mappable.
  */
 fun KSPLogger.nestedTypeNotMappable(
     propertyName: String,
@@ -623,14 +624,44 @@ fun KSPLogger.nestedTypeNotMappable(
 
     Why:
     Nested mapping requires both the source and target types to be concrete
-    classes with a primary constructor. Interfaces, generic type parameters,
-    and non-List collections are not supported directly.
-    For List<T> properties, T must itself be a mappable class.
+    classes with a primary constructor. Interfaces, abstract and sealed classes,
+    and generic type parameters are not supported directly.
+    For a collection property, the element type must itself be a mappable class.
 
     How to fix:
       ✓ Use a @MapUsing converter for this property.
-      ✓ Or ensure the List element type is a concrete mappable class.
+      ✓ Or ensure the element type '$typeName' is a concrete mappable class.
       ✓ Or declare an explicit @MapConfig with a @NestedMapping for this pair.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * A collection property would be converted into a `Set` from a non-`Set` type,
+ * which silently drops duplicate elements.
+ *
+ * @param sourceType The source container as shown to the user, e.g. `List<ItemSource>`.
+ * @param targetType The target container as shown to the user, e.g. `Set<ItemDto>`.
+ * @param listType   The `List` form of the target the user can switch to, e.g. `List<ItemDto>`.
+ */
+fun KSPLogger.lossyCollectionConversion(
+    propertyName: String,
+    sourceType: String,
+    targetType: String,
+    listType: String,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.LOSSY_COLLECTION_CONVERSION,
+    """
+    Cannot map property '$propertyName': converting $sourceType to $targetType would drop duplicate elements.
+
+    Why:
+    A Set holds each element once, so building one from a List, Array or other
+    collection that may contain duplicates would lose elements without a trace.
+    Kraft only generates conversions that keep every element.
+
+    How to fix:
+      ✓ Change the target to $listType, or map it with @MapUsing and call .toSet() explicitly.
     """.trimIndent(),
     symbol
 )

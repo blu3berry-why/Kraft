@@ -1,7 +1,7 @@
 ---
 name: kraft-mappers
 description: |
-  Authoring guide for the Kraft KSP automapper library (com.blu3berry.kraft) in Kotlin/KMP. Covers the decision tree for @MapConfig, @MapEnum, @KraftConverter, and @MapUsing (including whole-source mode for decompose/compose/constant/default patterns); reverse mapping with @MapReverse; the Gradle plugin and kraft { } DSL (side aliases, functionNameFormat, moduleId); placement and naming conventions; what Kraft already does automatically (element-wise List/Set mapping, nullable collection and nullable-scalar bridging); and the kmpgen-DTO interaction gotchas (K1, K-A1, K3, K4, K5, K6). Use this skill whenever writing or reviewing mappers in a project that depends on Kraft. Trigger on phrases like "Kraft mapper", "@MapConfig", "@KraftConverter", "@MapEnum", "@MapReverse", "DTO mapper", "auto-mapper", "side alias", "kraft plugin", or anytime a `*Mappers.kt` file is being authored.
+  Authoring guide for the Kraft KSP automapper library (com.blu3berry.kraft) in Kotlin/KMP. Covers the decision tree for @MapConfig, @MapEnum, @KraftConverter, and @MapUsing (including whole-source mode for decompose/compose/constant/default patterns); reverse mapping with @MapReverse; the Gradle plugin and kraft { } DSL (side aliases, functionNameFormat, moduleId); placement and naming conventions; what Kraft already does automatically (element-wise List/Set/Collection/Iterable/Array/Mutable* mapping, nullable collection and nullable-scalar bridging); and the kmpgen-DTO interaction gotchas (K1, K-A1, K3, K4, K5, K6). Use this skill whenever writing or reviewing mappers in a project that depends on Kraft. Trigger on phrases like "Kraft mapper", "@MapConfig", "@KraftConverter", "@MapEnum", "@MapReverse", "DTO mapper", "auto-mapper", "side alias", "kraft plugin", or anytime a `*Mappers.kt` file is being authored.
 ---
 
 # Kraft Mappers — Authoring Guide
@@ -26,8 +26,8 @@ When you call those functions, they try to resolve every property of `Target` fr
 - **Registered converter** — call the matching `@KraftConverter` extension or `@MapUsing` function
 - **Nested mapper** — if both types have a `@MapConfig` registered for them, recurse
 - **Enum mapper** — if both enums have a `@MapEnum` registered (or auto-derive when entries align by name)
-- **Value class** — `UserId(val value: String)` ↔ `String` is wrapped/unwrapped automatically (also nullable, `List`/`Set` elements); do NOT write a `@KraftConverter` for it unless the conversion is not a plain wrap/unwrap
-- **Collection element mapping** — `List<A>`/`Set<A>` → `List<B>`/`Set<B>` maps element-wise, using the nested mapper or the `@MapEnum` pair for `A → B`
+- **Value class** — `UserId(val value: String)` ↔ `String` is wrapped/unwrapped automatically (also nullable, collection elements); do NOT write a `@KraftConverter` for it unless the conversion is not a plain wrap/unwrap
+- **Collection element mapping** — any of `List`, `Set`, `Collection`, `Iterable`, `Array`, `MutableList`, `MutableSet`, `MutableCollection` maps element-wise into any of them, using the nested mapper or the `@MapEnum` pair for `A → B`. Every conversion that keeps all elements is generated; a non-`Set` into a `Set`/`MutableSet` is refused with KRAFT-E063
 
 If none resolves, Kraft fails compilation with a `Type mismatch` or `Required property has no mapping source` error.
 
@@ -37,7 +37,10 @@ These recur as "Kraft can't do this" and all four are native. Reach for an annot
 
 | Shape | Emitted for you |
 |---|---|
-| `List<A>` → `List<B>`, `Set<A>` → `Set<B>` | `.map { it.toB() }`, plus `.toSet()` for sets — where `A → B` is a nested mapper (two mappable classes) or a `@MapEnum` pair |
+| `List<A>` → `List<B>`, `Set<A>` → `Set<B>`, and the same for `Collection`, `Iterable`, `Array`, `MutableList`, `MutableSet`, `MutableCollection` | `.map { it.toB() }`, plus `.toSet()` / `.toTypedArray()` / `.toMutableList()` / `.toMutableSet()` for the target type — where `A → B` is a nested mapper (two mappable classes) or a `@MapEnum` pair |
+| `Array<A>` → `List<B>`, `Set<A>` → `List<B>` | `.map { it.toB() }` — any source converts into `List`/`Collection`/`Iterable`/`Array`/`MutableList`/`MutableCollection` |
+| `Array<String>` → `List<String>`, `List<String>` → `Collection<String>` | `this.tags.toList()`, and a plain `this.tags` (already a supertype) |
+| `List<A>` → `Set<B>` (any non-`Set` into a `Set`/`MutableSet`) | **KRAFT-E063**, not generated: duplicates would be dropped. Change the target to a `List`, or `@MapUsing` with an explicit `.toSet()` |
 | `List<A>?` → `List<B>` | `this.xs?.map { it.toB() } ?: emptyList()` — the nullable source needs **no** `@MapUsing` |
 | `List<A?>` → `List<B>` | `this.xs.mapNotNull { it?.toB() }` |
 | `A?` → `B?` with only a non-null `A → B` converter registered | `this.x?.toB()` — the non-null bridge is threaded through a safe call (Kraft 0.13.0+) |
@@ -78,10 +81,12 @@ Source S, Target T:
 │     ↑ registers the pair globally — List<S>/Set<S> properties of that enum
 │       are then converted element-wise with no extra annotation
 │
-├── Both are List<…> or Set<…> of types that themselves map
+├── Both are collections (List, Set, Collection, Iterable, Array, Mutable*) of types that themselves map
 │   → nothing. Element-wise mapping is automatic, nullable sources included.
 │     Annotate the ELEMENT pair (@MapConfig for classes, @MapEnum for enums),
 │     never the collection — a converter for List<A> → List<B> is rejected.
+│     A collection type change that keeps every element is automatic too
+│     (Array → List, Set → List); a non-Set into a Set is E063.
 │     Caveat: a hand-written @KraftConverter is NOT applied at element position (K6).
 │
 ├── Conversion requires logic on a single type pair (Uuid → String, format, parse)

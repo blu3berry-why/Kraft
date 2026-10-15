@@ -314,7 +314,7 @@ data class UserDto(val address: AddressDto) // error: nullable source, non-null 
 
 **Severity:** error
 
-**Cause:** A nested mapping involves a type that is not a concrete class with a primary constructor, such as an interface, a type parameter or a non-`List` collection.
+**Cause:** A nested mapping involves a type that is not a concrete class with a primary constructor, such as an interface, an abstract or sealed class, or a type parameter. For a collection property, the message names the element type that is not mappable.
 
 ```kotlin
 interface Shape
@@ -330,7 +330,7 @@ data class Target(
 **Fix:**
 
 - Use a `@MapUsing` converter for this property.
-- Or make sure the `List` element type is a concrete mappable class.
+- Or make sure the collection's element type is a concrete mappable class.
 - Or declare an explicit `@MapConfig` with a `@NestedMapping` for the pair.
 
 ### KRAFT-E016 — Ambiguous nested mapping {#kraft-e016}
@@ -1176,6 +1176,30 @@ object SourceToTargetBMapper
 
 - Disambiguate via the side template, for example `to{side}{target}` instead of `to{side}`.
 - Or set `aliasEmitMode = AliasEmitMode.FULL_NAME_ONLY` on one of the mappers.
+
+### KRAFT-E063 — Lossy collection conversion {#kraft-e063}
+
+**Severity:** error
+
+**Cause:** A collection property would be converted into a `Set` or `MutableSet` from something that is not a `Set` or `MutableSet`. Duplicate elements would be dropped without a trace, so Kraft refuses to generate the conversion. It applies at every nesting level and to the reverse mapper that `@MapReverse` generates: a mapper from `Set` to `List` forward is fine, but its reverse would turn a `List` into a `Set`.
+
+The deprecated `@MapNested` and `nestedMappings` paths are frozen at their 0.13 behaviour and are not checked.
+
+```kotlin
+data class ItemSource(val id: Int)
+data class ItemDto(val id: Int)
+
+data class Source(val items: List<ItemSource>)
+data class Target(val items: Set<ItemDto>) // error: converting List<ItemSource> to Set<ItemDto> would drop duplicate elements
+
+@MapConfig(source = Source::class, target = Target::class)
+object SourceToTargetMapper
+```
+
+**Fix:**
+
+- Change the target to `List<ItemDto>` (or another collection that keeps duplicates).
+- Or map the property with `@MapUsing` and call `.toSet()` explicitly, which makes the dropped duplicates your decision.
 
 ## Warnings
 

@@ -208,6 +208,9 @@ enum class KraftDiagnostic(
     /** Two mappers generate the same side alias name. */
     ALIAS_COLLISION("KRAFT-E062", Severity.ERROR, "Alias collision"),
 
+    /** A collection would be converted into a `Set` from a non-`Set`, silently dropping duplicate elements. */
+    LOSSY_COLLECTION_CONVERSION("KRAFT-E063", Severity.ERROR, "Lossy collection conversion"),
+
     /** A `BOTH`-direction `@MapIgnoreField` names a property missing from one direction's target. */
     IGNORE_FIELD_NOT_FOUND_BOTH("KRAFT-W003", Severity.WARNING, "@MapIgnoreField(BOTH) property not found"),
 

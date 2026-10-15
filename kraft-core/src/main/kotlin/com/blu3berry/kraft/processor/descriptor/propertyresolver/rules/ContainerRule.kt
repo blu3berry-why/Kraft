@@ -13,26 +13,38 @@ import com.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
 import com.blu3berry.kraft.processor.util.ContainerTypeInfo
 import com.blu3berry.kraft.processor.util.ambiguousNestedDescriptors
 import com.blu3berry.kraft.processor.util.ambiguousNestedSourceProperty
+import com.blu3berry.kraft.processor.util.isContainerSubtype
+import com.blu3berry.kraft.processor.util.isLegacyContainerPair
+import com.blu3berry.kraft.processor.util.isLossyContainerConversion
 import com.blu3berry.kraft.processor.util.isMappableClass
 import com.blu3berry.kraft.processor.util.isMappedContainerPair
+import com.blu3berry.kraft.processor.util.legacyContainerOf
+import com.blu3berry.kraft.processor.util.lossyCollectionConversion
 import com.blu3berry.kraft.processor.util.mappedContainerOf
 import com.blu3berry.kraft.processor.util.nestedMappingSourceNotFound
 import com.blu3berry.kraft.processor.util.nestedTypeNotMappable
 
 /**
  * Maps container-typed properties element-wise, producing a
- * [PropertyMappingStrategy.ContainerMapping]: `items = this.items.map { it.toItemDto() }`.
+ * [PropertyMappingStrategy.ContainerMapping] (or a plain `Direct` when the target type is
+ * already a supertype of the source): `items = this.items.map { it.toItemDto() }`.
  *
  * Handles the [com.blu3berry.kraft.processor.util.MAPPED_CONTAINER_KINDS] in the same order
  * the scalar rules run for a single property:
- * 1. `@MapNested` on the target, when both sides are containers of the same kind.
+ * 1. `@MapNested` and 2. an explicit `@NestedMapping` are deprecated and frozen at their 0.13
+ *    behaviour: they apply only to `List` / `Set` (see
+ *    [com.blu3berry.kraft.processor.util.LEGACY_NESTED_KINDS]), with exactly the old output,
+ *    including the `List` -> `Set` conversion through a `FieldMapping` rename. They never reach
+ *    the other kinds, which go through 3.
  * 2. An explicit `@NestedMapping` whose target is the target's element type. With a
- *    `FieldMapping` override the source may be any mapped container, and the target's kind
- *    decides the result; without one, the single source property of the same kind whose
- *    element is the mapping's source is used.
- * 3. Otherwise, same-kind containers whose elements differ, with the element operation from
- *    [LeafOperationResolver.resolveElement]. A value-class element operation also needs a
- *    nullable source container to have a nullable target.
+ *    `FieldMapping` override the source may be any `List` / `Set`, and the target's kind decides the
+ *    result; without one, the single source property of the same kind whose element is the mapping's
+ *    source is used.
+ * 3. Auto-detection, for every pair of mapped containers: the element operation comes from
+ *    [LeafOperationResolver.resolveElement] (or is the identity when the elements are equal), the
+ *    conversion between the two kinds must keep every element (otherwise KRAFT-E063), and a target
+ *    that is already a supertype of the source is assigned as is. A value-class element operation
+ *    also needs a nullable source container to have a nullable target.
  *
  * Returns `null` when no element operation applies, so the rest of the chain reports the
  * mismatch as it would for a scalar.
@@ -43,24 +55,48 @@ class ContainerRule : MappingRule {
         target: PropertyInfo,
         ctx: MappingContext
     ): PropertyMappingStrategy? {
-        ctx.classNestedOverrides[target.name]?.let { return resolveMapNested(target, ctx, it) }
+        ctx.classNestedOverrides[target.name]?.let { mapNested ->
+            val sourceProp = ctx.sourceProps[mapNested.sourceNameFor(target)] ?: return null
+            return when {
+                isLegacyContainerPair(sourceProp.type, target.type) -> resolveMapNested(target, ctx, mapNested)
+                // Frozen: @MapNested does not reach the other kinds; auto-detection maps them.
+                isMappedContainerPair(sourceProp.type, target.type) -> {
+                    reportMapNestedWarnings(target, ctx, mapNested)
+                    resolveAuto(target, ctx)
+                }
+                else -> null
+            }
+        }
 
-        val targetContainer = mappedContainerOf(target.type)
+        val targetContainer = legacyContainerOf(target.type)
         val targetElement = targetContainer?.element
         if (targetContainer != null && targetElement != null) {
             val candidates = ctx.nestedMappings.filter { it.targetType.qualifiedName == targetElement.qualifiedName }
-            if (candidates.isNotEmpty()) return resolveExplicit(target, ctx, targetContainer, candidates)
+            if (candidates.isNotEmpty() && !hasNewKindSource(target, ctx)) {
+                return resolveExplicit(target, ctx, targetContainer, candidates)
+            }
         }
 
         return resolveAuto(target, ctx)
     }
 
-    // ---------- 1. @MapNested ----------
+    /**
+     * True when the source property that [target] would read is a mapped container the frozen
+     * explicit `NestedMapping` path does not handle (an `Array`, `Collection`, ...), so
+     * auto-detection takes the property instead.
+     */
+    private fun hasNewKindSource(target: PropertyInfo, ctx: MappingContext): Boolean {
+        val sourceName = ctx.configRenames[target.name] ?: ctx.classRenames[target.name] ?: target.name
+        val sourceType = ctx.sourceProps[sourceName]?.type ?: return false
+        return mappedContainerOf(sourceType) != null && legacyContainerOf(sourceType) == null
+    }
+
+    // ---------- 1. @MapNested (frozen: List / Set only) ----------
 
     /**
-     * Claims a `@MapNested` container pair. Returns null without reporting anything when the
-     * pair is not a same-kind container pair (or the source is missing), leaving the
-     * property to [NestedRule], which skips the pairs claimed here.
+     * Claims a `@MapNested` `List` / `Set` pair of the same kind. Returns null without reporting
+     * anything when the pair is not one (or the source is missing), leaving the property to
+     * [NestedRule], which skips the pairs claimed here.
      */
     private fun resolveMapNested(
         target: PropertyInfo,
@@ -68,17 +104,18 @@ class ContainerRule : MappingRule {
         mapNested: MapNestedAnnotation
     ): PropertyMappingStrategy? {
         val sourceProp = ctx.sourceProps[mapNested.sourceNameFor(target)] ?: return null
-        val (source, targetContainer) = containerPair(sourceProp, target) ?: return null
+        val source = legacyContainerOf(sourceProp.type) ?: return null
+        val targetContainer = legacyContainerOf(target.type) ?: return null
 
         reportMapNestedWarnings(target, ctx, mapNested)
 
         val srcElement = source.element?.takeIf { isMappableClass(it) }
         val tgtElement = targetContainer.element?.takeIf { isMappableClass(it) }
         if (srcElement == null || tgtElement == null) {
-            val typeName = if (srcElement == null) sourceProp.type.ksType.toString() else target.type.ksType.toString()
+            val unmappable = if (srcElement == null) source.element else targetContainer.element
             ctx.logger.nestedTypeNotMappable(
                 propertyName = target.name,
-                typeName = typeName,
+                typeName = unmappable?.simpleName ?: sourceProp.type.simpleName,
                 symbol = target.declaration
             )
             return null
@@ -87,7 +124,7 @@ class ContainerRule : MappingRule {
         return linearMapping(target, sourceProp, source, targetContainer, op)
     }
 
-    // ---------- 2. Explicit @NestedMapping ----------
+    // ---------- 2. Explicit @NestedMapping (frozen: List / Set only) ----------
 
     private fun resolveExplicit(
         target: PropertyInfo,
@@ -107,7 +144,7 @@ class ContainerRule : MappingRule {
             )
             return null
         }
-        val overrideContainer = mappedContainerOf(overrideProp.type)
+        val overrideContainer = legacyContainerOf(overrideProp.type)
         val overrideType = overrideContainer?.element ?: overrideProp.type
         val nestedCandidates = candidates.filter { it.sourceType.qualifiedName == overrideType.qualifiedName }
 
@@ -154,7 +191,7 @@ class ContainerRule : MappingRule {
         }
         val nested = candidates.single()
         val sourceCandidates = ctx.sourceProps.values.filter { prop ->
-            val container = mappedContainerOf(prop.type)
+            val container = legacyContainerOf(prop.type)
             container?.kind == targetContainer.kind &&
                 container.element?.qualifiedName == nested.sourceType.qualifiedName
         }
@@ -171,7 +208,7 @@ class ContainerRule : MappingRule {
             }
             1 -> {
                 val sourceProp = sourceCandidates.single()
-                val source = mappedContainerOf(sourceProp.type) ?: return null
+                val source = legacyContainerOf(sourceProp.type) ?: return null
                 linearMapping(target, sourceProp, source, targetContainer, ElementOp.Nested(nested))
             }
             else -> {
@@ -197,29 +234,79 @@ class ContainerRule : MappingRule {
             ?: ctx.configRenames[target.name]
             ?: target.name
         val sourceProp = ctx.sourceProps[sourceName] ?: return null
-        val (source, targetContainer) = containerPair(sourceProp, target) ?: return null
+        val source = mappedContainerOf(sourceProp.type) ?: return null
+        val targetContainer = mappedContainerOf(target.type) ?: return null
+        // Identical types are a direct copy, which DirectMatchRule handles.
+        if (sourceProp.type.ksType == target.type.ksType) return null
         val srcElement = source.element ?: return null
         val tgtElement = targetContainer.element ?: return null
-        if (srcElement.qualifiedName == tgtElement.qualifiedName) return null
 
-        val op = LeafOperationResolver.resolveElement(srcElement, tgtElement, ctx) ?: return null
-        val isValueClassOp = op is ElementOp.Wrap || op is ElementOp.Unwrap
-        if (isValueClassOp && sourceProp.type.isNullable && !target.type.isNullable) return null
+        val sameElements = srcElement.ksType == tgtElement.ksType
+        val op = if (sameElements) {
+            ElementOp.Identity
+        } else {
+            autoElementOp(sourceProp, target, srcElement, tgtElement, ctx) ?: return null
+        }
+
+        if (isLossyContainerConversion(source.kind, targetContainer.kind)) {
+            reportLossy(target, ctx, source to srcElement, targetContainer to tgtElement)
+            return null
+        }
+        if (sameElements) return resolveSameElements(sourceProp, target, source, targetContainer, op)
         return linearMapping(target, sourceProp, source, targetContainer, op)
     }
 
-    // ---------- Shared helpers ----------
-
-    /** The two sides' containers when they are a same-kind mapped container pair. */
-    private fun containerPair(
+    /** Equal element types: a plain assignment when the target is a supertype, else a collection-type conversion. */
+    private fun resolveSameElements(
         sourceProp: PropertyInfo,
-        target: PropertyInfo
-    ): Pair<ContainerTypeInfo, ContainerTypeInfo>? {
-        if (!isMappedContainerPair(sourceProp.type, target.type)) return null
-        val source = mappedContainerOf(sourceProp.type) ?: return null
-        val targetContainer = mappedContainerOf(target.type) ?: return null
-        return source to targetContainer
+        target: PropertyInfo,
+        source: ContainerTypeInfo,
+        targetContainer: ContainerTypeInfo,
+        op: ElementOp
+    ): PropertyMappingStrategy? {
+        val nullabilityKept = !sourceProp.type.isNullable || target.type.isNullable
+        if (isContainerSubtype(source.kind, targetContainer.kind) && nullabilityKept) {
+            return PropertyMappingStrategy.Direct(sourceProperty = sourceProp, targetProperty = target)
+        }
+        // Only the container's nullability differs: not a collection-type conversion.
+        if (source.kind == targetContainer.kind) return null
+        return linearMapping(target, sourceProp, source, targetContainer, op)
     }
+
+    private fun reportLossy(
+        target: PropertyInfo,
+        ctx: MappingContext,
+        source: Pair<ContainerTypeInfo, TypeInfo>,
+        targetSide: Pair<ContainerTypeInfo, TypeInfo>
+    ) = ctx.logger.lossyCollectionConversion(
+        propertyName = target.name,
+        sourceType = containerTypeName(source.first, source.second),
+        targetType = containerTypeName(targetSide.first, targetSide.second),
+        listType = "List<${elementName(targetSide.second)}>",
+        symbol = target.declaration
+    )
+
+    /** The operation for differing element types, or null when none applies (the rest of the chain reports it). */
+    private fun autoElementOp(
+        sourceProp: PropertyInfo,
+        target: PropertyInfo,
+        srcElement: TypeInfo,
+        tgtElement: TypeInfo,
+        ctx: MappingContext
+    ): ElementOp? {
+        if (srcElement.qualifiedName == tgtElement.qualifiedName) return null
+        val op = LeafOperationResolver.resolveElement(srcElement, tgtElement, ctx) ?: return null
+        val isValueClassOp = op is ElementOp.Wrap || op is ElementOp.Unwrap
+        if (isValueClassOp && sourceProp.type.isNullable && !target.type.isNullable) return null
+        return op
+    }
+
+    private fun elementName(element: TypeInfo): String = element.simpleName + if (element.isNullable) "?" else ""
+
+    private fun containerTypeName(container: ContainerTypeInfo, element: TypeInfo): String =
+        "${container.kind.simpleName}<${elementName(element)}>"
+
+    // ---------- Shared helpers ----------
 
     private fun linearMapping(
         target: PropertyInfo,

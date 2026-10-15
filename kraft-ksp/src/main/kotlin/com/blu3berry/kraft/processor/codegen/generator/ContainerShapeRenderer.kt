@@ -44,6 +44,13 @@ internal class ContainerShapeRenderer(
 
     private fun renderLinear(receiver: CodeBlock, shape: ContainerShape.Linear, depth: Int): CodeBlock {
         val element = shape.element
+        val dot = if (shape.sourceNullable) "?." else "."
+        val fallback = if (shape.sourceNullable && !shape.targetNullable) " ?: ${emptyValue(shape.targetKind)}" else ""
+        if (element is ContainerShape.Leaf && element.op is ElementOp.Identity) {
+            // Same elements, different collection type: only the conversion call, no `map { }`.
+            val conversion = identityConversion(shape.sourceKind, shape.targetKind)
+            return CodeBlock.of("%L%L%L%L", receiver, dot, conversion, fallback)
+        }
         val lambda = if (element is ContainerShape.Leaf) {
             CodeBlock.of("{ %L }", renderLeaf(CodeBlock.of("it"), element))
         } else {
@@ -52,10 +59,8 @@ internal class ContainerShapeRenderer(
         }
         val dropsNulls = element is ContainerShape.Leaf && element.sourceNullable && !element.targetNullable
         val mapFn = if (dropsNulls) "mapNotNull" else "map"
-        val dot = if (shape.sourceNullable) "?." else "."
         val suffix = mappedLinearSuffix(shape.targetKind)
             .let { if (it.isNotEmpty() && shape.sourceNullable) "?$it" else it }
-        val fallback = if (shape.sourceNullable && !shape.targetNullable) " ?: ${emptyValue(shape.targetKind)}" else ""
         return CodeBlock.of("%L%L%L %L%L%L", receiver, dot, mapFn, lambda, suffix, fallback)
     }
 
@@ -86,6 +91,22 @@ internal class ContainerShapeRenderer(
         ContainerKind.ARRAY -> ".toTypedArray()"
         ContainerKind.MUTABLE_LIST, ContainerKind.MUTABLE_COLLECTION -> ".toMutableList()"
         ContainerKind.MUTABLE_SET -> ".toMutableSet()"
+        ContainerKind.MAP, ContainerKind.MUTABLE_MAP -> error("$targetKind is not a single-element container")
+    }
+
+    /**
+     * The call that converts a source container whose elements are kept as is into the target
+     * kind. A target that is a supertype of the source never gets here (it is a plain assignment),
+     * and a `Set` target only ever comes from a `Set`, so these are the real copies. Only a
+     * `Collection` can become an `Array` directly; an `Iterable` goes through a `List` first.
+     */
+    private fun identityConversion(sourceKind: ContainerKind, targetKind: ContainerKind): String = when (targetKind) {
+        ContainerKind.LIST, ContainerKind.COLLECTION, ContainerKind.ITERABLE -> "toList()"
+        ContainerKind.SET -> "toSet()"
+        ContainerKind.ARRAY ->
+            if (sourceKind == ContainerKind.ITERABLE) "toList().toTypedArray()" else "toTypedArray()"
+        ContainerKind.MUTABLE_LIST, ContainerKind.MUTABLE_COLLECTION -> "toMutableList()"
+        ContainerKind.MUTABLE_SET -> "toMutableSet()"
         ContainerKind.MAP, ContainerKind.MUTABLE_MAP -> error("$targetKind is not a single-element container")
     }
 
