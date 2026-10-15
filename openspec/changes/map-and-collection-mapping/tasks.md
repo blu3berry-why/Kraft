@@ -64,8 +64,8 @@
 
 > Agent: sonnet · effort medium · scope: kraft-core/src/main/**, kraft-ksp/src/main/**, kraft-ksp/src/jvmTest/** · verify: ./gradlew :kraft-ksp:jvmTest · after: 6
 
-- [ ] 7.1 Recursive `Keyed` values inside `Linear` and the reverse. Verify with jvmTest `MapNestingTest`, covering "Map of lists", "List of maps" and "Lossy conversion inside a map value".
-- [ ] 7.2 Make `AutoEnumMappingDeriver` and the nested-class worklist discover pairs through map keys and values. Verify with a `MapNestingTest` case: `Map<StatusDto, List<ItemSource>>` → `Map<Status, List<ItemDto>>` with no `@MapConfig` for the elements and no `@MapEnum` generates `toStatus()` and `toItemDto()`.
+- [x] 7.1 Recursive `Keyed` values inside `Linear` and the reverse. Verify with jvmTest `MapNestingTest`, covering "Map of lists", "List of maps" and "Lossy conversion inside a map value".
+- [x] 7.2 Make `AutoEnumMappingDeriver` and the nested-class worklist discover pairs through map keys and values. Verify with a `MapNestingTest` case: `Map<StatusDto, List<ItemSource>>` → `Map<Status, List<ItemDto>>` with no `@MapConfig` for the elements and no `@MapEnum` generates `toStatus()` and `toItemDto()`.
 
 ## 8. Full gate
 

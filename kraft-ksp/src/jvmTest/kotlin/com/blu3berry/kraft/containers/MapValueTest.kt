@@ -85,19 +85,12 @@ class MapValueTest {
     }
 
     @Test
-    fun `Differing keys are not claimed yet`() {
+    fun `String to Int keys have no key operation and are E005`() {
         val result = compile(
             models(
                 "Map<String, ItemSource>", "Map<Int, ItemDto>", name = "m"
             )
         )
-        assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        assertThat(result.messages).contains("[KRAFT-E005]")
-    }
-
-    @Test
-    fun `Container values are not claimed yet`() {
-        val result = compile(models("Map<String, List<ItemSource>>", "Map<String, List<ItemDto>>", name = "m"))
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         assertThat(result.messages).contains("[KRAFT-E005]")
     }

@@ -68,8 +68,8 @@ internal object ContainerShapeBuilder {
 
     /**
      * The [ContainerShape.Keyed] for a `Map` / `MutableMap` pair whose key or value types differ.
-     * Keys map only through a one-to-one operation (see [buildKey]). [Built.Fail] for container
-     * values (not mapped yet), and for nullable values into non-null values: dropping a null value
+     * Keys map only through a one-to-one operation (see [buildKey]); values recurse through
+     * [buildElement], so containers nest. [Built.Fail] for nullable values into non-null values: dropping a null value
      * would also drop its key, so KRAFT-E005 reports it. [Built.Reported] once KRAFT-E064 is
      * reported for the keys.
      */
@@ -95,13 +95,14 @@ internal object ContainerShapeBuilder {
             }
         }
 
-        val value = if (srcValue.ksType == tgtValue.ksType) {
+        val value: ContainerShape = if (srcValue.ksType == tgtValue.ksType) {
             leaf(ElementOp.Identity, srcValue, tgtValue)
         } else {
-            if (mappedContainerOf(srcValue) != null || mappedContainerOf(tgtValue) != null) return Built.Fail
             if (srcValue.isNullable && !tgtValue.isNullable) return Built.Fail
-            val op = autoElementOp(srcType, tgtType, srcValue, tgtValue, ctx) ?: return Built.Fail
-            leaf(op, srcValue, tgtValue)
+            when (val built = buildElement(srcType, tgtType, srcValue, tgtValue, target, ctx)) {
+                is Built.Ok -> built.shape
+                else -> return built
+            }
         }
         return Built.Ok(
             ContainerShape.Keyed(
@@ -177,7 +178,8 @@ internal object ContainerShapeBuilder {
         srcType: TypeInfo,
         tgtType: TypeInfo
     ): Boolean =
-        src.element?.ksType == tgt.element?.ksType &&
+        src.key?.ksType == tgt.key?.ksType &&
+            src.element?.ksType == tgt.element?.ksType &&
             (src.kind == tgt.kind || isContainerSubtype(src.kind, tgt.kind)) &&
             (!srcType.isNullable || tgtType.isNullable)
 
