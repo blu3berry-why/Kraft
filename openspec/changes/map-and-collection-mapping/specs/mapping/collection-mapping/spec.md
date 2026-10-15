@@ -66,8 +66,12 @@ Kraft SHALL fail compilation with KRAFT-E063 when the target is `Set` or `Mutabl
 Each element SHALL be mapped by the operation Kraft would use for a single property of the element types: an auto-detected nested mapper, an enum mapper, a `@KraftConverter` under its own name, or a value-class wrap/unwrap. A `@MapField` / `FieldMapping` rename SHALL select the source property.
 
 #### Scenario: Named @KraftConverter on elements
-- **WHEN** `@KraftConverter fun Foo.intoBar(): Bar` is registered, `Src.items: List<Foo>` and `Tgt.items: List<Bar>`
+- **WHEN** `@KraftConverter fun Foo.intoBar(): Bar` is registered (`Foo` and `Bar` are interfaces, so no nested mapper is generated for them), `Src.items: List<Foo>` and `Tgt.items: List<Bar>`
 - **THEN** the mapper assigns `items = this.items.map { it.intoBar() }`
+
+#### Scenario: Nested mapper takes precedence over a converter
+- **WHEN** `@KraftConverter fun ItemSource.intoDto(): ItemDto` is registered, `Src.items: List<ItemSource>` and `Tgt.items: List<ItemDto>`
+- **THEN** the mapper assigns `items = this.items.map { it.toItemDto() }`, as a single `ItemSource` property would resolve to the nested mapper
 
 #### Scenario: Value class elements in an Array
 - **WHEN** `@JvmInline value class UserId(val value: String)`, `Src.ids: Array<String>` and `Tgt.ids: List<UserId>`

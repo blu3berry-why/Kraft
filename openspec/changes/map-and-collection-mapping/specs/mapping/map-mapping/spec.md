@@ -16,7 +16,7 @@ When source and target are `Map` or `MutableMap` and the value types differ, Kra
 - **THEN** the mapper assigns `byId = this.byId.mapValues { it.value.toItemDto() }`
 
 #### Scenario: Named @KraftConverter on values
-- **WHEN** `@KraftConverter fun Foo.intoBar(): Bar` is registered, `Src.m: Map<String, Foo>` and `Tgt.m: Map<String, Bar>`
+- **WHEN** `@KraftConverter fun Foo.intoBar(): Bar` is registered (`Foo` and `Bar` are interfaces, so no nested mapper is generated for them), `Src.m: Map<String, Foo>` and `Tgt.m: Map<String, Bar>`
 - **THEN** the mapper assigns `m = this.m.mapValues { it.value.intoBar() }`
 
 #### Scenario: MutableMap target
