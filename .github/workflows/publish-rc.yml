@@ -28,6 +28,28 @@ jobs:
     runs-on: macos-latest
 
     steps:
+      - name: Validate required secrets are set
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -z "$GPG_PRIVATE_KEY" ]        && missing+=("GPG_PRIVATE_KEY")
+          [ -z "$GPG_KEY_ID" ]             && missing+=("GPG_KEY_ID")
+          [ -z "$GPG_PASSPHRASE" ]         && missing+=("GPG_PASSPHRASE")
+          [ -z "$MAVEN_CENTRAL_USERNAME" ] && missing+=("MAVEN_CENTRAL_USERNAME")
+          [ -z "$MAVEN_CENTRAL_PASSWORD" ] && missing+=("MAVEN_CENTRAL_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required secrets: ${missing[*]}"
+            echo "Go to Settings > Secrets and variables > Actions to configure them."
+            exit 1
+          fi
+          echo "All required secrets are set."
+
       - uses: actions/checkout@v4
         with:
           ref: main
@@ -41,14 +63,16 @@ jobs:
             echo "::error::No open release-please PR ($RELEASE_PR_BRANCH): nothing on main would be released, so there is nothing to make an RC of."
             exit 1
           fi
-          NEXT=$(git show "FETCH_HEAD:gradle.properties" | grep '^kraft.version=' | cut -d= -f2)
+          # `|| true` on the greps: under pipefail a no-match would exit the step
+          # silently instead of reaching the explicit checks below.
+          NEXT=$(git show "FETCH_HEAD:gradle.properties" | { grep '^kraft.version=' || true; } | cut -d= -f2)
           if ! echo "$NEXT" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "::error::Release PR proposes '$NEXT', expected MAJOR.MINOR.PATCH."
             exit 1
           fi
 
           git fetch --tags --force --quiet
-          LAST=$(git tag --list "${NEXT}-RC*" | sed "s/^${NEXT}-RC//" | grep -E '^[0-9]+$' | sort -n | tail -n1)
+          LAST=$(git tag --list "${NEXT}-RC*" | sed "s/^${NEXT}-RC//" | { grep -E '^[0-9]+$' || true; } | sort -n | tail -n1)
           VERSION="${NEXT}-RC$(( ${LAST:-0} + 1 ))"
           echo "Publishing $VERSION from $(git rev-parse --short HEAD)"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
