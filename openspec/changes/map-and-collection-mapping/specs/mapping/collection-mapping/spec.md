@@ -56,6 +56,7 @@ Kraft SHALL fail compilation with KRAFT-E063 when the target is `Set` or `Mutabl
 - **WHEN** `Src.items: List<ItemSource>` and `Tgt.items: Set<ItemDto>`
 - **THEN** compilation fails with `[KRAFT-E063] Cannot map property 'items': converting List<ItemSource> to Set<ItemDto> would drop duplicate elements.`
 - **AND** the error contains `Change the target to List<ItemDto>, or map it with @MapUsing and call .toSet() explicitly.`
+- **AND** no KRAFT-E005 type-mismatch error is reported for `items`: one cause, one error
 
 #### Scenario: Reverse of Set to List
 - **WHEN** `Src.items: Set<ItemSource>`, `Tgt.items: List<ItemDto>` and `M` is annotated `@MapReverse`
@@ -131,6 +132,10 @@ Collections whose elements are themselves collections or maps SHALL map recursiv
 #### Scenario: @MapNested does not reach new collection types
 - **WHEN** `Tgt.items: Collection<ItemDto>` is annotated `@MapNested` and `Src.items: Collection<ItemSource>`
 - **THEN** the mapper output is identical to the same input without `@MapNested` (auto-detection produces it), and the only added diagnostics are those `@MapNested` produced in 0.13
+
+#### Scenario: @MapNested sourceName is still honoured as a rename
+- **WHEN** `Tgt.items: Collection<ItemDto>` is annotated `@MapNested(sourceName = "rows")` and `Src.rows: Array<ItemSource>`
+- **THEN** the mapper assigns `items = this.rows.map { it.toItemDto() }`, the same as `@MapField(counterPartName = "rows")`, and never silently reads `Src.items`
 
 ### Requirement: Nested-mapper reason text
 The KRAFT-E015 message SHALL NOT state that non-List collections are unsupported, and SHALL name the element type that is not a concrete mappable class.
