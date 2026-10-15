@@ -20,17 +20,18 @@
 > Agent: sonnet · effort high · scope: kraft-core/src/main/**, kraft-ksp/src/main/**, kraft-ksp/src/jvmTest/**, docs/user-guide/errors.md, docs/user-guide/collection-mapping.md, .claude/skills/kraft-mappers/SKILL.md · verify: ./gradlew :kraft-ksp:jvmTest · after: 1
 
 - [ ] 2.1 Extend `ContainerRule` and the suffix table to `Collection`, `Iterable`, `Array`, `MutableList`, `MutableSet` and `MutableCollection`, with the lossless conversion matrix and the identity-element/supertype cases (`Direct`). Verify with jvmTest `LinearContainerTest`, covering the scenarios "Collection to Collection", "Array to Array", "MutableList to MutableList", "Array to List", "Set to List", "Iterable to MutableCollection", "Same elements, different collection type" and "Target already a supertype".
-- [ ] 2.2 Add `KraftDiagnostic.LOSSY_COLLECTION_CONVERSION` (KRAFT-E063) and its `errors.md` entry, and report it from `ContainerRule` for non-Set → Set at any level, including reverse mappers. Verify with jvmTest `LossySetConversionTest`, covering "List to Set" (both quoted strings) and "Reverse of Set to List", plus a green `ErrorsReferenceCompletenessTest`.
+- [ ] 2.2 Add `KraftDiagnostic.LOSSY_COLLECTION_CONVERSION` (KRAFT-E063) and its `errors.md` entry, and report it from `ContainerRule` for non-Set → Set at any level, including reverse mappers. E063 applies only to the auto-detected path. The deprecated `NestedMapping`/`@MapNested` paths keep their 0.13 behaviour, and the `ContainerRegressionPinTest` legacy List→Set case stays green unchanged. Verify with jvmTest `LossySetConversionTest`, covering "List to Set" (both quoted strings) and "Reverse of Set to List", plus a green `ErrorsReferenceCompletenessTest`.
 - [ ] 2.3 Add container-level and element-level nullability for the new kinds (empty values from the spec: `mutableListOf()`, `mutableSetOf()`, `emptyArray()`). Verify with jvmTest `ContainerNullabilityTest`, covering "Nullable Array into non-null List", "Nullable into nullable", "Nullable elements kept" and "Nullable elements dropped".
 - [ ] 2.4 Reword KRAFT-E015 (`nestedTypeNotMappable`) and its `errors.md` entry. Verify with jvmTest scenario "Interface element type" in `LinearContainerTest`.
 - [ ] 2.5 Update `docs/user-guide/collection-mapping.md` (supported types, conversion matrix, the Set rule) and the `kraft-mappers` SKILL.md "what Kraft does automatically" list. Verify that the doc's examples match the test expectations and that the SKILL.md no longer says only `List`/`Set`.
+- [ ] 2.6 Restrict the deprecated `@MapNested` / explicit `NestedMapping` handling in `ContainerRule` to same-kind `List`/`Set` exactly as in 0.13. Verify with jvmTest `DeprecatedNestedFreezeTest`, covering "Legacy explicit NestedMapping List to Set is unchanged" and "@MapNested does not reach new collection types".
 
 ## 3. Element operations at parity with scalars
 
 > Agent: sonnet · effort medium · scope: kraft-core/src/main/**, kraft-ksp/src/main/**, kraft-ksp/src/jvmTest/**, docs/user-guide/collection-mapping.md, docs/user-guide/custom-converters.md · verify: ./gradlew :kraft-ksp:jvmTest · after: 2
 
 - [ ] 3.1 Allow `ConverterEntry.Real` leaves, rendered under their own callable name. Verify with jvmTest `ContainerElementOpTest` scenario "Named @KraftConverter on elements", and check that `CollectionElementConverterTest` is still green.
-- [ ] 3.2 Value-class and `@MapNested` leaves inside the new kinds. Verify with `ContainerElementOpTest` scenarios "Value class elements in an Array", "@MapNested on a Collection" and "No element operation" (KRAFT-E005 is reported, not a new code).
+- [ ] 3.2 Value-class leaves and `@MapField`/`FieldMapping` renames inside the new kinds. Verify with `ContainerElementOpTest` scenarios "Value class elements in an Array", "Renamed Collection" and "No element operation" (KRAFT-E005 is reported, not a new code).
 - [ ] 3.3 Note in `custom-converters.md` and `collection-mapping.md` that named `@KraftConverter`s now apply element-wise. Verify that the docs mention `intoBar`-style names.
 
 ## 4. Nesting depth and lambda naming
