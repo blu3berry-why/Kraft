@@ -29,7 +29,11 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
     ): PropertyMappingStrategy? {
 
         for (rule in rules) {
-            val result = rule.tryResolve(target, ctx) ?: continue
+            val result = when (val outcome = rule.evaluate(target, ctx)) {
+                RuleOutcome.Pass -> continue
+                RuleOutcome.Reported -> return null
+                is RuleOutcome.Resolved -> outcome.strategy
+            }
             if (rule is ConverterRule &&
                 result is PropertyMappingStrategy.ConverterFunction &&
                 result.source is ConverterSource.Property
@@ -80,7 +84,10 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
         val native = rules
             .asSequence()
             .filterNot { it is ConverterRule || it is RequiredFieldErrorRule }
-            .firstNotNullOfOrNull { it.tryResolve(target, probeCtx) }
+            .map { it.evaluate(target, probeCtx) }
+            .firstOrNull { it !is RuleOutcome.Pass }
+            .let { it as? RuleOutcome.Resolved }
+            ?.strategy
             ?: return null
         if (native is PropertyMappingStrategy.Ignored) return null
         if (native.isDirectGlobalConverter()) return null

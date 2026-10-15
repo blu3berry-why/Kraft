@@ -10,6 +10,7 @@ import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.model.scan.MapNestedAnnotation
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.LeafOperationResolver
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
+import com.blu3berry.kraft.processor.descriptor.propertyresolver.RuleOutcome
 import com.blu3berry.kraft.processor.util.ContainerTypeInfo
 import com.blu3berry.kraft.processor.util.ambiguousNestedDescriptors
 import com.blu3berry.kraft.processor.util.ambiguousNestedSourceProperty
@@ -51,20 +52,23 @@ import com.blu3berry.kraft.processor.util.nestedTypeNotMappable
  */
 class ContainerRule : MappingRule {
 
-    override fun tryResolve(
-        target: PropertyInfo,
-        ctx: MappingContext
-    ): PropertyMappingStrategy? {
+    override fun tryResolve(target: PropertyInfo, ctx: MappingContext): PropertyMappingStrategy? =
+        (evaluate(target, ctx) as? RuleOutcome.Resolved)?.strategy
+
+    /** [RuleOutcome.Reported] once a lossy conversion (KRAFT-E063) is reported, so no KRAFT-E005 follows. */
+    override fun evaluate(target: PropertyInfo, ctx: MappingContext): RuleOutcome {
         ctx.classNestedOverrides[target.name]?.let { mapNested ->
-            val sourceProp = ctx.sourceProps[mapNested.sourceNameFor(target)] ?: return null
+            val sourceProp = ctx.sourceProps[mapNested.sourceNameFor(target)] ?: return RuleOutcome.Pass
             return when {
-                isLegacyContainerPair(sourceProp.type, target.type) -> resolveMapNested(target, ctx, mapNested)
-                // Frozen: @MapNested does not reach the other kinds; auto-detection maps them.
+                isLegacyContainerPair(sourceProp.type, target.type) ->
+                    resolveMapNested(target, ctx, mapNested).asOutcome()
+                // Frozen: @MapNested does not reach the other kinds; auto-detection maps them,
+                // reading the source property @MapNested(sourceName = ...) names.
                 isMappedContainerPair(sourceProp.type, target.type) -> {
                     reportMapNestedWarnings(target, ctx, mapNested)
-                    resolveAuto(target, ctx)
+                    resolveAuto(target, ctx, sourceProp.name)
                 }
-                else -> null
+                else -> RuleOutcome.Pass
             }
         }
 
@@ -73,12 +77,15 @@ class ContainerRule : MappingRule {
         if (targetContainer != null && targetElement != null) {
             val candidates = ctx.nestedMappings.filter { it.targetType.qualifiedName == targetElement.qualifiedName }
             if (candidates.isNotEmpty() && !hasNewKindSource(target, ctx)) {
-                return resolveExplicit(target, ctx, targetContainer, candidates)
+                return resolveExplicit(target, ctx, targetContainer, candidates).asOutcome()
             }
         }
 
-        return resolveAuto(target, ctx)
+        return resolveAuto(target, ctx, sourceName = null)
     }
+
+    private fun PropertyMappingStrategy?.asOutcome(): RuleOutcome =
+        if (this == null) RuleOutcome.Pass else RuleOutcome.Resolved(this)
 
     /**
      * True when the source property that [target] would read is a mapped container the frozen
@@ -228,32 +235,34 @@ class ContainerRule : MappingRule {
     @Suppress("ReturnCount")
     private fun resolveAuto(
         target: PropertyInfo,
-        ctx: MappingContext
-    ): PropertyMappingStrategy? {
-        val sourceName = ctx.classRenames[target.name]
+        ctx: MappingContext,
+        sourceName: String?
+    ): RuleOutcome {
+        val effectiveName = sourceName
+            ?: ctx.classRenames[target.name]
             ?: ctx.configRenames[target.name]
             ?: target.name
-        val sourceProp = ctx.sourceProps[sourceName] ?: return null
-        val source = mappedContainerOf(sourceProp.type) ?: return null
-        val targetContainer = mappedContainerOf(target.type) ?: return null
+        val sourceProp = ctx.sourceProps[effectiveName] ?: return RuleOutcome.Pass
+        val source = mappedContainerOf(sourceProp.type) ?: return RuleOutcome.Pass
+        val targetContainer = mappedContainerOf(target.type) ?: return RuleOutcome.Pass
         // Identical types are a direct copy, which DirectMatchRule handles.
-        if (sourceProp.type.ksType == target.type.ksType) return null
-        val srcElement = source.element ?: return null
-        val tgtElement = targetContainer.element ?: return null
+        if (sourceProp.type.ksType == target.type.ksType) return RuleOutcome.Pass
+        val srcElement = source.element ?: return RuleOutcome.Pass
+        val tgtElement = targetContainer.element ?: return RuleOutcome.Pass
 
         val sameElements = srcElement.ksType == tgtElement.ksType
         val op = if (sameElements) {
             ElementOp.Identity
         } else {
-            autoElementOp(sourceProp, target, srcElement, tgtElement, ctx) ?: return null
+            autoElementOp(sourceProp, target, srcElement, tgtElement, ctx) ?: return RuleOutcome.Pass
         }
 
         if (isLossyContainerConversion(source.kind, targetContainer.kind)) {
             reportLossy(target, ctx, source to srcElement, targetContainer to tgtElement)
-            return null
+            return RuleOutcome.Reported
         }
-        if (sameElements) return resolveSameElements(sourceProp, target, source, targetContainer, op)
-        return linearMapping(target, sourceProp, source, targetContainer, op)
+        if (sameElements) return resolveSameElements(sourceProp, target, source, targetContainer, op).asOutcome()
+        return linearMapping(target, sourceProp, source, targetContainer, op).asOutcome()
     }
 
     /** Equal element types: a plain assignment when the target is a supertype, else a collection-type conversion. */

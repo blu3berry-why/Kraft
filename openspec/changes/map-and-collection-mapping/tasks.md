@@ -30,11 +30,11 @@
 
 > Agent: sonnet · effort medium · scope: kraft-core/src/main/**, kraft-ksp/src/main/**, kraft-ksp/src/jvmTest/**, docs/user-guide/collection-mapping.md, docs/user-guide/custom-converters.md · verify: ./gradlew :kraft-ksp:jvmTest · after: 2
 
-- [ ] 3.1 Allow `ConverterEntry.Real` leaves, rendered under their own callable name. Verify with jvmTest `ContainerElementOpTest` scenario "Named @KraftConverter on elements", and check that `CollectionElementConverterTest` is still green.
-- [ ] 3.2 Value-class leaves and `@MapField`/`FieldMapping` renames inside the new kinds. Verify with `ContainerElementOpTest` scenarios "Value class elements in an Array", "Renamed Collection" and "No element operation" (KRAFT-E005 is reported, not a new code).
-- [ ] 3.4 Honour `@MapNested(sourceName = …)` as a rename when the pair falls outside the frozen List/Set path (group 2 currently ignores it, so the wrong source property is read). Verify with `DeprecatedNestedFreezeTest` scenario "@MapNested sourceName is still honoured as a rename".
-- [ ] 3.5 Stop the follow-on KRAFT-E005 after `ContainerRule` has reported E063 (and, later, E064) for the same property. Use a reported-error outcome that halts the chain, not by special-casing `DirectMatchRule`. Verify by extending `LossySetConversionTest` "List to Set" to assert that no `[KRAFT-E005]` appears.
-- [ ] 3.3 Note in `custom-converters.md` and `collection-mapping.md` that named `@KraftConverter`s now apply element-wise. Verify that the docs mention `intoBar`-style names.
+- [x] 3.1 Allow `ConverterEntry.Real` leaves, rendered under their own callable name. Verify with jvmTest `ContainerElementOpTest` scenario "Named @KraftConverter on elements", and check that `CollectionElementConverterTest` is still green.
+- [x] 3.2 Value-class leaves and `@MapField`/`FieldMapping` renames inside the new kinds. Verify with `ContainerElementOpTest` scenarios "Value class elements in an Array", "Renamed Collection" and "No element operation" (KRAFT-E005 is reported, not a new code).
+- [x] 3.4 Honour `@MapNested(sourceName = …)` as a rename when the pair falls outside the frozen List/Set path (group 2 currently ignores it, so the wrong source property is read). Verify with `DeprecatedNestedFreezeTest` scenario "@MapNested sourceName is still honoured as a rename".
+- [x] 3.5 Stop the follow-on KRAFT-E005 after `ContainerRule` has reported E063 (and, later, E064) for the same property. Use a reported-error outcome that halts the chain, not by special-casing `DirectMatchRule`. Verify by extending `LossySetConversionTest` "List to Set" to assert that no `[KRAFT-E005]` appears.
+- [x] 3.3 Note in `custom-converters.md` and `collection-mapping.md` that named `@KraftConverter`s now apply element-wise. Verify that the docs mention `intoBar`-style names.
 
 ## 4. Nesting depth and lambda naming
 

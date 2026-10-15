@@ -4,6 +4,7 @@ import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Nullability
 import com.blu3berry.kraft.model.MapperId
 import com.blu3berry.kraft.model.TypeInfo
+import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.descriptor.ElementOp
 import com.blu3berry.kraft.model.descriptor.MappingContext
 import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
@@ -30,15 +31,51 @@ object LeafOperationResolver {
      * the scalar rule chain: auto-detected nested mapper, then a global converter, then a
      * value-class unwrap or wrap. Returns null when none applies.
      *
-     * Only `@MapEnum`-derived (synthetic) converters apply to elements, as a nested-style
-     * `to<Target>()` call; a hand-written `@KraftConverter` is skipped. Value-class operations
-     * apply only between non-null elements, and an unwrap only to a non-null underlying type.
+     * A `@MapEnum`-derived (synthetic) converter applies as a nested-style `to<Target>()` call.
+     * A hand-written or classpath (real) `@KraftConverter` applies under its own callable name
+     * (`it.intoBar()`); a converter registered for the non-null pair also serves nullable
+     * elements, through a safe call or by dropping nulls, as for a nested mapper. Value-class
+     * operations apply only between non-null elements, and an unwrap only to a non-null
+     * underlying type.
      */
     fun resolveElement(source: TypeInfo, target: TypeInfo, ctx: MappingContext): ElementOp? {
         autoNested(source, target)?.let { return ElementOp.Nested(it) }
-        val converter = converterKey(source, target)?.let { ctx.globalConverters.lookup(it) }
+        val key = converterKey(source, target)
+        val converter = key?.let { ctx.globalConverters.lookup(it) }
         if (converter is ConverterEntry.Synthetic) return ElementOp.Nested(nestedDescriptor(source, target))
+        realConverterOp(source, target, key, converter, ctx)?.let { return it }
         return valueClassElementOp(source, target)
+    }
+
+    private fun realConverterOp(
+        source: TypeInfo,
+        target: TypeInfo,
+        key: ConverterTypeKey?,
+        exact: ConverterEntry?,
+        ctx: MappingContext
+    ): ElementOp.Converter? {
+        if (key == null) return null
+        val entry = exact as? ConverterEntry.Real
+            ?: ctx.globalConverters.lookup(key.copy(sourceNullable = false, targetNullable = false))
+                as? ConverterEntry.Real
+            ?: return null
+        val function = entry.function
+        val isExtension = function.extensionReceiver != null
+        // A free-function converter cannot be safe-called, so it needs the exact non-null pair.
+        if (!isExtension && (source.isNullable || target.isNullable)) return null
+        return ElementOp.Converter(
+            ConverterDescriptor(
+                enclosingObject = null,
+                function = function,
+                callPackageName = entry.packageName,
+                callFunctionName = entry.simpleName,
+                isExtension = isExtension,
+                sourcePropertyName = null,
+                targetPropertyName = "",
+                sourceType = source,
+                targetType = target
+            )
+        )
     }
 
     private fun valueClassElementOp(source: TypeInfo, target: TypeInfo): ElementOp? {

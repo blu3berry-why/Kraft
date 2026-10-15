@@ -24,6 +24,8 @@ class LossySetConversionTest {
         assertThat(result.messages).contains(
             "Change the target to List<ItemDto>, or map it with @MapUsing and call .toSet() explicitly."
         )
+        // One cause, one error: no follow-on type-mismatch for the same property.
+        assertThat(result.messages).doesNotContain("[KRAFT-E005]")
     }
 
     @Test

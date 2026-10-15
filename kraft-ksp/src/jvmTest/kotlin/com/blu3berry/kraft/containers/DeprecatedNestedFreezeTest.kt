@@ -103,6 +103,27 @@ class DeprecatedNestedFreezeTest {
     }
 
     @Test
+    fun `MapNested sourceName is still honoured as a rename`() {
+        val text = generatedText(
+            """
+            package models
+
+            data class ItemSource(val id: Int)
+            data class ItemDto(val id: Int)
+
+            data class Src(val rows: Array<ItemSource>)
+
+            @com.blu3berry.kraft.mapping.MapFrom(Src::class)
+            data class Tgt(
+                @com.blu3berry.kraft.mapping.MapNested(sourceName = "rows")
+                val items: Collection<ItemDto>
+            )
+            """.trimIndent()
+        )
+        assertThat(text).contains("items = this.rows.map { it.toItemDto() }")
+    }
+
+    @Test
     fun `Explicit NestedMapping does not reach a Collection source`() {
         val text = generatedText(
             """

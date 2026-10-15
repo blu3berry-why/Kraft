@@ -99,3 +99,10 @@ fun ContainerShape.nestedDescriptors(): List<NestedMappingDescriptor> = when (th
     is ContainerShape.Linear -> element.nestedDescriptors()
     is ContainerShape.Keyed -> key.nestedDescriptors() + value.nestedDescriptors()
 }
+
+/** Every converter the shape's leaves call, in tree order (keys before values). */
+fun ContainerShape.converterDescriptors(): List<ConverterDescriptor> = when (this) {
+    is ContainerShape.Leaf -> listOfNotNull((op as? ElementOp.Converter)?.converter)
+    is ContainerShape.Linear -> element.converterDescriptors()
+    is ContainerShape.Keyed -> key.converterDescriptors() + value.converterDescriptors()
+}

@@ -197,6 +197,16 @@ Generated: `items = this.items?.map { it.toItemDto() }?.toSet()`
 
 For non-null targets: `items = this.items?.map { it.toItemDto() }?.toSet() ?: emptySet()`
 
+## Converters on Elements
+
+A registered `@KraftConverter` applies to collection elements exactly as it does to a single property, and it is called under its own name. With `@KraftConverter fun Foo.intoBar(): Bar` registered, `List<Foo>` to `List<Bar>` generates:
+
+```kotlin
+items = this.items.map { it.intoBar() }
+```
+
+A converter registered for the non-null pair also serves nullable elements (`it?.intoBar()`, or `mapNotNull` when the target elements are non-null). As for a single property, an auto-detected nested mapper between two concrete classes takes precedence over a converter for the same pair. A hand-written `@MapUsing` that only repeats this element-wise call now triggers [`KRAFT-W001`](errors.md#kraft-w001).
+
 ## Nullable Elements
 
 When the source element type is nullable but the target element type is not, Kraft uses `mapNotNull` instead of `map` to filter out null entries:
