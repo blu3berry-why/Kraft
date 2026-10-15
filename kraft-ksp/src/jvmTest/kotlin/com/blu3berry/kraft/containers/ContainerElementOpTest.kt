@@ -33,6 +33,20 @@ class ContainerElementOpTest {
     }
 
     @Test
+    fun `Nested mapper takes precedence over a converter`() {
+        val converter = """
+            data class ItemSource(val id: Int)
+            data class ItemDto(val id: Int)
+
+            @com.blu3berry.kraft.config.KraftConverter
+            fun ItemSource.intoDto(): ItemDto = ItemDto(id)
+        """
+        val text = generatedText(models("List<ItemSource>", "List<ItemDto>", extraModels = converter))
+        assertThat(text).contains("items = this.items.map { it.toItemDto() }")
+        assertThat(text).doesNotContain("it.intoDto()")
+    }
+
+    @Test
     fun `Named KraftConverter on elements of other collection kinds`() {
         assertThat(generatedText(models("Array<Foo>", "Collection<Bar>", extraModels = fooBar)))
             .contains("items = this.items.map { it.intoBar() }")

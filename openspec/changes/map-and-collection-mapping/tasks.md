@@ -40,8 +40,8 @@
 
 > Agent: sonnet · effort medium · scope: kraft-ksp/src/main/**, kraft-core/src/main/**, kraft-ksp/src/jvmTest/** · verify: ./gradlew :kraft-ksp:jvmTest · after: 3
 
-- [ ] 4.1 Make `ContainerRule` build shapes recursively, and make `renderShape` name enclosing lambdas `e<depth>` while the innermost uses `it`. Verify with jvmTest `NestedContainerTest`, covering "List of lists", "Inner nullable list into non-null list" and "Lossy conversion at an inner level".
-- [ ] 4.2 Compile the "List of lists" output with `allWarningsAsErrors = true` in the test runner. Verify with the scenario "No shadowing warnings" in `NestedContainerTest`.
+- [x] 4.1 Make `ContainerRule` build shapes recursively, and make `renderShape` name enclosing lambdas `e<depth>` while the innermost uses `it`. Verify with jvmTest `NestedContainerTest`, covering "List of lists", "Inner nullable list into non-null list" and "Lossy conversion at an inner level".
+- [x] 4.2 Compile the "List of lists" output with `allWarningsAsErrors = true` in the test runner. Verify with the scenario "No shadowing warnings" in `NestedContainerTest`.
 
 ## 5. Map values
 

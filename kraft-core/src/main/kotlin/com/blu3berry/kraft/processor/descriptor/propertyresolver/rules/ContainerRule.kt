@@ -20,7 +20,6 @@ import com.blu3berry.kraft.processor.util.isLossyContainerConversion
 import com.blu3berry.kraft.processor.util.isMappableClass
 import com.blu3berry.kraft.processor.util.isMappedContainerPair
 import com.blu3berry.kraft.processor.util.legacyContainerOf
-import com.blu3berry.kraft.processor.util.lossyCollectionConversion
 import com.blu3berry.kraft.processor.util.mappedContainerOf
 import com.blu3berry.kraft.processor.util.nestedMappingSourceNotFound
 import com.blu3berry.kraft.processor.util.nestedTypeNotMappable
@@ -250,20 +249,28 @@ class ContainerRule : MappingRule {
         val srcElement = source.element ?: return RuleOutcome.Pass
         val tgtElement = targetContainer.element ?: return RuleOutcome.Pass
 
-        val sameElements = srcElement.ksType == tgtElement.ksType
-        val op = if (sameElements) {
-            ElementOp.Identity
-        } else {
-            autoElementOp(sourceProp, target, srcElement, tgtElement, ctx) ?: return RuleOutcome.Pass
-        }
+        if (srcElement.ksType != tgtElement.ksType) return resolveRecursive(sourceProp, target, ctx)
 
         if (isLossyContainerConversion(source.kind, targetContainer.kind)) {
-            reportLossy(target, ctx, source to srcElement, targetContainer to tgtElement)
+            ContainerShapeBuilder.reportLossy(target, ctx, sourceProp.type, target.type)
             return RuleOutcome.Reported
         }
-        if (sameElements) return resolveSameElements(sourceProp, target, source, targetContainer, op).asOutcome()
-        return linearMapping(target, sourceProp, source, targetContainer, op).asOutcome()
+        return resolveSameElements(sourceProp, target, source, targetContainer, ElementOp.Identity).asOutcome()
     }
+
+    /** Differing element types: builds the (possibly nested) shape. */
+    private fun resolveRecursive(sourceProp: PropertyInfo, target: PropertyInfo, ctx: MappingContext): RuleOutcome =
+        when (val built = ContainerShapeBuilder.buildLinear(sourceProp.type, target.type, target, ctx)) {
+            is ContainerShapeBuilder.Built.Ok -> RuleOutcome.Resolved(
+                PropertyMappingStrategy.ContainerMapping(
+                    targetProperty = target,
+                    sourceProperty = sourceProp,
+                    shape = built.shape
+                )
+            )
+            ContainerShapeBuilder.Built.Fail -> RuleOutcome.Pass
+            ContainerShapeBuilder.Built.Reported -> RuleOutcome.Reported
+        }
 
     /** Equal element types: a plain assignment when the target is a supertype, else a collection-type conversion. */
     private fun resolveSameElements(
@@ -281,39 +288,6 @@ class ContainerRule : MappingRule {
         if (source.kind == targetContainer.kind) return null
         return linearMapping(target, sourceProp, source, targetContainer, op)
     }
-
-    private fun reportLossy(
-        target: PropertyInfo,
-        ctx: MappingContext,
-        source: Pair<ContainerTypeInfo, TypeInfo>,
-        targetSide: Pair<ContainerTypeInfo, TypeInfo>
-    ) = ctx.logger.lossyCollectionConversion(
-        propertyName = target.name,
-        sourceType = containerTypeName(source.first, source.second),
-        targetType = containerTypeName(targetSide.first, targetSide.second),
-        listType = "List<${elementName(targetSide.second)}>",
-        symbol = target.declaration
-    )
-
-    /** The operation for differing element types, or null when none applies (the rest of the chain reports it). */
-    private fun autoElementOp(
-        sourceProp: PropertyInfo,
-        target: PropertyInfo,
-        srcElement: TypeInfo,
-        tgtElement: TypeInfo,
-        ctx: MappingContext
-    ): ElementOp? {
-        if (srcElement.qualifiedName == tgtElement.qualifiedName) return null
-        val op = LeafOperationResolver.resolveElement(srcElement, tgtElement, ctx) ?: return null
-        val isValueClassOp = op is ElementOp.Wrap || op is ElementOp.Unwrap
-        if (isValueClassOp && sourceProp.type.isNullable && !target.type.isNullable) return null
-        return op
-    }
-
-    private fun elementName(element: TypeInfo): String = element.simpleName + if (element.isNullable) "?" else ""
-
-    private fun containerTypeName(container: ContainerTypeInfo, element: TypeInfo): String =
-        "${container.kind.simpleName}<${elementName(element)}>"
 
     // ---------- Shared helpers ----------
 

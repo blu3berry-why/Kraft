@@ -127,8 +127,8 @@ class AutoEnumMappingDeriver {
     /**
      * Returns the pair of types the deriver should treat as the candidates for
      * recursion. When [sourceType] and [targetType] are both mapped containers
-     * (any pair of kinds, see `mappedContainerOf`), peels them to their element
-     * types so the mappability gate runs against the elements
+     * (any pair of kinds, see `mappedContainerOf`), peels them, at every nesting
+     * depth, to their element types so the mappability gate runs against the elements
      * (e.g. `Array<User>` → `User`). Returns `null` when only one side is a
      * container — `ContainerRule` does not auto-map a container against a
      * scalar. For non-container inputs returns the inputs unchanged.
@@ -138,13 +138,17 @@ class AutoEnumMappingDeriver {
         sourceType: KSType,
         targetType: KSType,
     ): Pair<KSType, KSType>? {
-        val srcContainer = mappedContainerOf(TypeInfo.fromKSType(sourceType))
-        val tgtContainer = mappedContainerOf(TypeInfo.fromKSType(targetType))
-        if (srcContainer == null && tgtContainer == null) return sourceType to targetType
-        if (srcContainer == null || tgtContainer == null) return null
-        val srcElement = srcContainer.element ?: return null
-        val tgtElement = tgtContainer.element ?: return null
-        return srcElement.ksType to tgtElement.ksType
+        var source = sourceType
+        var target = targetType
+        // Peel one container level per step, so List<List<StatusDto>> reaches StatusDto.
+        while (true) {
+            val srcContainer = mappedContainerOf(TypeInfo.fromKSType(source))
+            val tgtContainer = mappedContainerOf(TypeInfo.fromKSType(target))
+            if (srcContainer == null && tgtContainer == null) return source to target
+            if (srcContainer == null || tgtContainer == null) return null
+            source = srcContainer.element?.ksType ?: return null
+            target = tgtContainer.element?.ksType ?: return null
+        }
     }
 
     private fun ClassPair.fqKey(): Pair<String, String>? {
