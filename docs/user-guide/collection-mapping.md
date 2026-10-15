@@ -222,6 +222,34 @@ Generated: `items = this.items.mapNotNull { it?.toItemDto() }`
 
 You do not need a `@MapUsing` helper that only maps a collection element by element. If you write one anyway, for example `fun List<RowDto>?.toRows(): List<Row> = this?.map { it.toRow() } ?: emptyList()`, Kraft still uses it but reports warning [`KRAFT-W001`](errors.md#kraft-w001). The warning shows the line Kraft would generate (here `rows = this.rows?.map { it.toRow() } ?: emptyList()`). Delete the helper, or keep it with `@Suppress("KRAFT-W001")` if it filters or sorts.
 
+## Maps
+
+`Map` and `MutableMap` properties are mapped value by value when the key types are identical on both sides. Each value uses the operation Kraft would use for a single property of the value types: a nested mapper, an enum mapper, a `@KraftConverter`, or a value-class wrap or unwrap.
+
+```kotlin
+// Source: val byId: Map<String, ItemSource>
+// Target: val byId: Map<String, ItemDto>
+```
+
+Generated: `byId = this.byId.mapValues { it.value.toItemDto() }`
+
+| Source | Target | Generated |
+|---|---|---|
+| `Map<String, ItemSource>` | `MutableMap<String, ItemDto>` | `this.byId.mapValues { it.value.toItemDto() }.toMutableMap()` |
+| `Map<String, Int>` | `MutableMap<String, Int>` | `this.m.toMutableMap()` |
+| `Map<String, ItemSource>?` | `Map<String, ItemDto>` | `this.byId?.mapValues { it.value.toItemDto() } ?: emptyMap()` |
+| `Map<String, ItemSource>?` | `MutableMap<String, ItemDto>` | `this.byId?.mapValues { it.value.toItemDto() }?.toMutableMap() ?: mutableMapOf()` |
+| `Map<String, ItemSource?>` | `Map<String, ItemDto?>` | `this.byId.mapValues { it.value?.toItemDto() }` |
+
+A registered `@KraftConverter fun Foo.intoBar(): Bar` serves values the same way: `m = this.m.mapValues { it.value.intoBar() }`.
+
+Two shapes are errors:
+
+- **Nullable values into non-null values** (`Map<String, ItemSource?>` into `Map<String, ItemDto>`) fail with [`KRAFT-E005`](errors.md#kraft-e005). Unlike a list, a map cannot drop the null: removing the value would also remove its key.
+- **A map and a non-map** (`Map<String, ItemSource>` into `List<ItemDto>`) fail with [`KRAFT-E005`](errors.md#kraft-e005).
+
+Maps with different key types, and maps whose values are collections, are not mapped yet and also report `KRAFT-E005`. A hand-written `@MapUsing` that only repeats the `mapValues` call triggers [`KRAFT-W001`](errors.md#kraft-w001).
+
 ## Renamed Collection Properties
 
 When the collection property has a different name on source and target, use `FieldMapping` to declare the rename. Auto-detection generates the child mapper:

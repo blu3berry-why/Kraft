@@ -39,7 +39,32 @@ internal class ContainerShapeRenderer(
     private fun renderShape(receiver: CodeBlock, shape: ContainerShape, depth: Int): CodeBlock = when (shape) {
         is ContainerShape.Leaf -> renderLeaf(receiver, shape)
         is ContainerShape.Linear -> renderLinear(receiver, shape, depth)
-        is ContainerShape.Keyed -> error("Kraft does not generate map mappings yet: $shape")
+        is ContainerShape.Keyed -> renderKeyed(receiver, shape, depth)
+    }
+
+    /**
+     * A map level with identity keys: `<receiver>.mapValues { … }`, then `.toMutableMap()` for a
+     * `MutableMap` target, safe-called with `?.` and given an `?: <empty>` fallback when the source
+     * is nullable. Identical values need only the copy (`toMutableMap()`). The value is read as
+     * `it.value` in the innermost lambda and `e<depth>.value` in an enclosing one.
+     */
+    private fun renderKeyed(receiver: CodeBlock, shape: ContainerShape.Keyed, depth: Int): CodeBlock {
+        val value = shape.value
+        val dot = if (shape.sourceNullable) "?." else "."
+        val fallback = if (shape.sourceNullable && !shape.targetNullable) " ?: ${emptyValue(shape.targetKind)}" else ""
+        val toMutable = shape.targetKind == ContainerKind.MUTABLE_MAP
+        if (value is ContainerShape.Leaf && value.op is ElementOp.Identity) {
+            val copy = if (toMutable) "toMutableMap()" else "toMap()"
+            return CodeBlock.of("%L%L%L%L", receiver, dot, copy, fallback)
+        }
+        val lambda = if (value is ContainerShape.Leaf) {
+            CodeBlock.of("{ %L }", renderLeaf(CodeBlock.of("it.value"), value))
+        } else {
+            val param = "e$depth"
+            CodeBlock.of("{ %L -> %L }", param, renderShape(CodeBlock.of("%L.value", param), value, depth + 1))
+        }
+        val suffix = if (toMutable) (if (shape.sourceNullable) "?.toMutableMap()" else ".toMutableMap()") else ""
+        return CodeBlock.of("%L%LmapValues %L%L%L", receiver, dot, lambda, suffix, fallback)
     }
 
     private fun renderLinear(receiver: CodeBlock, shape: ContainerShape.Linear, depth: Int): CodeBlock {

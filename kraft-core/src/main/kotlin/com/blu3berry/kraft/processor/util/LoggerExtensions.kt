@@ -192,7 +192,22 @@ private fun typeMismatchGuidance(
 ): String {
     val hint = duplicatedTypesHint(sourceProperty, targetProperty)
     val fix = fixGuidance(sourceProperty, targetProperty)
-    return if (hint == null) fix else "$hint\n\n$fix"
+    val mapHint = mapValueNullabilityHint(sourceProperty, targetProperty)
+    val hints = listOfNotNull(hint, mapHint).joinToString("\n\n")
+    return if (hints.isEmpty()) fix else "$hints\n\n$fix"
+}
+
+/**
+ * The hint for two maps whose source value is nullable and whose target value is not
+ * (`Map<K, V?>` into `Map<K, V>`). A list drops null elements, but dropping a null map value
+ * would drop its key as well.
+ */
+private fun mapValueNullabilityHint(sourceProperty: PropertyInfo, targetProperty: PropertyInfo): String? {
+    val sourceValue = containerKindOf(sourceProperty.type)?.takeIf { it.kind.isKeyed }?.element
+    val targetValue = containerKindOf(targetProperty.type)?.takeIf { it.kind.isKeyed }?.element
+    if (sourceValue == null || targetValue == null) return null
+    if (!sourceValue.isNullable || targetValue.isNullable) return null
+    return "    Map values cannot be dropped like list elements: removing a null value would also remove its key."
 }
 
 private fun fixGuidance(

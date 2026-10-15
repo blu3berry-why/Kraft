@@ -54,7 +54,7 @@ fun containerKindOf(type: TypeInfo): ContainerTypeInfo? {
     return ContainerTypeInfo(kind, type.ksType.arguments.map { it.type?.resolve()?.toClassTypeInfo() })
 }
 
-/** The container kinds Kraft maps element-wise: every single-element container (maps arrive later). */
+/** The container kinds Kraft maps element-wise: every single-element container, and `Map` / `MutableMap` values. */
 val MAPPED_CONTAINER_KINDS: Set<ContainerKind> = setOf(
     ContainerKind.LIST,
     ContainerKind.SET,
@@ -63,7 +63,9 @@ val MAPPED_CONTAINER_KINDS: Set<ContainerKind> = setOf(
     ContainerKind.ARRAY,
     ContainerKind.MUTABLE_LIST,
     ContainerKind.MUTABLE_SET,
-    ContainerKind.MUTABLE_COLLECTION
+    ContainerKind.MUTABLE_COLLECTION,
+    ContainerKind.MAP,
+    ContainerKind.MUTABLE_MAP
 )
 
 /**
@@ -84,8 +86,12 @@ fun legacyContainerOf(type: TypeInfo): ContainerTypeInfo? =
  * `true` when [source] and [target] are both [mappedContainerOf] containers, of any kinds:
  * the pairs `ContainerRule` owns (it maps them, or reports why not), and the scalar rules leave alone.
  */
-fun isMappedContainerPair(source: TypeInfo, target: TypeInfo): Boolean =
-    mappedContainerOf(source) != null && mappedContainerOf(target) != null
+fun isMappedContainerPair(source: TypeInfo, target: TypeInfo): Boolean {
+    val sourceKind = mappedContainerOf(source)?.kind ?: return false
+    val targetKind = mappedContainerOf(target)?.kind ?: return false
+    // A map is never mapped to or from a single-element container.
+    return sourceKind.isKeyed == targetKind.isKeyed
+}
 
 /** `true` when [source] and [target] are both [legacyContainerOf] containers of the same kind. */
 fun isLegacyContainerPair(source: TypeInfo, target: TypeInfo): Boolean {
@@ -96,10 +102,10 @@ fun isLegacyContainerPair(source: TypeInfo, target: TypeInfo): Boolean {
 /**
  * `true` when converting a [source] container into a [target] container would drop elements:
  * a `Set` / `MutableSet` target fed by anything but a `Set` / `MutableSet` (duplicates vanish).
- * Every other conversion keeps all elements.
+ * Every other conversion keeps all elements, and so does `Map` to `Map` / `MutableMap`.
  */
 fun isLossyContainerConversion(source: ContainerKind, target: ContainerKind): Boolean =
-    target in SET_KINDS && source !in SET_KINDS
+    !source.isKeyed && !target.isKeyed && target in SET_KINDS && source !in SET_KINDS
 
 /**
  * `true` when a [source] container is already a [target] container in Kotlin's type system
@@ -111,6 +117,7 @@ fun isContainerSubtype(source: ContainerKind, target: ContainerKind): Boolean = 
 private val SET_KINDS = setOf(ContainerKind.SET, ContainerKind.MUTABLE_SET)
 
 private val SUPERTYPES: Map<ContainerKind, Set<ContainerKind>> = mapOf(
+    ContainerKind.MUTABLE_MAP to setOf(ContainerKind.MAP),
     ContainerKind.LIST to setOf(ContainerKind.COLLECTION, ContainerKind.ITERABLE),
     ContainerKind.SET to setOf(ContainerKind.COLLECTION, ContainerKind.ITERABLE),
     ContainerKind.COLLECTION to setOf(ContainerKind.ITERABLE),

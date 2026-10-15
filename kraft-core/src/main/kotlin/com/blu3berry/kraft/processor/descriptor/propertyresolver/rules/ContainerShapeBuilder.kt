@@ -36,6 +36,8 @@ internal object ContainerShapeBuilder {
     fun buildLinear(srcType: TypeInfo, tgtType: TypeInfo, target: PropertyInfo, ctx: MappingContext): Built {
         val source = mappedContainerOf(srcType) ?: return Built.Fail
         val targetContainer = mappedContainerOf(tgtType) ?: return Built.Fail
+        if (source.kind.isKeyed != targetContainer.kind.isKeyed) return Built.Fail
+        if (source.kind.isKeyed) return buildKeyed(srcType, tgtType, source, targetContainer, ctx)
         val srcElement = source.element ?: return Built.Fail
         val tgtElement = targetContainer.element ?: return Built.Fail
 
@@ -57,6 +59,46 @@ internal object ContainerShapeBuilder {
                 sourceKind = source.kind,
                 targetKind = targetContainer.kind,
                 element = element,
+                sourceNullable = srcType.isNullable,
+                targetNullable = tgtType.isNullable
+            )
+        )
+    }
+
+    /**
+     * The [ContainerShape.Keyed] for a `Map` / `MutableMap` pair with identical key types and
+     * differing value types. [Built.Fail] for different keys and for container values (neither is
+     * mapped yet), and for nullable values into non-null values: dropping a null value would also
+     * drop its key, so KRAFT-E005 reports it.
+     */
+    @Suppress("ReturnCount")
+    private fun buildKeyed(
+        srcType: TypeInfo,
+        tgtType: TypeInfo,
+        source: ContainerTypeInfo,
+        targetContainer: ContainerTypeInfo,
+        ctx: MappingContext
+    ): Built {
+        val srcKey = source.key ?: return Built.Fail
+        val tgtKey = targetContainer.key ?: return Built.Fail
+        val srcValue = source.element ?: return Built.Fail
+        val tgtValue = targetContainer.element ?: return Built.Fail
+        if (srcKey.ksType != tgtKey.ksType) return Built.Fail
+
+        val value = if (srcValue.ksType == tgtValue.ksType) {
+            leaf(ElementOp.Identity, srcValue, tgtValue)
+        } else {
+            if (mappedContainerOf(srcValue) != null || mappedContainerOf(tgtValue) != null) return Built.Fail
+            if (srcValue.isNullable && !tgtValue.isNullable) return Built.Fail
+            val op = autoElementOp(srcType, tgtType, srcValue, tgtValue, ctx) ?: return Built.Fail
+            leaf(op, srcValue, tgtValue)
+        }
+        return Built.Ok(
+            ContainerShape.Keyed(
+                sourceKind = source.kind,
+                targetKind = targetContainer.kind,
+                key = leaf(ElementOp.Identity, srcKey, tgtKey),
+                value = value,
                 sourceNullable = srcType.isNullable,
                 targetNullable = tgtType.isNullable
             )
@@ -128,6 +170,10 @@ internal object ContainerShapeBuilder {
         val container = mappedContainerOf(type)
         val element = container?.element
         // A container's own nullability is not printed; an element's is.
+        val key = container?.key
+        if (container != null && key != null && element != null) {
+            return "${container.kind.simpleName}<${typeName(key)}, ${typeName(element)}>"
+        }
         if (container != null && element != null) return "${container.kind.simpleName}<${typeName(element)}>"
         return type.simpleName + if (type.isNullable) "?" else ""
     }

@@ -28,6 +28,7 @@ When you call those functions, they try to resolve every property of `Target` fr
 - **Enum mapper** — if both enums have a `@MapEnum` registered (or auto-derive when entries align by name)
 - **Value class** — `UserId(val value: String)` ↔ `String` is wrapped/unwrapped automatically (also nullable, collection elements); do NOT write a `@KraftConverter` for it unless the conversion is not a plain wrap/unwrap
 - **Collection element mapping** — any of `List`, `Set`, `Collection`, `Iterable`, `Array`, `MutableList`, `MutableSet`, `MutableCollection` maps element-wise into any of them, using the nested mapper or the `@MapEnum` pair for `A → B`. Every conversion that keeps all elements is generated; a non-`Set` into a `Set`/`MutableSet` is refused with KRAFT-E063
+- **Map value mapping** — `Map` and `MutableMap` with identical key types map value by value (`mapValues { it.value.toB() }`, plus `.toMutableMap()` for a `MutableMap` target), using the same operations as for a single property. A nullable map into a non-null one falls back to `emptyMap()` / `mutableMapOf()`; nullable values into non-null values are KRAFT-E005 (a map cannot drop a value without its key). Different key types and collection-valued maps are not automatic yet
 
 If none resolves, Kraft fails compilation with a `Type mismatch` or `Required property has no mapping source` error.
 
@@ -41,6 +42,7 @@ These recur as "Kraft can't do this" and all four are native. Reach for an annot
 | `Array<A>` → `List<B>`, `Set<A>` → `List<B>` | `.map { it.toB() }` — any source converts into `List`/`Collection`/`Iterable`/`Array`/`MutableList`/`MutableCollection` |
 | `Array<String>` → `List<String>`, `List<String>` → `Collection<String>` | `this.tags.toList()`, and a plain `this.tags` (already a supertype) |
 | `List<A>` → `Set<B>` (any non-`Set` into a `Set`/`MutableSet`) | **KRAFT-E063**, not generated: duplicates would be dropped. Change the target to a `List`, or `@MapUsing` with an explicit `.toSet()` |
+| `Map<K, A>` → `Map<K, B>`, `Map<K, A>` → `MutableMap<K, B>` | `this.m.mapValues { it.value.toB() }` (`.toMutableMap()` for a `MutableMap` target); `Map<K, A>?` → `Map<K, B>` adds `?: emptyMap()`. Same key type only; `Map<K, A?>` → `Map<K, B>` is KRAFT-E005 |
 | `List<A>?` → `List<B>` | `this.xs?.map { it.toB() } ?: emptyList()` — the nullable source needs **no** `@MapUsing` |
 | `List<A?>` → `List<B>` | `this.xs.mapNotNull { it?.toB() }` |
 | `A?` → `B?` with only a non-null `A → B` converter registered | `this.x?.toB()` — the non-null bridge is threaded through a safe call (Kraft 0.13.0+) |

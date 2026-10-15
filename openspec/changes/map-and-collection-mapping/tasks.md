@@ -47,9 +47,9 @@
 
 > Agent: sonnet · effort high · scope: kraft-core/src/main/**, kraft-ksp/src/main/**, kraft-ksp/src/jvmTest/**, docs/user-guide/collection-mapping.md, docs/user-guide/errors.md, .claude/skills/kraft-mappers/SKILL.md · verify: ./gradlew :kraft-ksp:jvmTest · after: 4
 
-- [ ] 5.1 Add `Keyed` shapes for `Map`/`MutableMap` with an identity key (`mapValues`, `.toMutableMap()`, and the identity-value `toMutableMap()`). Verify with jvmTest `MapValueTest`, covering "Nested values", "Named @KraftConverter on values", "MutableMap target", "Same types, MutableMap target" and "Map and non-map".
-- [ ] 5.2 Add map nullability: `?: emptyMap()` / `mutableMapOf()`, nullable values kept, and nullable → non-null values returning `null` from `ContainerRule`, plus the new `detailedTypeMismatch` map-value hint. Verify with jvmTest `MapNullabilityTest`, covering "Nullable map into non-null map", "Nullable values kept" and "Nullable values into non-null values" (quoted hint), with the hint documented under E005 in `errors.md`.
-- [ ] 5.3 Add a Map section to `collection-mapping.md` and the SKILL.md list. Verify that the examples match the `MapValueTest` expectations.
+- [x] 5.1 Add `Keyed` shapes for `Map`/`MutableMap` with an identity key (`mapValues`, `.toMutableMap()`, and the identity-value `toMutableMap()`). Verify with jvmTest `MapValueTest`, covering "Nested values", "Named @KraftConverter on values", "MutableMap target", "Same types, MutableMap target" and "Map and non-map".
+- [x] 5.2 Add map nullability: `?: emptyMap()` / `mutableMapOf()`, nullable values kept, and nullable → non-null values returning `null` from `ContainerRule`, plus the new `detailedTypeMismatch` map-value hint. Verify with jvmTest `MapNullabilityTest`, covering "Nullable map into non-null map", "Nullable values kept" and "Nullable values into non-null values" (quoted hint), with the hint documented under E005 in `errors.md`.
+- [x] 5.3 Add a Map section to `collection-mapping.md` and the SKILL.md list. Verify that the examples match the `MapValueTest` expectations.
 
 ## 6. Map keys and E064
 

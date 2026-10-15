@@ -244,6 +244,7 @@ class ContainerRule : MappingRule {
         val sourceProp = ctx.sourceProps[effectiveName] ?: return RuleOutcome.Pass
         val source = mappedContainerOf(sourceProp.type) ?: return RuleOutcome.Pass
         val targetContainer = mappedContainerOf(target.type) ?: return RuleOutcome.Pass
+        if (!claimsMapShape(source, targetContainer)) return RuleOutcome.Pass
         // Identical types are a direct copy, which DirectMatchRule handles.
         if (sourceProp.type.ksType == target.type.ksType) return RuleOutcome.Pass
         val srcElement = source.element ?: return RuleOutcome.Pass
@@ -286,10 +287,43 @@ class ContainerRule : MappingRule {
         }
         // Only the container's nullability differs: not a collection-type conversion.
         if (source.kind == targetContainer.kind) return null
+        if (source.kind.isKeyed) return keyedMapping(target, sourceProp, source, targetContainer)
         return linearMapping(target, sourceProp, source, targetContainer, op)
     }
 
     // ---------- Shared helpers ----------
+
+    /**
+     * False for a map against a single-element container, and for two maps whose key types differ
+     * (a later group maps those): the property is left to the rest of the chain (KRAFT-E005).
+     */
+    private fun claimsMapShape(source: ContainerTypeInfo, target: ContainerTypeInfo): Boolean =
+        source.kind.isKeyed == target.kind.isKeyed &&
+            (!source.kind.isKeyed || source.key?.ksType == target.key?.ksType)
+
+    /** A `Map` -> `MutableMap` copy: same keys, same values. */
+    private fun keyedMapping(
+        target: PropertyInfo,
+        sourceProp: PropertyInfo,
+        source: ContainerTypeInfo,
+        targetContainer: ContainerTypeInfo
+    ): PropertyMappingStrategy.ContainerMapping? {
+        val key = source.key ?: return null
+        val value = source.element ?: return null
+        val targetValue = targetContainer.element ?: return null
+        return PropertyMappingStrategy.ContainerMapping(
+            targetProperty = target,
+            sourceProperty = sourceProp,
+            shape = ContainerShape.Keyed(
+                sourceKind = source.kind,
+                targetKind = targetContainer.kind,
+                key = ContainerShape.Leaf(ElementOp.Identity, key.isNullable, key.isNullable),
+                value = ContainerShape.Leaf(ElementOp.Identity, value.isNullable, targetValue.isNullable),
+                sourceNullable = sourceProp.type.isNullable,
+                targetNullable = target.type.isNullable
+            )
+        )
+    }
 
     private fun linearMapping(
         target: PropertyInfo,
