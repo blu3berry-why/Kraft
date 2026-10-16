@@ -8,6 +8,7 @@ import com.google.devtools.ksp.symbol.KSType
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
 import com.blu3berry.kraft.model.descriptor.MappingSource
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
+import com.blu3berry.kraft.model.descriptor.converterDescriptors
 
 /**
  * Pair of (package, simple name) for an `@RequiresOptIn` marker class. Used by the
@@ -61,6 +62,11 @@ object OptInMarkerCollector {
         descriptor.propertyMappings
             .filterIsInstance<PropertyMappingStrategy.ConverterFunction>()
             .forEach { strat -> strat.converter.function?.let { collectFrom(it, markers) } }
+        // Converters applied element-wise inside a container are invoked too.
+        descriptor.propertyMappings
+            .filterIsInstance<PropertyMappingStrategy.ContainerMapping>()
+            .flatMap { it.shape.converterDescriptors() }
+            .forEach { conv -> conv.function?.let { collectFrom(it, markers) } }
 
         return markers.values.toList()
     }

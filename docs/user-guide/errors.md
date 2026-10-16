@@ -133,6 +133,10 @@ data class UserDto(val id: String) // error: Int -> String has no converter
 - Or align the declared types, including nullability.
 - When only nullability differs (`String?` to `String`), make the target nullable, give it a default and add `@MapIgnore`, or choose the fallback with a whole-source `@MapUsing(target = ...)`.
 
+#### Map values that are nullable
+
+When two maps differ only because the source value is nullable (`Map<String, ItemSource?>` into `Map<String, ItemDto>`), the error adds the hint `Map values cannot be dropped like list elements: removing a null value would also remove its key.` A list would drop the null element with `mapNotNull`, but a map cannot drop a value without dropping its key. Make the target values nullable, or filter first with a whole-source `@MapUsing`.
+
 #### Duplicated generated types
 
 When the two types share a simple name, live under different enclosing classes (`AuthResponse.User.Role` and `AuthMe200Response.Role`) and have identical enum entries or identical primary-constructor parameter names, the error opens with `Types differ only by enclosing class: ...`. That shape usually comes from a code generator (for example kmpgen) inlining the same `$ref` twice, so the real fix is in the generator. To bridge the pair anyway, use `@MapEnum(source = ..., target = ...)` for enums, or a `@MapConfig` or `@KraftConverter` for classes. The usual "How to fix" list still follows the hint. See [API-first client design](api-first-client-design.md) for how to structure generated clients.
@@ -314,7 +318,7 @@ data class UserDto(val address: AddressDto) // error: nullable source, non-null 
 
 **Severity:** error
 
-**Cause:** A nested mapping involves a type that is not a concrete class with a primary constructor, such as an interface, a type parameter or a non-`List` collection.
+**Cause:** A nested mapping involves a type that is not a concrete class with a primary constructor, such as an interface, an abstract or sealed class, or a type parameter. For a collection property, the message names the element type that is not mappable.
 
 ```kotlin
 interface Shape
@@ -330,7 +334,7 @@ data class Target(
 **Fix:**
 
 - Use a `@MapUsing` converter for this property.
-- Or make sure the `List` element type is a concrete mappable class.
+- Or make sure the collection's element type is a concrete mappable class.
 - Or declare an explicit `@MapConfig` with a `@NestedMapping` for the pair.
 
 ### KRAFT-E016 — Ambiguous nested mapping {#kraft-e016}
@@ -1176,6 +1180,65 @@ object SourceToTargetBMapper
 
 - Disambiguate via the side template, for example `to{side}{target}` instead of `to{side}`.
 - Or set `aliasEmitMode = AliasEmitMode.FULL_NAME_ONLY` on one of the mappers.
+
+### KRAFT-E063 — Lossy collection conversion {#kraft-e063}
+
+**Severity:** error
+
+**Cause:** A collection property would be converted into a `Set` or `MutableSet` from something that is not a `Set` or `MutableSet`. Duplicate elements would be dropped without a trace, so Kraft refuses to generate the conversion. It applies at every nesting level and to the reverse mapper that `@MapReverse` generates: a mapper from `Set` to `List` forward is fine, but its reverse would turn a `List` into a `Set`.
+
+The deprecated `@MapNested` and `nestedMappings` paths are frozen at their 0.13 behaviour and are not checked.
+
+```kotlin
+data class ItemSource(val id: Int)
+data class ItemDto(val id: Int)
+
+data class Source(val items: List<ItemSource>)
+data class Target(val items: Set<ItemDto>) // error: converting List<ItemSource> to Set<ItemDto> would drop duplicate elements
+
+@MapConfig(source = Source::class, target = Target::class)
+object SourceToTargetMapper
+```
+
+**Fix:**
+
+- Change the target to `List<ItemDto>` (or another collection that keeps duplicates).
+- Or map the property with `@MapUsing` and call `.toSet()` explicitly, which makes the dropped duplicates your decision.
+
+### KRAFT-E064 — Map key mapping can merge entries {#kraft-e064}
+
+**Severity:** error
+
+**Cause:** The key types of a `Map` or `MutableMap` property differ, and the key operation is one Kraft cannot prove one-to-one. If two different source keys became the same target key, all but one of their entries would be dropped without a trace. Kraft maps keys only through a value-class wrap or unwrap, or an enum mapping that maps no two source entries to the same target entry (auto-derived enum mappings always qualify). It refuses a nested mapper, a `@KraftConverter`, a `@MapEnum` that maps two or more source entries to one target entry, and an enum mapper or converter compiled in another module, whose entry table it cannot see. The message names the operation.
+
+```kotlin
+enum class StatusDto { OPEN, REOPENED, CLOSED }
+enum class Status { ACTIVE, CLOSED }
+
+@MapEnum(
+    source = StatusDto::class,
+    target = Status::class,
+    fieldMappings = [
+        FieldMapping(source = "OPEN", target = "ACTIVE"),
+        FieldMapping(source = "REOPENED", target = "ACTIVE"),
+    ]
+)
+object StatusMapping
+
+data class Source(val counts: Map<StatusDto, Int>)
+data class Target(val counts: Map<Status, Int>) // error: @MapEnum StatusDto → Status maps OPEN, REOPENED to ACTIVE and would silently drop entries
+
+@MapConfig(source = Source::class, target = Target::class)
+object SourceToTargetMapper
+```
+
+The same `@MapEnum` is fine for map values (`Map<String, StatusDto>` into `Map<String, Status>`): merging values loses nothing.
+
+**Fix:**
+
+- Keep the key type the same on both sides.
+- Or use a value-class key, or an enum key whose mapping is one-to-one.
+- Or map the property with `@MapUsing`, which makes the merge your decision.
 
 ## Warnings
 

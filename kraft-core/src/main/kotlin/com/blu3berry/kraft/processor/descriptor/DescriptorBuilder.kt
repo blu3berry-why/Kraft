@@ -11,6 +11,7 @@ import com.blu3berry.kraft.model.MapperId
 import com.blu3berry.kraft.model.descriptor.MappingDirection
 import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
+import com.blu3berry.kraft.model.descriptor.nestedDescriptors
 import com.blu3berry.kraft.processor.diagnostics.MutedKspLogger
 import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
 import com.blu3berry.kraft.processor.diagnostics.report
@@ -32,7 +33,7 @@ class DescriptorBuilder(
         buildConfigDescriptors(configMappings, classMappings, enumMappings, globalConverters, builtDescriptors)
         buildReverseDescriptors(classMappings, configMappings, globalConverters, builtDescriptors)
         // Enum-backed nested IDs (e.g. Status → StatusDto from List<Status>/List<StatusDto>
-        // collection-element pairs) are covered by EnumMappingDescriptor, not MapperDescriptor.
+        // container leaves) are covered by EnumMappingDescriptor, not MapperDescriptor.
         // Exclude them from implicit dependency resolution (so no class mapper is built for
         // enum types, which would produce a duplicate conflicting overload) and from the
         // missing-nested-dependency validation.
@@ -66,9 +67,7 @@ class DescriptorBuilder(
         var changed = false
         val mappings = descriptor.propertyMappings.map { strategy ->
             val shadow = (strategy as? PropertyMappingStrategy.ConverterFunction)?.shadowedNative
-            if (shadow is PropertyMappingStrategy.NestedMapper &&
-                !check.isAvailable(shadow.nestedMappingDescriptor)
-            ) {
+            if (shadow != null && shadow.nestedDescriptors().any { !check.isAvailable(it) }) {
                 changed = true
                 strategy.copy(shadowedNative = null)
             } else {
@@ -111,9 +110,8 @@ class DescriptorBuilder(
             if (!visiting.add(id)) return false
             val descriptor = mutedBuilder.buildMinimalDescriptor(source, target, configMappings, globalConverters)
             val verdict = descriptor != null && descriptor.propertyMappings
-                .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
-                .all {
-                    val dep = it.nestedMappingDescriptor
+                .flatMap { it.nestedDescriptors() }
+                .all { dep ->
                     isAvailable(dep.nestedMapperId, dep.sourceType.declaration, dep.targetType.declaration, visiting)
                 }
             visiting -= id
@@ -281,15 +279,15 @@ class DescriptorBuilder(
         val inProgress = mutableSetOf<MapperId>()
         for (descriptor in builtDescriptors.values.toList()) {
             descriptor.propertyMappings
-                .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
+                .flatMap { it.nestedDescriptors() }
                 .filter {
-                    val id = it.nestedMappingDescriptor.nestedMapperId
+                    val id = it.nestedMapperId
                     id !in builtDescriptors && id !in enumBackedIds
                 }
-                .forEach { strategy ->
+                .forEach { nested ->
                     resolveImplicit(
-                        source = strategy.nestedMappingDescriptor.sourceType.declaration,
-                        target = strategy.nestedMappingDescriptor.targetType.declaration,
+                        source = nested.sourceType.declaration,
+                        target = nested.targetType.declaration,
                         path = listOf(descriptor.id),
                         builtDescriptors = builtDescriptors,
                         inProgress = inProgress,
@@ -349,12 +347,12 @@ class DescriptorBuilder(
         enumBackedIds: Set<MapperId> = emptySet(),
     ) {
         descriptor.propertyMappings
-            .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
-            .filter { it.nestedMappingDescriptor.nestedMapperId !in enumBackedIds }
-            .forEach { strategy ->
+            .flatMap { it.nestedDescriptors() }
+            .filter { it.nestedMapperId !in enumBackedIds }
+            .forEach { nested ->
                 resolveImplicit(
-                    source = strategy.nestedMappingDescriptor.sourceType.declaration,
-                    target = strategy.nestedMappingDescriptor.targetType.declaration,
+                    source = nested.sourceType.declaration,
+                    target = nested.targetType.declaration,
                     path = path + currentId,
                     builtDescriptors = builtDescriptors,
                     inProgress = inProgress,

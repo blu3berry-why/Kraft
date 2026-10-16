@@ -26,7 +26,8 @@ object TestKspRunner {
     private fun prepareCompilation(
         sources: List<SourceFile>,
         kspOptions: Map<String, String>,
-        extraClasspath: List<File> = emptyList()
+        extraClasspath: List<File> = emptyList(),
+        warningsAsErrors: Boolean = false
     ): KotlinCompilation = KotlinCompilation().apply {
         useKsp2()
         kspWithCompilation = true
@@ -34,6 +35,7 @@ object TestKspRunner {
         symbolProcessorProviders = listOf(AutoMapperProcessorProvider()).toMutableList()
         this.sources = sources
         verbose = false
+        allWarningsAsErrors = warningsAsErrors
         if (extraClasspath.isNotEmpty()) classpaths = classpaths + extraClasspath
         if (kspOptions.isNotEmpty()) kspProcessorOptions.putAll(kspOptions)
     }
@@ -41,9 +43,10 @@ object TestKspRunner {
     @OptIn(ExperimentalCompilerApi::class)
     fun compile(
         vararg sources: SourceFile,
-        kspOptions: Map<String, String> = emptyMap()
+        kspOptions: Map<String, String> = emptyMap(),
+        warningsAsErrors: Boolean = false
     ): JvmCompilationResult =
-        prepareCompilation(sources.toList(), kspOptions).compile()
+        prepareCompilation(sources.toList(), kspOptions, warningsAsErrors = warningsAsErrors).compile()
 
     @OptIn(ExperimentalCompilerApi::class)
     fun compileAndReturnGenerated(

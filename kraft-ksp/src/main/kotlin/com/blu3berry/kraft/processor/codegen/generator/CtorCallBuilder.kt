@@ -3,7 +3,6 @@ package com.blu3berry.kraft.processor.codegen.generator
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.MemberName
-import com.blu3berry.kraft.model.descriptor.CollectionKind
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.descriptor.ConverterSource
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
@@ -19,10 +18,16 @@ import com.blu3berry.kraft.processor.codegen.generatedMapperPackage
  * from the resolved [PropertyMappingStrategy] entries in a [MapperDescriptor].
  *
  * Handles all strategy variants: direct, renamed, constant, converter function
- * (property-source and whole-object, plain and member-extension), and nested mapper.
+ * (property-source and whole-object, plain and member-extension), nested mapper,
+ * value-class wrap/unwrap, and container mappings (rendered by [ContainerShapeRenderer]).
  * Ignored properties are filtered out before the block is built.
  */
 internal class CtorCallBuilder(private val config: GenerationConfig) {
+
+    private val containerRenderer = ContainerShapeRenderer(
+        nestedMapperMember = ::nestedMapperMemberName,
+        converterMember = ::topLevelMemberName
+    )
 
     /**
      * Returns a [CodeBlock] of the form:
@@ -90,6 +95,10 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
             }
             is PropertyMappingStrategy.ValueClassUnwrap -> {
                 addValueClassUnwrapLine(block, strategy)
+            }
+            is PropertyMappingStrategy.ContainerMapping -> {
+                val receiver = CodeBlock.of("this.%N", strategy.sourceProperty.name)
+                block.add("%N = %L", strategy.targetProperty.name, containerRenderer.render(receiver, strategy.shape))
             }
             is PropertyMappingStrategy.Ignored -> {
                 // Already filtered out before this method is called
@@ -190,45 +199,8 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
         val t = strategy.targetProperty.name
         val s = strategy.sourceProperty.name
         val fnMember = nestedMapperMemberName(strategy.nestedMappingDescriptor)
-        val collKind = strategy.nestedMappingDescriptor.collectionKind
-
-        if (collKind != null) {
-            addCollectionNestedLine(block, strategy, t, s, fnMember, collKind)
-        } else {
-            val dot = if (strategy.sourceProperty.type.isNullable) "?." else "."
-            block.add("%N = this.%N%L%M()", t, s, dot, fnMember)
-        }
-    }
-
-    private fun addCollectionNestedLine(
-        block: CodeBlock.Builder,
-        strategy: PropertyMappingStrategy.NestedMapper,
-        t: String,
-        s: String,
-        fnMember: MemberName,
-        collKind: CollectionKind
-    ) {
-        val sourceIsNullable = strategy.sourceProperty.type.isNullable
-        val targetIsNullable = strategy.targetProperty.type.isNullable
-        val srcElemIsNullable = strategy.nestedMappingDescriptor.sourceType.isNullable
-        val tgtElemIsNullable = strategy.nestedMappingDescriptor.targetType.isNullable
-        val mapFn = if (srcElemIsNullable && !tgtElemIsNullable) "mapNotNull" else "map"
-        val toSuffix = when (collKind) {
-            CollectionKind.LIST -> ""
-            CollectionKind.SET -> if (sourceIsNullable) "?.toSet()" else ".toSet()"
-        }
-        val itRef = if (srcElemIsNullable) "it?" else "it"
-
-        if (sourceIsNullable) {
-            val emptyFallback = when (collKind) {
-                CollectionKind.LIST -> "emptyList()"
-                CollectionKind.SET -> "emptySet()"
-            }
-            val fallback = if (!targetIsNullable) " ?: $emptyFallback" else ""
-            block.add("%N = this.%N?.%L { %L.%M() }%L%L", t, s, mapFn, itRef, fnMember, toSuffix, fallback)
-        } else {
-            block.add("%N = this.%N.%L { %L.%M() }%L", t, s, mapFn, itRef, fnMember, toSuffix)
-        }
+        val dot = if (strategy.sourceProperty.type.isNullable) "?." else "."
+        block.add("%N = this.%N%L%M()", t, s, dot, fnMember)
     }
 
     private fun addValueClassWrapLine(
@@ -238,17 +210,10 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
         val t = strategy.targetProperty.name
         val s = strategy.sourceProperty.name
         val valueClass = strategy.valueClass.className
-        val collKind = strategy.collectionKind
-        when {
-            collKind != null -> {
-                val dot = if (strategy.safeCall) "?." else "."
-                block.add(
-                    "%N = this.%N%Lmap { %T(it) }%L",
-                    t, s, dot, valueClass, collectionSuffix(collKind, strategy.safeCall)
-                )
-            }
-            strategy.safeCall -> block.add("%N = this.%N?.let { %T(it) }", t, s, valueClass)
-            else -> block.add("%N = %T(this.%N)", t, valueClass, s)
+        if (strategy.safeCall) {
+            block.add("%N = this.%N?.let { %T(it) }", t, s, valueClass)
+        } else {
+            block.add("%N = %T(this.%N)", t, valueClass, s)
         }
     }
 
@@ -262,20 +227,7 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
         // conventional underlying name, which is legal but noisy in generated code.
         val underlying = strategy.underlyingPropertyName
         val dot = if (strategy.safeCall) "?." else "."
-        val collKind = strategy.collectionKind
-        if (collKind != null) {
-            block.add(
-                "%N = this.%N%Lmap { it.%L }%L",
-                t, s, dot, underlying, collectionSuffix(collKind, strategy.safeCall)
-            )
-        } else {
-            block.add("%N = this.%N%L%L", t, s, dot, underlying)
-        }
-    }
-
-    private fun collectionSuffix(collKind: CollectionKind, safeCall: Boolean): String = when (collKind) {
-        CollectionKind.LIST -> ""
-        CollectionKind.SET -> if (safeCall) "?.toSet()" else ".toSet()"
+        block.add("%N = this.%N%L%L", t, s, dot, underlying)
     }
 
     private fun nestedMapperMemberName(nested: NestedMappingDescriptor): MemberName {

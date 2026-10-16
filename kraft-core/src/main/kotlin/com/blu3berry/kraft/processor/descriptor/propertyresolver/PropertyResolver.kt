@@ -7,6 +7,7 @@ import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.processor.diagnostics.MutedKspLogger
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ClassOverrideRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConfigOverrideRule
+import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ContainerRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConverterRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.DirectMatchRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.GlobalConverterRule
@@ -28,7 +29,11 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
     ): PropertyMappingStrategy? {
 
         for (rule in rules) {
-            val result = rule.tryResolve(target, ctx) ?: continue
+            val result = when (val outcome = rule.evaluate(target, ctx)) {
+                RuleOutcome.Pass -> continue
+                RuleOutcome.Reported -> return null
+                is RuleOutcome.Resolved -> outcome.strategy
+            }
             if (rule is ConverterRule &&
                 result is PropertyMappingStrategy.ConverterFunction &&
                 result.source is ConverterSource.Property
@@ -49,19 +54,20 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
      * strategy reads a different source property than the converter does (then the
      * converter is not a duplicate). A global `@KraftConverter` applied directly to the same
      * scalar pair is also not a duplicate: a `@MapUsing` there is a deliberate per-mapper
-     * override. Element-wise (`NestedMapper`) and null-lifted (`useSafeCall`) global-converter
+     * override. Element-wise (`ContainerMapping`) and null-lifted (`useSafeCall`) global-converter
      * shadows are still reported.
      *
      * The probe must be inert. Audit of the rules it runs (agent-readable-diagnostics 4.1):
-     * - [NestedRule], [ValueClassRule], [GlobalConverterRule] (and the other rules) never
-     *   mutate [MappingContext]: it is an immutable data class holding read-only maps and
-     *   lists, and the rules only read it. [NestedRule] synthesises a
-     *   `NestedMappingDescriptor` inside the strategy it returns; nested mappers are only
+     * - [ContainerRule], [NestedRule], [ValueClassRule], [GlobalConverterRule] (and the other
+     *   rules) never mutate [MappingContext]: it is an immutable data class holding read-only
+     *   maps and lists, and the rules only read it. [ContainerRule] and [NestedRule] synthesise
+     *   `NestedMappingDescriptor`s inside the strategy they return; nested mappers are only
      *   registered by `DescriptorBuilder` from the *top-level* strategies, never from
      *   [PropertyMappingStrategy.ConverterFunction.shadowedNative].
      * - The rules log through `ctx.logger`, so the probe runs on a context copy whose logger
      *   is [MutedKspLogger].
-     * - Shared state found: [GlobalConverterRule] can reach the classpath fallback of
+     * - Shared state found: [GlobalConverterRule] and [ContainerRule] (for element converters)
+     *   can reach the classpath fallback of
      *   `GlobalConverterRegistry`, which memoizes results and reports classpath ambiguity
      *   through the scanner's own logger. The copy therefore also carries
      *   `GlobalConverterRegistry.silent()`, whose fallback neither memoizes nor reports.
@@ -78,7 +84,10 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
         val native = rules
             .asSequence()
             .filterNot { it is ConverterRule || it is RequiredFieldErrorRule }
-            .firstNotNullOfOrNull { it.tryResolve(target, probeCtx) }
+            .map { it.evaluate(target, probeCtx) }
+            .firstOrNull { it !is RuleOutcome.Pass }
+            .let { it as? RuleOutcome.Resolved }
+            ?.strategy
             ?: return null
         if (native is PropertyMappingStrategy.Ignored) return null
         if (native.isDirectGlobalConverter()) return null
@@ -88,8 +97,8 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
     /**
      * True for a global `@KraftConverter` call on the scalar pair itself. [ConverterRule] is
      * excluded from the probe, so any [PropertyMappingStrategy.ConverterFunction] here comes
-     * from [GlobalConverterRule]'s direct match; its collection-element match yields a
-     * `NestedMapper` instead. `useSafeCall` marks the null-lift through `?.`.
+     * from [GlobalConverterRule]'s direct match; an element-wise converter is a
+     * `ContainerMapping` from [ContainerRule] instead. `useSafeCall` marks the null-lift through `?.`.
      */
     private fun PropertyMappingStrategy.isDirectGlobalConverter(): Boolean =
         this is PropertyMappingStrategy.ConverterFunction && !converter.useSafeCall
@@ -101,6 +110,7 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
         is PropertyMappingStrategy.NestedMapper -> sourceProperty.name
         is PropertyMappingStrategy.ValueClassWrap -> sourceProperty.name
         is PropertyMappingStrategy.ValueClassUnwrap -> sourceProperty.name
+        is PropertyMappingStrategy.ContainerMapping -> sourceProperty.name
         is PropertyMappingStrategy.ConverterFunction -> (source as? ConverterSource.Property)?.info?.name
         is PropertyMappingStrategy.Constant -> null
         is PropertyMappingStrategy.Ignored -> null
@@ -120,7 +130,14 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
          *                              an ignored property is never mistakenly treated as a
          *                              source-name override.
          *
-         * 3. [NestedRule]            — must claim a property whose type matches a nested mapping
+         * 3. [ContainerRule]         — element-wise mapping of List/Set properties (nested
+         *                              mappers, enum mappers, value-class wrap/unwrap per element),
+         *                              including @MapNested and explicit @NestedMapping on
+         *                              collections. Before NestedRule so container properties are
+         *                              resolved in one place; NestedRule, GlobalConverterRule and
+         *                              ValueClassRule only see scalar properties after it.
+         *
+         * 3b. [NestedRule]           — must claim a property whose type matches a nested mapping
          *                              before DirectMatchRule tries to copy the object directly
          *                              by name, which would produce a type-mismatch error.
          *
@@ -132,7 +149,7 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
          *                              (existing rules emit the error).
          *
          * 4b. [ValueClassRule]       — auto wrap/unwrap of value classes against their underlying
-         *                              type (also element-wise for List/Set). After
+         *                              type. After
          *                              GlobalConverterRule so a registered converter for the pair
          *                              wins; before the rename/direct rules for the same reason
          *                              GlobalConverterRule is — they would report a type mismatch.
@@ -155,6 +172,7 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
         fun default() = listOf(
                 ConverterRule(),
                 IgnoreRule(),
+                ContainerRule(),
                 NestedRule(),
                 GlobalConverterRule(),
                 ValueClassRule(),

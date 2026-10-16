@@ -299,7 +299,7 @@ See [Reverse Mapping -- Converters in Reverse](reverse-mapping.md#converters-in-
 
 The annotated function must be a top-level extension; the receiver is the source type, the return is the target type. No value parameters are allowed.
 
-The receiver and return types must not be parameterized: converters are registered by their raw `(source → target)` class pair, so type arguments cannot be matched — `fun List<Int>.toCsv(): String` is rejected even though the pair is fully concrete. This is a `@KraftConverter`-only limitation: `List`/`Set` **properties** whose element types map are converted element-wise automatically, and `@MapUsing` functions accept parameterized types (matched including type arguments).
+The receiver and return types must not be parameterized: converters are registered by their raw `(source → target)` class pair, so type arguments cannot be matched — `fun List<Int>.toCsv(): String` is rejected even though the pair is fully concrete. This is a `@KraftConverter`-only limitation: collection **properties** (`List`, `Set`, `Array`, ...) whose element types map are converted element-wise automatically, and a named `@KraftConverter` such as `fun Foo.intoBar(): Bar` is applied to each element under its own name (`this.items.map { it.intoBar() }`; see [Collection Mapping](collection-mapping.md#converters-on-elements)), and `@MapUsing` functions accept parameterized types (matched including type arguments).
 
 ```kotlin
 package com.example.util

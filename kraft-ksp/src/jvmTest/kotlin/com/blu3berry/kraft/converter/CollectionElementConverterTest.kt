@@ -51,7 +51,7 @@ class CollectionElementConverterTest {
     }
 
     @Test
-    fun `a hand-written @KraftConverter is NOT applied at element position`() {
+    fun `a hand-written @KraftConverter is applied at element position under its own name`() {
         val source = SourceFile.kotlin(
             "Models.kt",
             """
@@ -60,8 +60,7 @@ class CollectionElementConverterTest {
             class Amount(val minor: Long)
 
             // Registered for the pair, and deliberately not named 'toLabel'-style
-            // after the target — the naming assumption is exactly why element
-            // position declines it.
+            // after the target, so the call must use the converter's own name.
             @com.blu3berry.kraft.config.KraftConverter
             fun Amount.intoLabel(): String = minor.toString()
 
@@ -73,12 +72,10 @@ class CollectionElementConverterTest {
             """
         )
 
-        val result = TestKspRunner.compile(source)
-
-        // The scalar form of this same pair resolves; the collection form does not.
-        assertThat(result.exitCode).isNotEqualTo(KotlinCompilation.ExitCode.OK)
-        assertThat(result.messages).contains("[KRAFT-E005]")
-        assertThat(result.messages).contains("Type mismatch for property 'totals'")
+        // Until map-and-collection-mapping group 3 this pair was refused (KRAFT-E005).
+        val generated = TestKspRunner.compileAndReturnGenerated(source)
+        val text = generated.first { it.name.contains("Src") }.readText()
+        assertThat(text).contains("totals = this.totals.map { it.intoLabel() }")
     }
 
     @Test

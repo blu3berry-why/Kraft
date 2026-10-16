@@ -192,7 +192,22 @@ private fun typeMismatchGuidance(
 ): String {
     val hint = duplicatedTypesHint(sourceProperty, targetProperty)
     val fix = fixGuidance(sourceProperty, targetProperty)
-    return if (hint == null) fix else "$hint\n\n$fix"
+    val mapHint = mapValueNullabilityHint(sourceProperty, targetProperty)
+    val hints = listOfNotNull(hint, mapHint).joinToString("\n\n")
+    return if (hints.isEmpty()) fix else "$hints\n\n$fix"
+}
+
+/**
+ * The hint for two maps whose source value is nullable and whose target value is not
+ * (`Map<K, V?>` into `Map<K, V>`). A list drops null elements, but dropping a null map value
+ * would drop its key as well.
+ */
+private fun mapValueNullabilityHint(sourceProperty: PropertyInfo, targetProperty: PropertyInfo): String? {
+    val sourceValue = containerKindOf(sourceProperty.type)?.takeIf { it.kind.isKeyed }?.element
+    val targetValue = containerKindOf(targetProperty.type)?.takeIf { it.kind.isKeyed }?.element
+    if (sourceValue == null || targetValue == null) return null
+    if (!sourceValue.isNullable || targetValue.isNullable) return null
+    return "    Map values cannot be dropped like list elements: removing a null value would also remove its key."
 }
 
 private fun fixGuidance(
@@ -609,8 +624,9 @@ fun KSPLogger.nullableNestedSource(
 )
 
 /**
- * @MapNested used on a property whose type is not a concrete mappable class
- * (e.g. interface, generic type parameter, collection).
+ * A nested mapping involves a type that is not a concrete mappable class
+ * (e.g. an interface or a generic type parameter). For a collection property,
+ * [typeName] names the element type that is not mappable.
  */
 fun KSPLogger.nestedTypeNotMappable(
     propertyName: String,
@@ -623,14 +639,79 @@ fun KSPLogger.nestedTypeNotMappable(
 
     Why:
     Nested mapping requires both the source and target types to be concrete
-    classes with a primary constructor. Interfaces, generic type parameters,
-    and non-List collections are not supported directly.
-    For List<T> properties, T must itself be a mappable class.
+    classes with a primary constructor. Interfaces, abstract and sealed classes,
+    and generic type parameters are not supported directly.
+    For a collection property, the element type must itself be a mappable class.
 
     How to fix:
       ✓ Use a @MapUsing converter for this property.
-      ✓ Or ensure the List element type is a concrete mappable class.
+      ✓ Or ensure the element type '$typeName' is a concrete mappable class.
       ✓ Or declare an explicit @MapConfig with a @NestedMapping for this pair.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * A collection property would be converted into a `Set` from a non-`Set` type,
+ * which silently drops duplicate elements.
+ *
+ * @param sourceType The source container as shown to the user, e.g. `List<ItemSource>`.
+ * @param targetType The target container as shown to the user, e.g. `Set<ItemDto>`.
+ * @param listType   The `List` form of the target the user can switch to, e.g. `List<ItemDto>`.
+ */
+fun KSPLogger.lossyCollectionConversion(
+    propertyName: String,
+    sourceType: String,
+    targetType: String,
+    listType: String,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.LOSSY_COLLECTION_CONVERSION,
+    """
+    Cannot map property '$propertyName': converting $sourceType to $targetType would drop duplicate elements.
+
+    Why:
+    A Set holds each element once, so building one from a List, Array or other
+    collection that may contain duplicates would lose elements without a trace.
+    Kraft only generates conversions that keep every element.
+
+    How to fix:
+      ✓ Change the target to $listType, or map it with @MapUsing and call .toSet() explicitly.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * `Map` keys would be mapped by an operation Kraft cannot prove one-to-one, so two keys could
+ * become one and an entry would be dropped.
+ *
+ * @param sourceKey The source key type as shown to the user, e.g. `KeySource`.
+ * @param targetKey The target key type as shown to the user, e.g. `KeyDto`.
+ * @param operation The operation the keys would go through, e.g. `a nested mapper`.
+ * @param effect    What that operation does to the keys, completing the sentence after "which",
+ *                  e.g. `can map two different keys to the same key and silently drop entries`.
+ */
+@Suppress("LongParameterList")
+fun KSPLogger.nonInjectiveMapKey(
+    propertyName: String,
+    sourceKey: String,
+    targetKey: String,
+    operation: String,
+    effect: String,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.NON_INJECTIVE_MAP_KEY,
+    """
+    Cannot map property '$propertyName': keys $sourceKey → $targetKey would go through $operation, which $effect.
+
+    Why:
+    A map holds one entry per key. If two source keys map to the same target key, all but one
+    of their entries disappear without a trace. Kraft maps keys only through operations it can
+    prove one-to-one: a value-class wrap or unwrap, or an enum mapping that maps no two entries
+    to the same entry.
+
+    How to fix:
+      ✓ Keep the key type the same on both sides, use a value-class or one-to-one enum key, or map the property with @MapUsing.
     """.trimIndent(),
     symbol
 )

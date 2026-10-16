@@ -34,12 +34,13 @@ data class MapperDescriptor(
 
     /**
      * Set of child [MapperId]s this mapper depends on.
-     * Derived from [PropertyMappingStrategy.NestedMapper] entries in [propertyMappings].
+     * Derived from the [PropertyMappingStrategy.NestedMapper] and [PropertyMappingStrategy.ContainerMapping]
+     * entries in [propertyMappings].
      * Used for dependency ordering and cycle detection during codegen.
      */
     val nestedDependencies: Set<MapperId> =
         propertyMappings
-            .filterIsInstance<PropertyMappingStrategy.NestedMapper>()
-            .map { it.nestedMappingDescriptor.nestedMapperId }
+            .flatMap { it.nestedDescriptors() }
+            .map { it.nestedMapperId }
             .toSet()
 }

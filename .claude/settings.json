@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "blu3berry-skills": {
+      "source": {
+        "source": "github",
+        "repo": "blu3berry-why/blu3berry-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "workflow@blu3berry-skills": true
+  }
+}
