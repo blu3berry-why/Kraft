@@ -69,38 +69,18 @@ only "align nullability" without naming the rule, `@KraftConverter`, or `@MapEnu
 
 ## Bugs
 
-### 1. Nullable enum elements in collections are not bridged — M
+### 1. ~~Nullable enum elements in collections are not bridged~~ — done in 0.14
 
-`GlobalConverterRule.findCollectionElementMatch` builds the element lookup key with exact
-nullability, so `List<StatusDto?>` → `List<Status>` finds no synthetic enum entry and falls
-through to a type-mismatch error. The identical shape with *data-class* elements is claimed
-by `NestedRule` and emits `mapNotNull { it?.toX() }`. Two code paths, two answers, for what
-the user sees as one feature.
+Shipped by the `map-and-collection-mapping` OpenSpec change (PR #120): an element lookup that
+misses on the nullable key retries the non-null key, for synthetic enum entries as well as
+`@KraftConverter`s. `List<E?>` → `List<E?>` keeps nulls, `List<E?>` → `List<E>` drops them,
+and map values follow the same rule. Pinned by `NullableEnumElementTest`.
 
-*Scope:* in `findCollectionElementMatch`, retry the lookup with a non-null element key when
-the source element is nullable and the target element is not, and route the result through
-the existing `mapNotNull` rendering. Tests for `List<E?> → List<E>` and `Set<E?> → Set<E>`
-over both enum and `@KraftConverter` element pairs.
+### 2. ~~Hand-written `@KraftConverter`s are silently skipped for collection elements~~ — done in 0.14
 
-### 2. Hand-written `@KraftConverter`s are silently skipped for collection elements — M
-
-`findCollectionElementMatch` accepts only `ConverterEntry.Synthetic` (auto-derived enum
-mappers). The in-code comment is honest about why: `NestedMapper` rendering assumes a
-`to${target}` callable name, and a real converter may be called anything, so routing it that
-way would emit a call to a function that does not exist. The consequence is still surprising:
-`@KraftConverter fun A.intoB(): B` converts an `A` property but not a `List<A>` property,
-which fails as a type mismatch with no hint that a converter was found and declined.
-
-The boundary is now pinned by `CollectionElementConverterTest`, which asserts all three halves
-of the split: a `@MapEnum` pair *is* applied element-wise, a hand-written converter is *not*,
-and that same converter resolves fine outside a collection. It is also documented for consumers
-as gotcha K6 in the shipped agent skill.
-
-*Scope:* extend the nested-mapper descriptor (or add a sibling strategy) to carry an explicit
-callable reference instead of deriving the name, then admit `ConverterEntry.Real` for element
-positions; `CollectionElementConverterTest`'s second case is the test that must change when
-that lands. Until then, item 4 should at least say that a converter exists for the element
-pair but could not be used here.
+Shipped by the same change: a hand-written converter is applied at element position under its
+own name, at any nesting depth. `CollectionElementConverterTest`'s second case now asserts it,
+and gotcha K6 in the shipped agent skill is marked fixed.
 
 ### 3. Nullable collection source silently becomes empty; the scalar equivalent errors — S (document) / M (opt-out)
 
@@ -348,15 +328,10 @@ days.
 **Second — close the CI gaps.** Items 14, 15, 16 and 22 are all S and mechanical. 14 and 16
 are the two that would have caught real problems.
 
-**Third — the correctness bugs.** Items 1 and 2 are the same class of surprise: a feature
-works for one element type and not another, with an error message that never admits a
-converter was found and declined. Do 1 first — smaller and self-contained — then 2, which
-needs a descriptor change.
-
-**Fourth — diagnostics.** Items 5 and 6 are the structural fix behind most of what this audit
+**Third — diagnostics.** Items 5 and 6 are the structural fix behind most of what this audit
 found: today the only way to learn what the processor decided is to read its output. Items 17
 and 18 belong here too — both close the gap between "the generated text looks right" and "the
 mapper does the right thing".
 
-**Later.** Items 19 and 20 are genuine feature work and should not jump the queue ahead of the
+**Later.** Item 19 is genuine feature work and should not jump the queue ahead of the
 diagnostics that make feature work debuggable. Item 21 rides along with 1.0.
