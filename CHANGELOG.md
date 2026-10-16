@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.14.0](https://github.com/blu3berry-why/Kraft/compare/0.13.0...0.14.0) (2026-10-16)
+
+
+### Features
+
+* auto wrap and unwrap value classes ([#114](https://github.com/blu3berry-why/Kraft/issues/114)) ([0bd3202](https://github.com/blu3berry-why/Kraft/commit/0bd3202a29d31339f34606f637e75d8195c777ae))
+* **collections:** Map, more collection types and nesting to any depth ([#120](https://github.com/blu3berry-why/Kraft/issues/120)) ([56ebdae](https://github.com/blu3berry-why/Kraft/commit/56ebdae1fba8c5828e3521da7bd470a6bc545f01))
+* **diagnostics:** agent-readable diagnostic codes, W001/W002 redundancy warnings ([#118](https://github.com/blu3berry-why/Kraft/issues/118)) ([61ad8f3](https://github.com/blu3berry-why/Kraft/commit/61ad8f39adcb57a9eab3902793a20e7f1ec9eff4))
+
+
+### Bug Fixes
+
+* **ci:** let Publish RC cut the first RC of a version ([#119](https://github.com/blu3berry-why/Kraft/issues/119)) ([caf260a](https://github.com/blu3berry-why/Kraft/commit/caf260a56792872171de83765a8b602ff6dac4c2))
+* order KSP platform tasks after kspCommonMainKotlinMetadata ([#111](https://github.com/blu3berry-why/Kraft/issues/111)) ([760d808](https://github.com/blu3berry-why/Kraft/commit/760d808b7b1f7c2f1d7f371130a314fa11a5fc0b))
+* stop generating mapper files with a double .kt extension ([#115](https://github.com/blu3berry-why/Kraft/issues/115)) ([ee1c983](https://github.com/blu3berry-why/Kraft/commit/ee1c983615a5d0b7ddaf80eda34a58844a1fefcf))
+
 ## [0.13.0](https://github.com/blu3berry-why/Kraft/compare/0.12.0...0.13.0) (2026-07-31)
 
 
