@@ -8,12 +8,25 @@ Scope of the audit: open GitHub issues (none — the tracker is empty), TODO/FIX
 against current behaviour, API rough edges, and four pain points reported by Kraft's main
 consumer, the Re-Claw project.
 
-Items are numbered, sorted by severity, and sized **S** (< half a day), **M** (1–3 days),
-**L** (a week or more). Each item names its category: **Bug**, **Docs**, **DX**, **Test**,
-or **Nice-to-have**.
+Items are numbered once and never renumbered, so `Roadmap: #N` in a change or commit always
+means the same item. Every item heading has this form:
 
-Items marked ✅ were fixed in the same change that produced this document; they are kept
-here so the reasoning behind them stays recorded.
+```
+### <N>. <Title> — <size> · <category> · <status>
+```
+
+- **size:** **S** (< half a day), **M** (1–3 days) or **L** (a week or more).
+- **category:** **Bug**, **DX**, **Docs**, **Test**, **CI**, **Feature** or **Nice-to-have**.
+- **status:** `open`, `partial (<what remains>)` or `done in <version> (<ref>)`, where `<ref>` is
+  a PR (`#122`) or the OpenSpec change that shipped it.
+
+Done items stay in place, so the reasoning behind them stays recorded. To see what is left, and
+to check that no heading has lost its status (the second command must print nothing):
+
+```
+grep -nE '^### [0-9]+\..* · (open|partial)' docs/ROADMAP.md
+grep -nE '^### [0-9]+\.' docs/ROADMAP.md | grep -vE ' · (open|partial \(.*\)|done in [^ ]+ \(.+\))$'
+```
 
 ---
 
@@ -69,20 +82,20 @@ only "align nullability" without naming the rule, `@KraftConverter`, or `@MapEnu
 
 ## Bugs
 
-### 1. ~~Nullable enum elements in collections are not bridged~~ — done in 0.14
+### 1. Nullable enum elements in collections are not bridged — M · Bug · done in 0.14 (#120)
 
 Shipped by the `map-and-collection-mapping` OpenSpec change (PR #120): an element lookup that
 misses on the nullable key retries the non-null key, for synthetic enum entries as well as
 `@KraftConverter`s. `List<E?>` → `List<E?>` keeps nulls, `List<E?>` → `List<E>` drops them,
 and map values follow the same rule. Pinned by `NullableEnumElementTest`.
 
-### 2. ~~Hand-written `@KraftConverter`s are silently skipped for collection elements~~ — done in 0.14
+### 2. Hand-written `@KraftConverter`s are silently skipped for collection elements — M · Bug · done in 0.14 (#120)
 
 Shipped by the same change: a hand-written converter is applied at element position under its
 own name, at any nesting depth. `CollectionElementConverterTest`'s second case now asserts it,
 and gotcha K6 in the shipped agent skill is marked fixed.
 
-### 3. Nullable collection source silently becomes empty; the scalar equivalent errors — ~~S (document)~~ done / M (opt-out)
+### 3. Nullable collection source silently becomes empty; the scalar equivalent errors — M · Bug · partial (opt-out flag)
 
 `List<X>?` → `List<Y>` compiles to `?: emptyList()`, collapsing "absent" and "empty". The
 single-object equivalent (`X?` → `Y`) is a hard error (KRAFT-E014), and the scalar converter
@@ -93,11 +106,15 @@ the "keep the target nullable" escape hatch for codebases where null and empty d
 
 *Open (M):* a `@MapConfig` flag that makes the nullable-collection case an error instead.
 
+### 27. Mappers silently dropped for defaulted / nullable targets with no source — M · Bug · done in 0.14 (#122)
+
+A mapper whose target had a defaulted or nullable property with no source was skipped with no diagnostic, so the missing `toXxx()` surfaced only at the call site. Defaulted targets are now left out of the constructor call, a nullable target without a default gets `null` plus the new KRAFT-W009, and the internal guard KRAFT-E065 ensures a mapper is never dropped without a diagnostic. Upgrade note in `upgrading.md`.
+
 ---
 
 ## DX and diagnostics
 
-### 4. ✅ Type-mismatch error named neither `@KraftConverter` nor the nullability rule — S
+### 4. Type-mismatch error named neither `@KraftConverter` nor the nullability rule — S · DX · done in 0.14 (#113)
 
 `detailedTypeMismatch` — the most-hit error in the processor — offered only "align
 nullability / use `@MapUsing` / ensure both types are compatible". It never mentioned
@@ -110,7 +127,7 @@ source with a non-null target it said "align nullability", hiding the actual rul
 and the nullable-source/non-null-target case gets dedicated text stating the both-sides rule,
 why it exists, and the three ways out. Covered by two tests in `NullableScalarBridgeTest`.
 
-### 5. Errors do not report what the processor actually discovered — M
+### 5. Errors do not report what the processor actually discovered — M · DX · open
 
 Every "is my converter being seen?" investigation — especially cross-module, where discovery
 runs off the klib classpath — currently ends in reading generated output or bisecting the
@@ -121,7 +138,7 @@ entry's origin: same-module, classpath delegate, or synthetic), derived enum pai
 resolved side aliases. Extend item 4 to list registered converters whose source or
 target matches the failing property.
 
-### 6. Errors carry no stable codes — M
+### 6. Errors carry no stable codes — M · DX · done in 0.14 (#118)
 
 Messages are well-formatted prose with no identifier, so they cannot be searched, linked to a
 docs anchor, or asserted against in consumer test suites without matching on prose that
@@ -134,7 +151,7 @@ and add a docs page listing each code with its cause and fix.
 
 ## Docs
 
-### 7. ✅ `custom-converters.md` contradicted shipped nullable-lift behaviour — S
+### 7. `custom-converters.md` contradicted shipped nullable-lift behaviour — S · Docs · done in 0.14 (#113)
 
 The Restrictions section asserted "`Uuid → String` does not auto-lift to `Uuid? → String?`;
 declare the nullable variant separately". #108 made that false in 0.13.0 and the page was not
@@ -146,7 +163,7 @@ documentation.
 **Fixed.** The bullet now states the real rule, including why the nullable-source/non-null-target
 pair is deliberately excluded and what to use instead.
 
-### 8. ✅ Opt-in propagation section omitted `@file:OptIn` — S
+### 8. Opt-in propagation section omitted `@file:OptIn` — S · Docs · done in 0.14 (#113)
 
 The section listed only declaration sites (source class, target class, `@MapConfig` object,
 `@MapUsing`, `@KraftConverter`). File-level `@file:OptIn` — the form that made this
@@ -157,7 +174,7 @@ for it, leaving a reader to conclude it was unsupported.
 the contract: generated code owns its opt-ins; a module-wide `-opt-in` argument should not be
 necessary, and needing one on 0.13.0+ is a bug report.
 
-### 9. ✅ README and Getting Started understated CI coverage — S
+### 9. README and Getting Started understated CI coverage — S · Docs · done in 0.14 (#113)
 
 Both claimed "other KSP 2 releases are not CI-tested". That predates #102, which added a KSP
 matrix (2.3.3, 2.3.9), a Gradle matrix (8.13, 9.5.1, 9.6.1), a newest-stack leg (Kotlin
@@ -166,7 +183,7 @@ Central. The docs were talking consumers *out* of upgrades the project actually 
 
 **Fixed** in both places, including the previously undocumented Gradle floor.
 
-### 10. ✅ The shipped agent skill had no collections coverage — S
+### 10. The shipped agent skill had no collections coverage — S · Docs · done in 0.14 (#113)
 
 Root cause of RC-1 and RC-2 (see above).
 
@@ -177,7 +194,7 @@ annotated, gotchas K4 (opt-in) and K5 (the one non-lifted nullable pair), three 
 common-error rows, and a corrected version reference. `ai-integration.md`'s summary of the
 skill was updated to match.
 
-### 11. No stated opt-in contract in the user guide — S
+### 11. No stated opt-in contract in the user guide — S · Docs · open
 
 The generated-code opt-in guarantee is now described inside the `@KraftConverter` section,
 which is not where someone hitting an opt-in error will look.
@@ -186,7 +203,7 @@ which is not where someone hitting an opt-in error will look.
 what to do when a marker still leaks, and why compiler-level `-opt-in` is a workaround rather
 than the intended setup.
 
-### 12. Version drift in example snippets — S
+### 12. Version drift in example snippets — S · Docs · open
 
 `docs/index.md` hardcodes `id("com.google.devtools.ksp") version "2.3.3"` while every other
 page uses a `<ksp-version>` placeholder. It will go stale silently.
@@ -194,7 +211,7 @@ page uses a `<ksp-version>` placeholder. It will go stale silently.
 *Scope:* use the placeholder consistently, or add a docs build check that flags hardcoded
 dependency versions in snippets.
 
-### 13. ~~No migration note for the 0.13.0 behaviour change~~ — done
+### 13. No migration note for the 0.13.0 behaviour change — S · Docs · done in 0.14 (#121)
 
 `docs/user-guide/upgrading.md` lists the changes that can affect a working build, per release:
 the 0.13.0 nullable-scalar bridging and `@file:OptIn` propagation, and the 0.14.0 warnings,
@@ -205,7 +222,7 @@ every release that changes behaviour.
 
 ## Test and CI gaps
 
-### 14. The sample app is never compiled on pull requests — S
+### 14. The sample app is never compiled on pull requests — S · CI · open
 
 `test.yml` runs detekt, `:kraft-ksp:jvmTest`, the Gradle plugin suites, and the KMP
 integration tests. It never builds `:composeApp`, the sample that exercises the annotations
@@ -214,7 +231,7 @@ a PR that breaks the sample merges green and fails afterwards on the default bra
 
 *Scope:* add `:composeApp:compileKotlinJvm` (or the metadata compile) to the test job.
 
-### 15. Kover aggregation omits the Gradle plugin — S
+### 15. Kover aggregation omits the Gradle plugin — S · CI · open
 
 The root `build.gradle.kts` aggregates `:kraft-core` and `:kraft-ksp` only. `:kraft-gradle-plugin`
 has a substantial functional-test suite (wiring, DSL, AGP 9, error paths) whose coverage is
@@ -223,7 +240,7 @@ invisible to Sonar, making the reported number describe a subset of the shipped 
 *Scope:* add `kover(project(":kraft-gradle-plugin"))`; confirm TestKit-run coverage is
 attributed correctly before trusting the delta.
 
-### 16. The pinned KSP matrix leg trails the probe — S
+### 16. The pinned KSP matrix leg trails the probe — S · CI · open
 
 `test.yml` pins `2.3.9`, commented "newest known-good at 2026-07-21". Maven Central's newest
 release is now **2.3.11**, and the weekly `ksp-latest` probe was green on 2026-08-13. The
@@ -240,7 +257,7 @@ bump the leg to 2.3.11 and refresh the date in the comment. Separately, consider
 weekly probe open an issue when it passes against a version newer than the pin, so closing the
 loop does not depend on someone remembering.
 
-### 17. No cross-module test for opt-in propagation — M
+### 17. No cross-module test for opt-in propagation — M · Test · open
 
 `OptInPropagationTest` covers `@file:OptIn` well, but in-module only. RC-3 bit in the
 cross-module case, where converters resolve as classpath delegates from a klib — the one
@@ -250,7 +267,7 @@ configuration the existing tests do not reach.
 an experimental type and assert the consumer's generated mapper carries the marker. The
 harness already exists; this is a fixture addition, not new infrastructure.
 
-### 18. Generated code is asserted as text, never executed — M
+### 18. Generated code is asserted as text, never executed — M · Test · open
 
 The KSP suite asserts on the *source* of generated mappers. Nothing runs a mapper and checks
 the resulting value, so a mapper that compiles but assigns the wrong field passes. The one
@@ -264,7 +281,7 @@ would most cheaply catch a regression in `CtorCallBuilder`.
 
 ## Nice-to-have
 
-### 19. No built-in converter set for stdlib pairs — L
+### 19. No built-in converter set for stdlib pairs — L · Nice-to-have · open
 
 The docs already state that every module must declare its own `Int → Long`, `Uuid → String`,
 `Instant → Long`. It is the most-repeated boilerplate in a library whose purpose is removing
@@ -275,13 +292,21 @@ raises questions about ambiguity against user-declared converters (local should 
 registry already models) and about the "no runtime dependency" promise. Worth an RFC before
 any code.
 
-### 20. ~~`Map<K, V>` and arrays are unsupported~~ — done in 0.14
+*Candidate first set* (for the RFC): an optional `kraft-converters`
+module with kotlinx-datetime `Instant` ↔ `String`/`Long`, `Uuid` ↔ `String`, and numeric
+widening. It saves writing the same five `@KraftConverter`s in every project.
+
+### 20. `Map<K, V>` and arrays are unsupported — L · Nice-to-have · done in 0.14 (#120)
 
 Shipped by the `map-and-collection-mapping` OpenSpec change (PR #120): `Map`/`MutableMap`,
 `Array`, `Collection`, `Iterable` and the `Mutable*` kinds, lossless conversions between them,
 one-to-one key mapping (KRAFT-E064 otherwise) and nesting to any depth.
 
-### 21. Remove the deprecated nested-mapping annotations at 1.0 — S
+*Before:* `CollectionKind { LIST, SET }` and the "non-List collections are not supported"
+error meant any other container fell back to a hand-written mapper. It was Tier 1 #1 of the
+feature roadmap.
+
+### 21. Remove the deprecated nested-mapping annotations at 1.0 — S · Nice-to-have · open
 
 `@MapNested` and `@NestedMapping` are deprecated in favour of auto-detection and produce four
 deprecation warnings in Kraft's own build (`KraftKspConstants.kt`) on every compile.
@@ -289,13 +314,13 @@ deprecation warnings in Kraft's own build (`KraftKspConstants.kt`) on every comp
 *Scope:* schedule removal for 1.0; until then suppress at the reference sites so the build
 output stays clean and real warnings stay visible.
 
-### 22. Action version drift in workflows — S
+### 22. Action version drift in workflows — S · Nice-to-have · open
 
 `docs-deploy.yml` uses `actions/checkout@v4`; every other workflow uses `@v6`.
 
 *Scope:* align, and consider Dependabot for `github-actions` so this does not recur.
 
-### 23. `agp9Test` fails on Windows — S · Test
+### 23. `agp9Test` fails on Windows — S · Test · open
 
 Found 2026-10-15 while gating the `map-and-collection-mapping` change. `KraftGradlePluginFunctionalTest.kt`
 (lines 37 and 45) builds its test repositories as `maven(url = "file://$testRepo")`, so a
@@ -304,7 +329,7 @@ unaffected, which is why it went unnoticed.
 
 *Scope:* use `testRepo.toURI()` / `libsRepo.toURI()`; ship as its own `fix:` PR.
 
-### 24. One cause, three errors for KRAFT-E015 — S · DX
+### 24. One cause, three errors for KRAFT-E015 — S · DX · open
 
 A `@MapNested` property whose element type is not a mappable class (e.g. an interface)
 reports KRAFT-E015, then a follow-on KRAFT-E005 and KRAFT-E004 for the same property. 0.14
@@ -314,7 +339,7 @@ already use it.
 *Scope:* return `RuleOutcome.Reported` after `nestedTypeNotMappable` in `NestedRule`, and
 assert in the existing E015 test that no `[KRAFT-E005]` follows.
 
-### 25. Broken docs links never fail a build — S · CI
+### 25. Broken docs links never fail a build — S · CI · open
 
 Found 2026-10-18 while writing `upgrading.md`. `docs-deploy.yml` runs `mkdocs build` without
 `--strict`, so a broken link or anchor deploys silently, and no PR check builds the site at
@@ -323,7 +348,7 @@ all. mkdocs is not installed on the dev machine either, so new links are checked
 *Scope:* use `mkdocs build --strict` in `docs-deploy.yml`, and add the same strict build as a
 PR check that runs when `docs/**` or `mkdocs.yml` changes.
 
-### 26. Docs deploy before the stable release is on Maven Central — S · CI
+### 26. Docs deploy before the stable release is on Maven Central — S · CI · open
 
 `docs-deploy.yml` fires on the GitHub Release, but stable publishing is `USER_MANAGED`
 (`settings.gradle.kts`): artifacts wait in the Central Portal until someone clicks Publish.
@@ -332,27 +357,115 @@ Between the two, the docs site describes a version consumers cannot resolve.
 *Scope:* deploy stable docs by `workflow_dispatch` after clicking Publish, or switch stable
 releases to `AUTOMATIC` now that every release is tested as an RC first.
 
+## Positioning
+
+*Checked 2026-10-11. Re-check before relying on the timing.*
+
+"Best cross-platform mapper" is judged against two kinds of competitor:
+
+- **Konvert** (KSP, the feature leader on JVM): data/enum/**value** classes, POJOs, **Map**
+  element mapping, reusable `@Konverter`s, built-in type converters. **KMP status:** not in any
+  release (latest is v4.5.1, 2026-07-24). The maintainer has a draft PR open, mcarleio/konvert#219
+  (`feat/multiplatform`, 33 commits, last updated 2026-08-10), and a contributor PR fixing
+  `kspCommonMainKotlinMetadata` crashes (#223) was merged into that branch. **Kraft's KMP lead is
+  real but temporary**, likely a matter of months. Close Tier 1 before Konvert ships KMP.
+- **Small KMP mappers** (komap, kMapper, KMapper, MapKt, kautoMapper): KMP-native but shallow.
+  KMapper's selling point is a `Result<T>` return for fallible mapping.
+
+Kraft already wins on: KMP-first design, a Gradle plugin and `kraft { }` DSL, side aliases
+(`.toDomain()`), cross-module `@KraftConverter` discovery, a CI version matrix, a docs site and
+the AI skill. Its gap is **type coverage**: users drop a mapper library the first time it can't
+map a field, not over a missing advanced feature.
+
+---
+
+## Features
+
+Sizes for #29–#38 are first estimates.
+
+**Tier 1: parity gaps (target 0.14).** Removes the "falls back to hand-written" moments. Already
+covered elsewhere: Map and other collections (#20, done), "use the target default when the source
+is missing" (#27, done). The built-in converter module (#19) is deferred: it needs an RFC
+first (see Suggested order, "Later").
+
+### 28. Value classes are not wrapped or unwrapped automatically — M · Feature · done in 0.14 (#114)
+
+`UserId(val value: String)` ↔ `String` now maps without a converter: plain, nullable (safe call)
+and element-wise, including Map keys and values. Typed IDs are standard in domain models.
+
+### 29. No way to set a target property to a constant or expression — M · Feature · open
+
+Today a constant (`isActive = true`, `currency = "HUF"`) needs a whole-source `@MapUsing`.
+`PropertyMappingStrategy.Constant` already exists and generates `name = <expr>`; since #122 it
+also carries the KRAFT-W009 null fill. What's missing is the annotation (`@MapConstant` or an
+expression form) and the rule that produces it.
+
+*When it ships:* add it to KRAFT-W009's fix list.
+
+**Tier 2: differentiators (0.15–0.16).** Makes the "best" claim possible.
+
+### 30. No sealed hierarchy mapping — L · Feature · open
+
+Subtype-to-subtype `when` (OpenAPI `oneOf`). Few KSP mappers do this well, and it's where
+API-first clients hurt most.
+
+### 31. No fallible mapping — M · Feature · open
+
+A `toDomainOrNull()` / `Result`-returning variant for `X?` → `X`. Matches KMapper's pitch
+without giving up compile-time strictness.
+
+### 32. Mappers cannot take extra parameters — M · Feature · open
+
+`fun Dto.toDomain(now: Instant)`. Removes the main reason for whole-source converters.
+
+### 33. No update/patch mappers — M · Feature · open
+
+`fun Patch.applyTo(t: T): T` via `copy`, for PATCH endpoints and form state.
+
+### 34. No unmapped-target policy — M · Feature · open
+
+`strict` / `warn` / `ignore` in the DSL, plus a per-mapper coverage report. Matches MapStruct's
+`unmappedTargetPolicy`, which JVM users expect. It would also be the project-wide knob for
+KRAFT-W009.
+
+**Tier 3: trust and adoption (alongside).**
+
+### 35. No comparison page or Konvert migration guide — M · Docs · open
+
+Kraft vs Konvert vs MapStruct, plus a Konvert → Kraft migration guide.
+
+### 36. No build-time benchmark or verified incremental-processing story — M · Test · open
+
+### 37. Generated extensions are unchecked from Swift — S · DX · open
+
+Check how the generated extensions look from iOS (is `@ObjCName` needed?).
+
+### 38. New Kotlin and KSP releases are tracked by hand — S · CI · open
+
+Track new Kotlin 2.x and KSP releases in the existing version matrix.
+
 ---
 
 ## Suggested order
 
-**First — correctness of what we tell people.** Items 7, 8, 9, 10, 4, 13 and item 3's
-documentation half are done. Item 11 is the last one (S); like the others, it removes a way for
-a consumer to reach a wrong conclusion about working code. The audit's clearest lesson is that
+**First — correctness of what we tell people.** Item 11 is the last one (S); like the
+finished docs items, it removes a way for a consumer to reach a wrong conclusion about
+working code. The audit's clearest lesson is that
 Kraft's defect rate is low, and that its *explanation* rate is what has been costing consumers
 days.
 
 **Second — close the CI gaps.** Items 14, 15, 16, 22, 25 and 26 are all S and mechanical. 14 and 16
 are the two that would have caught real problems.
 
-**Third — diagnostics.** Items 5 and 6 are the structural fix behind most of what this audit
+**Third — diagnostics.** Item 5 is the structural fix behind most of what this audit
 found: today the only way to learn what the processor decided is to read its output. Items 17
 and 18 belong here too — both close the gap between "the generated text looks right" and "the
 mapper does the right thing".
 
+**Features.** 0.14 has #29 left. 0.15 is #30 (sealed) and #34 (unmapped policy). 0.16 is #31,
+#32 and #33 together, because they change the generated function signatures. Tier 3 (#35–#38)
+runs alongside. Watch Konvert's KMP branch (see Positioning): Tier 1 should be closed before it
+ships.
+
 **Later.** Item 19 is genuine feature work and should not jump the queue ahead of the
 diagnostics that make feature work debuggable. Item 21 rides along with 1.0.
-
-### 27. ~~Mappers silently dropped for defaulted / nullable targets with no source~~ — done in 0.14
-
-A mapper whose target had a defaulted or nullable property with no source was skipped with no diagnostic, so the missing `toXxx()` surfaced only at the call site. Defaulted targets are now left out of the constructor call, a nullable target without a default gets `null` plus the new KRAFT-W009, and the internal guard KRAFT-E065 ensures a mapper is never dropped without a diagnostic. Upgrade note in `upgrading.md`.
