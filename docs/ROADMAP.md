@@ -444,6 +444,12 @@ Check how the generated extensions look from iOS (is `@ObjCName` needed?).
 
 Track new Kotlin 2.x and KSP releases in the existing version matrix.
 
+### 39. Coding agents searching for a KMP mapper don't find Kraft — M · Docs · open
+
+Parked 2026-10-18; not yet explored. Agents tend to find libraries through search results,
+READMEs and docs pages, Maven Central / package metadata and `llms.txt`-style files more than
+through video comments. Work out where they actually look before choosing channels.
+
 ---
 
 ## Suggested order
