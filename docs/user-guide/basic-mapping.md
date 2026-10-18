@@ -87,27 +87,46 @@ All three produce the same generated code. The difference is only where the anno
 
 ## Properties with Default Values
 
-Target properties that have a default value and no matching source property are automatically omitted from the generated constructor call. No ignore annotation is needed in this case.
+Target properties that have a default value and no matching source property are automatically omitted from the generated constructor call, so Kotlin uses the default. No ignore annotation is needed in this case, and Kraft reports nothing.
 
 ```kotlin
-data class OrderSource(val id: Int)
-data class OrderDto(
-    val id: Int,
-    val status: String = "PENDING"  // no matching source property -- uses default
+data class PersonSource(val name: String)
+data class PersonDto(
+    val name: String,
+    val score: Int = 0  // no matching source property -- uses default
 )
 
-@MapConfig(source = OrderSource::class, target = OrderDto::class)
-object OrderMapper
+@MapConfig(source = PersonSource::class, target = PersonDto::class)
+object PersonMapper
 ```
 
-Generated output:
+Generated output (`score` is omitted, so `PersonSource("Ada").toPersonDto()` is `PersonDto(name = "Ada", score = 0)`):
 
 ```kotlin
-fun OrderSource.toOrderDto(): OrderDto = OrderDto(
-    id = this.id,
-    // status is omitted -- Kotlin uses its default value "PENDING"
+public fun PersonSource.toPersonDto(): PersonDto = PersonDto(
+  name = this.name
 )
 ```
+
+### Nullable properties without a default
+
+A nullable target property with no matching source property and no default gets `null`:
+
+```kotlin
+data class PersonDto(
+    val name: String,
+    val nickname: String?  // no matching source property, no default
+)
+```
+
+```kotlin
+public fun PersonSource.toPersonDto(): PersonDto = PersonDto(
+  name = this.name,
+  nickname = null
+)
+```
+
+Kraft also warns with [KRAFT-W009](errors.md#kraft-w009), because a renamed source property would otherwise turn into a silent `null`. Write `val nickname: String? = null` to make `null` the intended value. The property is then omitted like any other defaulted property, and the warning goes away.
 
 ## @MapIgnore
 

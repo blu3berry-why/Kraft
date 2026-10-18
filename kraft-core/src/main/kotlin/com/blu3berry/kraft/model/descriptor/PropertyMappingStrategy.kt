@@ -107,7 +107,8 @@ sealed interface PropertyMappingStrategy {
      * Use a literal or expression as a constant value:
      * `target.isActive = true`, `target.id = "prefix-${source.id}"`
      *
-     * Reserved for future use.
+     * Produced by `PropertyResolver` with `expression = "null"` for an unmapped nullable
+     * target property that has no default value.
      */
     data class Constant(
         override val targetProperty: PropertyInfo,

@@ -6,17 +6,17 @@ When this file and the dispatch brief conflict, this file and `design.md` win.
 
 > Agent: sonnet · effort medium · scope: kraft-ksp/src/jvmTest/** · verify: ./gradlew :kraft-ksp:jvmTest --tests "*RequiredFieldErrorRuleTest*" · after: —
 
-- [ ] 1.1 Tighten the two "no error" cases in `RequiredFieldErrorRuleTest` to also assert that a generated mapper file exists and contains `fun PersonSource.toPersonDto()` (use `compileAndReturnGenerated` or `sourcesGeneratedBySymbolProcessor`). Verify that both cases now **fail** on the current code, which is the confirmed silent drop, and commit them as `@Disabled("fix-silent-mapper-drop 2.x")` only if the group lands separately from group 2.
+- [x] 1.1 Tighten the two "no error" cases in `RequiredFieldErrorRuleTest` to also assert that a generated mapper file exists and contains `fun PersonSource.toPersonDto()` (use `compileAndReturnGenerated` or `sourcesGeneratedBySymbolProcessor`). Verify that both cases now **fail** on the current code, which is the confirmed silent drop, and commit them as `@Disabled("fix-silent-mapper-drop 2.x")` only if the group lands separately from group 2.
 
 ## 2. Resolver fallback and error tracking
 
 > Agent: opus · effort high · scope: kraft-core/src/main/**, kraft-ksp/src/jvmTest/** · verify: ./gradlew :kraft-ksp:jvmTest · after: 1
 
-- [ ] 2.1 Add `ErrorTrackingLogger` (delegating `KSPLogger` that counts `error()` calls) next to `MutedKspLogger`, and run the chain in `PropertyResolver.resolve` on `ctx.copy(logger = tracker)` (design D1). Verify that `probeShadowedNative` is untouched and the existing W001 tests stay green.
-- [ ] 2.2 Add the post-chain fallback in `PropertyResolver.resolve` (design D2): no strategy plus zero errors gives `Ignored` for defaulted targets and `Constant(target, "null")` for nullable targets without a default. Verify with a new jvmTest `missingsource/DefaultedTargetTest`, covering spec scenarios "Non-null property with a default", "Nullable property with a null default" and "Calling the generated mapper" (load the compiled class and invoke `toPersonDto()`), plus the tightened group-1 tests, now green and un-`@Disabled`.
-- [ ] 2.3 Verify that the fallback reaches every mapper kind. Add jvmTest `missingsource/MapperKindsTest`, covering spec scenarios "@MapFrom target with a default" and "Reverse mapper with a defaulted source-side property".
-- [ ] 2.4 Verify that the fallback never masks an error. Add jvmTest `missingsource/FallbackDoesNotMaskErrorsTest`, covering spec scenarios "Same-named source with the wrong type" (asserts no `KRAFT-W009`) and "Invalid @MapField override on a defaulted property".
-- [ ] 2.5 Fix `docs/user-guide/basic-mapping.md` "Properties with Default Values" so the generated-output snippet matches what 2.2 produces, and add a nullable-without-default example pointing at KRAFT-W009. Verify that the snippet matches the `DefaultedTargetTest` assertion text.
+- [x] 2.1 Add `ErrorTrackingLogger` (delegating `KSPLogger` that counts `error()` calls) next to `MutedKspLogger`, and run the chain in `PropertyResolver.resolve` on `ctx.copy(logger = tracker)` (design D1). Verify that `probeShadowedNative` is untouched and the existing W001 tests stay green.
+- [x] 2.2 Add the post-chain fallback in `PropertyResolver.resolve` (design D2): no strategy plus zero errors gives `Ignored` for defaulted targets and `Constant(target, "null")` for nullable targets without a default. Verify with a new jvmTest `missingsource/DefaultedTargetTest`, covering spec scenarios "Non-null property with a default", "Nullable property with a null default" and "Calling the generated mapper" (load the compiled class and invoke `toPersonDto()`), plus the tightened group-1 tests, now green and un-`@Disabled`.
+- [x] 2.3 Verify that the fallback reaches every mapper kind. Add jvmTest `missingsource/MapperKindsTest`, covering spec scenarios "@MapFrom target with a default" and "Reverse mapper with a defaulted source-side property".
+- [x] 2.4 Verify that the fallback never masks an error. Add jvmTest `missingsource/FallbackDoesNotMaskErrorsTest`, covering spec scenarios "Same-named source with the wrong type" (asserts no `KRAFT-W009`) and "Invalid @MapField override on a defaulted property".
+- [x] 2.5 Fix `docs/user-guide/basic-mapping.md` "Properties with Default Values" so the generated-output snippet matches what 2.2 produces, and add a nullable-without-default example pointing at KRAFT-W009. Verify that the snippet matches the `DefaultedTargetTest` assertion text.
 
 ## 3. KRAFT-W009 and suppression
 

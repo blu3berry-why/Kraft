@@ -1,9 +1,11 @@
 package com.blu3berry.kraft.processor.descriptor.propertyresolver
 
+import com.google.devtools.ksp.symbol.Nullability
 import com.blu3berry.kraft.model.descriptor.MappingContext
 import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.descriptor.ConverterSource
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
+import com.blu3berry.kraft.processor.diagnostics.ErrorTrackingLogger
 import com.blu3berry.kraft.processor.diagnostics.MutedKspLogger
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ClassOverrideRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConfigOverrideRule
@@ -23,13 +25,20 @@ import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ValueClas
  */
 class PropertyResolver(private val rules: List<MappingRule> = default()) {
 
+    /**
+     * Resolves [target] by running the rule chain, then, when no rule produced a strategy and
+     * none reported an error for this property, falls back to [missingSourceFallback].
+     * Returns null only when the property cannot be mapped; the caller then drops the mapper.
+     */
     fun resolve(
         target: PropertyInfo,
         ctx: MappingContext
     ): PropertyMappingStrategy? {
+        val tracker = ErrorTrackingLogger(ctx.logger)
+        val trackedCtx = ctx.copy(logger = tracker)
 
         for (rule in rules) {
-            val result = when (val outcome = rule.evaluate(target, ctx)) {
+            val result = when (val outcome = rule.evaluate(target, trackedCtx)) {
                 RuleOutcome.Pass -> continue
                 RuleOutcome.Reported -> return null
                 is RuleOutcome.Resolved -> outcome.strategy
@@ -43,7 +52,20 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
             return result
         }
 
-        return null
+        if (tracker.errorCount > 0) return null
+        return missingSourceFallback(target)
+    }
+
+    /**
+     * What to generate for a target property no rule resolved and no rule reported an error for:
+     * a defaulted property is left out of the constructor call so Kotlin applies its default,
+     * and a nullable property without a default receives `null`. Anything else cannot be mapped.
+     */
+    private fun missingSourceFallback(target: PropertyInfo): PropertyMappingStrategy? = when {
+        target.hasDefault -> PropertyMappingStrategy.Ignored(target)
+        target.type.ksType.nullability != Nullability.NOT_NULL ->
+            PropertyMappingStrategy.Constant(target, "null")
+        else -> null
     }
 
     /**
