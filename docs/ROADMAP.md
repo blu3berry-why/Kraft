@@ -344,7 +344,7 @@ already use it.
 *Scope:* return `RuleOutcome.Reported` after `nestedTypeNotMappable` in `NestedRule`, and
 assert in the existing E015 test that no `[KRAFT-E005]` follows.
 
-### 25. Broken docs links never fail a build — S · CI · open
+### 25. Broken docs links never fail a build — S · CI · done in 0.14 (#127)
 
 Found 2026-10-18 while writing `upgrading.md`. `docs-deploy.yml` runs `mkdocs build` without
 `--strict`, so a broken link or anchor deploys silently, and no PR check builds the site at
