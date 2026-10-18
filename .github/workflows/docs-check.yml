@@ -1,0 +1,32 @@
+name: Docs Check
+
+# Builds the docs site with --strict on pull requests that touch it, so a broken
+# link or anchor fails the PR instead of surfacing only at release-time deploy
+# (docs-deploy.yml runs the same strict build).
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install mkdocs-material
+        run: pip install mkdocs-material
+
+      - name: Build site (strict)
+        run: mkdocs build --strict

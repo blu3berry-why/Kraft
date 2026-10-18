@@ -48,6 +48,11 @@ markdown_extensions:
   - toc:
       permalink: true
 
+# mkdocs only reports broken in-page anchors at INFO by default; warn makes
+# `mkdocs build --strict` fail on them, as it does on broken links.
+validation:
+  anchors: warn
+
 nav:
   - Home: index.md
   - Roadmap: ROADMAP.md

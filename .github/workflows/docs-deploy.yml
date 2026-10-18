@@ -49,7 +49,7 @@ jobs:
         run: pip install mkdocs-material
 
       - name: Build site
-        run: mkdocs build
+        run: mkdocs build --strict
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
