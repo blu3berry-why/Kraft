@@ -231,6 +231,9 @@ enum class KraftDiagnostic(
 
     /** A mapper was skipped because no originating file was found. */
     MAPPER_GENERATION_SKIPPED("KRAFT-W008", Severity.WARNING, "Mapper generation skipped"),
+
+    /** An unmapped nullable target property with no default receives `null`. */
+    NULLABLE_TARGET_DEFAULTED_TO_NULL("KRAFT-W009", Severity.WARNING, "Nullable property set to null"),
     ;
 
     /** The heading anchor on the errors reference page, e.g. `kraft-w001`. */

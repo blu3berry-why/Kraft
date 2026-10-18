@@ -72,7 +72,8 @@ class ClassDescriptorBuilder(
             nestedMappings = nestedMappings,
             classNestedOverrides = classNestedOverrides,
             sourceTypeName = sourceTypeName,
-            targetTypeName = targetTypeName
+            targetTypeName = targetTypeName,
+            mappingDeclaration = mapping.annotatedClass
         )
 
         val resolver = PropertyResolver()

@@ -96,7 +96,8 @@ class ConfigDescriptorBuilder(
             nestedMappings = nestedMappings,
             ignoredProperties = ignoredProperties,
             sourceTypeName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
-            targetTypeName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString()
+            targetTypeName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString(),
+            mappingDeclaration = config.configObject
         )
     }
 

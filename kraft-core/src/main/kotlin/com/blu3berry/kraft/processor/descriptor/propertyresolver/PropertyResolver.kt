@@ -6,6 +6,9 @@ import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.descriptor.ConverterSource
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.processor.diagnostics.ErrorTrackingLogger
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.isKraftSuppressed
+import com.blu3berry.kraft.processor.util.nullableTargetDefaultedToNull
 import com.blu3berry.kraft.processor.diagnostics.MutedKspLogger
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ClassOverrideRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConfigOverrideRule
@@ -53,19 +56,40 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
         }
 
         if (tracker.errorCount > 0) return null
-        return missingSourceFallback(target)
+        return missingSourceFallback(target, trackedCtx)
     }
 
     /**
      * What to generate for a target property no rule resolved and no rule reported an error for:
      * a defaulted property is left out of the constructor call so Kotlin applies its default,
-     * and a nullable property without a default receives `null`. Anything else cannot be mapped.
+     * and a nullable property without a default receives `null` plus `KRAFT-W009`, unless
+     * suppressed. Anything else cannot be mapped.
      */
-    private fun missingSourceFallback(target: PropertyInfo): PropertyMappingStrategy? = when {
+    private fun missingSourceFallback(
+        target: PropertyInfo,
+        ctx: MappingContext
+    ): PropertyMappingStrategy? = when {
         target.hasDefault -> PropertyMappingStrategy.Ignored(target)
-        target.type.ksType.nullability != Nullability.NOT_NULL ->
+        target.type.ksType.nullability != Nullability.NOT_NULL -> {
+            if (!target.isW009Suppressed(ctx)) {
+                ctx.logger.nullableTargetDefaultedToNull(ctx.targetTypeName, target, target.declaration)
+            }
             PropertyMappingStrategy.Constant(target, "null")
+        }
         else -> null
+    }
+
+    /**
+     * `KRAFT-W009` is suppressed by `@Suppress("KRAFT-W009")` on the target property, on its
+     * constructor parameter (where Kotlin puts an annotation on a constructor `val` without a
+     * use-site target), or on the mapping declaration. Three single-declaration checks, so
+     * [isKraftSuppressed] keeps its "only this declaration" contract.
+     */
+    private fun PropertyInfo.isW009Suppressed(ctx: MappingContext): Boolean {
+        val w009 = KraftDiagnostic.NULLABLE_TARGET_DEFAULTED_TO_NULL
+        return declaration.isKraftSuppressed(w009) ||
+            parameter?.isKraftSuppressed(w009) == true ||
+            ctx.mappingDeclaration?.isKraftSuppressed(w009) == true
     }
 
     /**

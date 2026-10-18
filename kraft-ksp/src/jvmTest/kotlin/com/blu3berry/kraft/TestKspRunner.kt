@@ -4,6 +4,7 @@ package com.blu3berry.kraft
 import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
+import com.tschuchort.compiletesting.kspAllWarningsAsErrors
 import com.tschuchort.compiletesting.kspProcessorOptions
 import com.tschuchort.compiletesting.kspWithCompilation
 import com.tschuchort.compiletesting.sourcesGeneratedBySymbolProcessor
@@ -36,6 +37,9 @@ object TestKspRunner {
         this.sources = sources
         verbose = false
         allWarningsAsErrors = warningsAsErrors
+        // KSP's own warnings (Kraft's KRAFT-W codes) follow the flag too, as the KSP Gradle
+        // plugin does when it inherits the Kotlin compile's allWarningsAsErrors.
+        kspAllWarningsAsErrors = warningsAsErrors
         if (extraClasspath.isNotEmpty()) classpaths = classpaths + extraClasspath
         if (kspOptions.isNotEmpty()) kspProcessorOptions.putAll(kspOptions)
     }

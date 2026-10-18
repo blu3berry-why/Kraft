@@ -135,6 +135,29 @@ ${
 )
 
 /**
+ * `KRAFT-W009`: an unmapped nullable target property with no default receives `null`.
+ */
+fun KSPLogger.nullableTargetDefaultedToNull(
+    targetType: String,
+    targetProperty: PropertyInfo,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.NULLABLE_TARGET_DEFAULTED_TO_NULL,
+    """
+    Nullable property '${targetProperty.name}' in target type '$targetType' has no mapping source, so Kraft passes null.
+
+    Target property:
+      • ${targetProperty.name}: ${targetProperty.type.ksType}
+
+    How to fix:
+      ✓ Give '${targetProperty.name}' a default (= null) to make null the intended value.
+      ✓ Or map it explicitly with @MapUsing(target = "${targetProperty.name}").
+      ✓ Or add @Suppress("KRAFT-W009") to the property or to the mapping declaration.
+    """.trimIndent(),
+    symbol
+)
+
+/**
  * More informative type mismatch message.
  */
 fun KSPLogger.detailedTypeMismatch(

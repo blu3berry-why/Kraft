@@ -34,6 +34,7 @@ fun List<RowDto>?.toRows(): List<Row> = this.orEmpty().filter { it.visible }.map
 - The code must match exactly, including case: `@Suppress("kraft-w001")` does not suppress anything.
 - A suppression only covers the code it names. `@Suppress("KRAFT-W002")` does not silence `KRAFT-W001`.
 - The annotation goes on the declaration itself. A `@Suppress` on the enclosing class or file is not read.
+  The one exception is [`KRAFT-W009`](#kraft-w009), which is also read from the mapping declaration (the `@MapConfig` object, or the `@MapFrom` / `@MapTo` class), so one annotation covers every property of that mapper.
 - Errors cannot be suppressed: they mean Kraft cannot generate valid code.
 
 ## Errors
@@ -1425,3 +1426,24 @@ data class UserDto(
 
 - Declare the source or target type in a source file of the module.
 - Or write the mapping by hand.
+
+### KRAFT-W009 — Nullable property set to null {#kraft-w009}
+
+**Severity:** warning
+
+**Cause:** A nullable target property has no mapping source (no same-named source property, no `@MapField` or `FieldMapping` rename, no `@MapIgnore` / `@MapIgnoreField` entry and no `@MapUsing`) and no default value. Kraft still generates the mapper and passes `null` for it, which may hide a forgotten mapping. A property with a default value is left out of the constructor call instead, with no warning.
+
+```kotlin
+data class PersonSource(val name: String)
+data class PersonDto(val name: String, val nickname: String?) // warning: 'nickname' has no source
+
+@MapConfig(source = PersonSource::class, target = PersonDto::class)
+object PersonMapper
+// generates PersonDto(name = this.name, nickname = null)
+```
+
+**Fix:**
+
+- Give the property a default (`val nickname: String? = null`) to make null the intended value.
+- Or map it explicitly with `@MapUsing(target = "nickname")`.
+- Or add `@Suppress("KRAFT-W009")` to the property or to the mapping declaration (the `@MapConfig` object, or the `@MapFrom` / `@MapTo` class). Suppression does not change the generated code.

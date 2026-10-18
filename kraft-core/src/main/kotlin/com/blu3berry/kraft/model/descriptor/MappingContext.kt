@@ -1,6 +1,7 @@
 package com.blu3berry.kraft.model.descriptor
 
 import com.google.devtools.ksp.processing.KSPLogger
+import com.google.devtools.ksp.symbol.KSAnnotated
 import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.model.scan.MapNestedAnnotation
@@ -27,6 +28,10 @@ import com.blu3berry.kraft.model.scan.MapNestedAnnotation
  *                             property name. Never contains [MapNestedAnnotation.NotAnnotated] entries.
  * @param sourceTypeName       Fully-qualified name of the source type (for error messages).
  * @param targetTypeName       Fully-qualified name of the target type (for error messages).
+ * @param mappingDeclaration   The declaration that asked for this mapper: the `@MapConfig`
+ *                             object, or the class annotated with `@MapFrom` / `@MapTo`.
+ *                             A `@Suppress` on it silences suppressible per-property warnings
+ *                             such as `KRAFT-W009`. Null when the context is built by hand.
  */
 data class MappingContext(
     val logger: KSPLogger,
@@ -39,5 +44,6 @@ data class MappingContext(
     val ignoredProperties: Set<String> = emptySet(),
     val classNestedOverrides: Map<String, MapNestedAnnotation> = emptyMap(),
     val sourceTypeName: String,
-    val targetTypeName: String
+    val targetTypeName: String,
+    val mappingDeclaration: KSAnnotated? = null
 )
