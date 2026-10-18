@@ -17,8 +17,8 @@ class KraftGradlePluginFunctionalTest {
     private val kotlinVersion = System.getProperty("kraft.test.kotlinVersion")
     private val kspVersion = System.getProperty("kraft.test.kspVersion")
     private val pluginVersion = System.getProperty("kraft.test.pluginVersion")
-    private val testRepo = System.getProperty("kraft.test.repo").replace('\\', '/')
-    private val libsRepo = System.getProperty("kraft.test.libsRepo").replace('\\', '/')
+    private val testRepo = File(System.getProperty("kraft.test.repo"))
+    private val libsRepo = File(System.getProperty("kraft.test.libsRepo"))
     private val agpVersion = System.getProperty("kraft.test.agpVersion")
     // AGP 9 line for the built-in-Kotlin test; AGP 9 needs Gradle 9.5+, above
     // this build's wrapper, so that test drives its own Gradle distribution.
@@ -34,7 +34,7 @@ class KraftGradlePluginFunctionalTest {
             """
             pluginManagement {
                 repositories {
-                    maven(url = "file://$testRepo")
+                    maven(url = "${testRepo.toURI()}")
                     google()
                     mavenCentral()
                     gradlePluginPortal()
@@ -42,7 +42,7 @@ class KraftGradlePluginFunctionalTest {
             }
             dependencyResolutionManagement {
                 repositories {
-                    maven(url = "file://$libsRepo")
+                    maven(url = "${libsRepo.toURI()}")
                     google()
                     mavenCentral()
                 }
