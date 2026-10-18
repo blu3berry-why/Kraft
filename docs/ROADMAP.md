@@ -292,7 +292,7 @@ raises questions about ambiguity against user-declared converters (local should 
 registry already models) and about the "no runtime dependency" promise. Worth an RFC before
 any code.
 
-*Candidate first set* (from the feature roadmap, Tier 1): an optional `kraft-converters`
+*Candidate first set* (for the RFC): an optional `kraft-converters`
 module with kotlinx-datetime `Instant` ↔ `String`/`Long`, `Uuid` ↔ `String`, and numeric
 widening. It saves writing the same five `@KraftConverter`s in every project.
 
@@ -385,7 +385,8 @@ Sizes for #29–#38 are first estimates.
 
 **Tier 1: parity gaps (target 0.14).** Removes the "falls back to hand-written" moments. Already
 covered elsewhere: Map and other collections (#20, done), "use the target default when the source
-is missing" (#27, done), and the built-in converter module (#19).
+is missing" (#27, done). The built-in converter module (#19) is deferred: it needs an RFC
+first (see Suggested order, "Later").
 
 ### 28. Value classes are not wrapped or unwrapped automatically — M · Feature · done in 0.14 (#114)
 
