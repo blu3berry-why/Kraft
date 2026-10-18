@@ -197,6 +197,20 @@ Generated: `items = this.items?.map { it.toItemDto() }?.toSet()`
 
 For non-null targets: `items = this.items?.map { it.toItemDto() }?.toSet() ?: emptySet()`
 
+### Why null becomes empty here but is an error elsewhere
+
+A nullable source mapped to a non-null target is handled three ways in Kraft, depending on what the target is:
+
+| Target | Nullable source, non-null target | Why |
+|--------|----------------------------------|-----|
+| A collection or map | Falls back to an empty one (`emptyList()`, `emptySet()`, `emptyMap()`, `emptyArray()`…) | An empty container is a natural "nothing here" value, and API DTOs often send `null` where the domain model wants an empty list. |
+| A nested object | [`KRAFT-E014`](errors.md#kraft-e014) | Kraft never invents an object. There is no value it could build without your input. |
+| A scalar through a converter | [`KRAFT-E005`](errors.md#kraft-e005) | A safe call on a converter yields `Y?`, and a scalar has no natural empty value. Declare an `X? → Y` converter, or supply the default with a whole-source `@MapUsing` (see [custom converters](custom-converters.md#restrictions-and-caveats)). |
+
+The collection fallback means a `null` source list and an empty one map to the same target value. If your domain treats them differently (for example, `null` means "not loaded" and empty means "loaded, nothing found"), keep the target nullable (`List<ItemDto>?`), so Kraft generates a plain safe call and the `null` survives. To turn `null` into something else, write a `@MapUsing` for that property.
+
+Inside a map the rule is stricter: a nullable map value mapped to a non-null one is a type-mismatch error, because dropping the entry would also lose its key.
+
 ## Converters on Elements
 
 A registered `@KraftConverter` applies to collection elements exactly as it does to a single property, and it is called under its own name. With `@KraftConverter fun Foo.intoBar(): Bar` registered, `List<Foo>` to `List<Bar>` generates:
