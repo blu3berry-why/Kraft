@@ -34,5 +34,8 @@ class MapNestedNonMappableTypeTest {
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         assertThat(result.messages).contains("[KRAFT-E015]")
         assertThat(result.messages).contains("is not a concrete class")
+        // E015 stops the chain: no follow-on errors for the same property.
+        assertThat(result.messages).doesNotContain("[KRAFT-E005]")
+        assertThat(result.messages).doesNotContain("[KRAFT-E004]")
     }
 }
