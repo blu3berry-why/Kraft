@@ -26,7 +26,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install mkdocs-material
-        run: pip install mkdocs-material
+        run: pip install mkdocs-material "mkdocs<2"
 
       - name: Build site (strict)
         run: mkdocs build --strict
