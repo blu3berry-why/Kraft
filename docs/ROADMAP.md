@@ -320,7 +320,7 @@ output stays clean and real warnings stay visible.
 
 *Scope:* align, and consider Dependabot for `github-actions` so this does not recur.
 
-### 23. `agp9Test` fails on Windows — S · Test · open
+### 23. `agp9Test` fails on Windows — S · Test · done in 0.14 (#125)
 
 Found 2026-10-15 while gating the `map-and-collection-mapping` change. `KraftGradlePluginFunctionalTest.kt`
 (lines 37 and 45) builds its test repositories as `maven(url = "file://$testRepo")`, so a
