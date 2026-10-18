@@ -12,6 +12,7 @@ import com.blu3berry.kraft.processor.util.mapperDroppedWithoutDiagnostic
 import com.blu3berry.kraft.processor.util.nullableTargetDefaultedToNull
 import com.blu3berry.kraft.processor.diagnostics.MutedKspLogger
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ClassOverrideRule
+import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConstantRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConfigOverrideRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ContainerRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConverterRule
@@ -164,6 +165,7 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
         is PropertyMappingStrategy.ContainerMapping -> sourceProperty.name
         is PropertyMappingStrategy.ConverterFunction -> (source as? ConverterSource.Property)?.info?.name
         is PropertyMappingStrategy.Constant -> null
+        is PropertyMappingStrategy.ConstantMember -> null
         is PropertyMappingStrategy.Ignored -> null
     }
 
@@ -171,6 +173,11 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
         /**
          * Rule evaluation order — the first rule that returns non-null wins.
          * DO NOT reorder without understanding the constraints below.
+         *
+         * 0. [ConstantRule]         — `@MapConstant` members of the `@MapConfig` object. KRAFT-E070 has
+         *                              already rejected every other explicit rule for the same target,
+         *                              so going first only matters against native rules: a constant
+         *                              beats a same-named source property (no DirectMatchRule copy).
          *
          * 1. [ConverterRule]         — explicit @MapUsing overrides must be checked before any
          *                              name-based rule; otherwise DirectMatchRule could silently
@@ -221,6 +228,7 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
          *                              matches that appear after it in the list.
          */
         fun default() = listOf(
+                ConstantRule(),
                 ConverterRule(),
                 IgnoreRule(),
                 ContainerRule(),

@@ -217,6 +217,24 @@ enum class KraftDiagnostic(
     /** The resolver found nothing for a target property and reported nothing: an internal guard against a silently dropped mapper. */
     MAPPER_DROPPED_WITHOUT_DIAGNOSTIC("KRAFT-E065", Severity.ERROR, "Mapper dropped without a diagnostic"),
 
+    /** One `@MapConfig` object declares the same `@FieldMapping` target or `@MapIgnoreField` name both in the array and as a flat annotation. */
+    RULE_IN_BOTH_FORMS("KRAFT-E066", Severity.ERROR, "Rule declared in both annotation forms"),
+
+    /** A `@MapConstant` target is not a constructor parameter of the target class in its direction. */
+    MAP_CONSTANT_UNKNOWN_TARGET("KRAFT-E067", Severity.ERROR, "@MapConstant target not found"),
+
+    /** A `@MapConstant` member's type is not assignable to its target parameter's type. */
+    MAP_CONSTANT_TYPE_MISMATCH("KRAFT-E068", Severity.ERROR, "@MapConstant type mismatch"),
+
+    /** A `@MapConstant` member is private, has parameters, is an extension, or is not in a `@MapConfig` object. */
+    MAP_CONSTANT_INVALID_MEMBER("KRAFT-E069", Severity.ERROR, "Invalid @MapConstant member"),
+
+    /** A target claimed by a `@MapConstant` is also claimed in the same direction by another rule. */
+    MAP_CONSTANT_CONFLICT("KRAFT-E070", Severity.ERROR, "More than one rule for one target"),
+
+    /** A flat `@FieldMapping` or `@MapIgnoreField` sits on a declaration without `@MapConfig`. */
+    FLAT_RULE_WITHOUT_MAP_CONFIG("KRAFT-E071", Severity.ERROR, "Flat rule without @MapConfig"),
+
     /** A `BOTH`-direction `@MapIgnoreField` names a property missing from one direction's target. */
     IGNORE_FIELD_NOT_FOUND_BOTH("KRAFT-W003", Severity.WARNING, "@MapIgnoreField(BOTH) property not found"),
 

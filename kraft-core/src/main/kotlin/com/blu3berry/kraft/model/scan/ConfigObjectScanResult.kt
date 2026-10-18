@@ -2,6 +2,7 @@ package com.blu3berry.kraft.model.scan
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.blu3berry.kraft.config.AliasEmitMode
+import com.blu3berry.kraft.model.descriptor.ConstantDescriptor
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 
@@ -21,6 +22,7 @@ import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
  * @param useGlobalConverters Whether the generated mapper should consult the
  *                         `@KraftConverter` registry; mirrors the annotation flag.
  * @param aliasEmitMode    Per-mapper override for alias emission; mirrors [MapConfig.aliasEmitMode].
+ * @param constants        `@MapConstant` members of the object, each with its direction resolved.
  */
 data class ConfigObjectScanResult(
     val sourceType: KSClassDeclaration,
@@ -33,4 +35,5 @@ data class ConfigObjectScanResult(
     val hasReverse: Boolean = false,
     val useGlobalConverters: Boolean = true,
     val aliasEmitMode: AliasEmitMode = AliasEmitMode.INHERIT,
+    val constants: List<ConstantDescriptor> = emptyList(),
 )

@@ -391,24 +391,25 @@ Sizes for #29–#38 are first estimates.
 **Tier 1: parity gaps (target 0.14).** Removes the "falls back to hand-written" moments. Already
 covered elsewhere: Map and other collections (#20, done), "use the target default when the source
 is missing" (#27, done). The built-in converter module (#19) is deferred: it needs an RFC
-first (see Suggested order, "Later"). #29 moves to 0.15 to be designed with #40.
+first (see Suggested order, "Later"). #29 shipped in 0.15 together with #40.
 
 ### 28. Value classes are not wrapped or unwrapped automatically — M · Feature · done in 0.14 (#114)
 
 `UserId(val value: String)` ↔ `String` now maps without a converter: plain, nullable (safe call)
 and element-wise, including Map keys and values. Typed IDs are standard in domain models.
 
-### 29. No way to set a target property to a constant or expression — M · Feature · open
+### 29. No way to set a target property to a constant or expression — M · Feature · done in 0.15 (flat-mapconfig-annotations)
 
-Today a constant (`isActive = true`, `currency = "HUF"`) needs a whole-source `@MapUsing`.
-`PropertyMappingStrategy.Constant` already exists and generates `name = <expr>`; since #122 it
-also carries the KRAFT-W009 null fill. What's missing is the annotation (`@MapConstant` or an
-expression form) and the rule that produces it.
-
-Moved to 0.15 so it is designed together with #40: with flat annotations, `@MapConstant` is a
-class-level annotation on the mapper object rather than a fourth array in `@MapConfig`.
-
-*When it ships:* add it to KRAFT-W009's fix list.
+`@MapConstant(target = "", direction = ConverterDirection.AUTO)` marks a non-private property or a
+zero-parameter, non-extension function declared inside the `@MapConfig` object. The value is
+ordinary Kotlin, so the compiler type-checks it; Kraft checks that the type fits the target and
+generates `currency = UserMapper.currency` (a `val`, evaluated once) or
+`createdAt = UserMapper.now()` (a `fun`, called on every mapping). The target defaults to the
+member name; a constant wins over a same-named source property. On a `@MapReverse` object `AUTO`
+applies forward if the forward target has the parameter, else reverse, never both. Errors:
+KRAFT-E067 (unknown target), E068 (type mismatch), E069 (unsupported member), E070 (two rules on
+one target). It rides on the existing `PropertyMappingStrategy.Constant`. KRAFT-W009's fix list
+names it. See [Constant Values](user-guide/constant-values.md).
 
 **Tier 2: differentiators (0.15–0.16).** Makes the "best" claim possible.
 
@@ -458,7 +459,7 @@ Parked 2026-10-18; not yet explored. Agents tend to find libraries through searc
 READMEs and docs pages, Maven Central / package metadata and `llms.txt`-style files more than
 through video comments. Work out where they actually look before choosing channels.
 
-### 40. `@MapConfig` rules can only be written as nested arrays — M · Feature · open
+### 40. `@MapConfig` rules can only be written as nested arrays — M · Feature · done in 0.15 (flat-mapconfig-annotations)
 
 `fieldMappings = [FieldMapping(...)]`, `ignoredMappings = [MapIgnoreField(...)]` and friends
 nest every rule inside one annotation, which is hard to read, review and edit. Allow the same
@@ -468,15 +469,16 @@ rules as flat, repeatable annotations on the mapper object, one line per rule:
 @MapConfig(source = UserDto::class, target = User::class)
 @FieldMapping(source = "name", target = "fullName")
 @MapIgnoreField("internalNotes")
-@MapConstant(target = "currency", value = "\"HUF\"")   // #29
-object UserMapper
+object UserMapper {
+    @MapConstant val currency = "HUF"   // #29
+}
 ```
 
 *Scope:* reuse the existing annotation classes (add `@Target(CLASS)` and `@Repeatable`) so there
 are no new names; keep the array form working; the same rule given both ways is a compile error.
 Both forms feed the existing `ConfigObjectScanResult`, so nothing after the scanner changes.
-*First step:* a spike confirming KSP2 sees repeatable `SOURCE` annotations in the KMP metadata
-compilation, and that a class-targeted annotation can still be used inside an array argument.
+Spike confirmed KSP2 sees repeatable `SOURCE` annotations in the KMP metadata compilation, and
+that a class-targeted annotation can still be used inside an array argument (2026-10-18).
 Designed together with #29.
 
 ---
@@ -497,8 +499,8 @@ found: today the only way to learn what the processor decided is to read its out
 and 18 belong here too — both close the gap between "the generated text looks right" and "the
 mapper does the right thing".
 
-**Features.** 0.14 ships what is done; nothing in Features is left for it. 0.15 is #40 (flat
-annotations) with #29 (constants) designed together, then #30 (sealed) and #34 (unmapped policy). 0.16 is #31,
+**Features.** 0.14 ships what is done; nothing in Features is left for it. 0.15 shipped #40 (flat
+annotations) and #29 (constants) together; what remains for it is #30 (sealed) and #34 (unmapped policy). 0.16 is #31,
 #32 and #33 together, because they change the generated function signatures. Tier 3 (#35–#38)
 runs alongside. Watch Konvert's KMP branch (see Positioning): Tier 1 should be closed before it
 ships.

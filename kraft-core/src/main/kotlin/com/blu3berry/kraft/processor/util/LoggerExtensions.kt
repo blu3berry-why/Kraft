@@ -127,7 +127,8 @@ ${
 
     How to fix:
       ✓ Add @MapField("sourceName") to the target property '${targetProperty.name}'
-      ✓ Or add a config override: FieldMapping(source = "sourceName", target = "${targetProperty.name}")
+      ✓ Or add a config override: @FieldMapping(source = "sourceName", target = "${targetProperty.name}")
+      ✓ Or set it from the mapper object: @MapConstant val ${targetProperty.name} = ...
       ✓ Or make the property nullable (Kraft then passes null and warns KRAFT-W009)
       ✓ Or provide a default value in the target constructor
     """.trimIndent(),
@@ -176,6 +177,7 @@ fun KSPLogger.nullableTargetDefaultedToNull(
     How to fix:
       ✓ Give '${targetProperty.name}' a default (= null) to make null the intended value.
       ✓ Or map it explicitly with @MapUsing(target = "${targetProperty.name}").
+      ✓ Or set it from the mapper object: @MapConstant val ${targetProperty.name} = ...
       ✓ Or add @Suppress("KRAFT-W009") to the property or to the mapping declaration.
     """.trimIndent(),
     symbol
@@ -838,6 +840,215 @@ fun KSPLogger.nestedMappingSourceNotFound(
     How to fix:
       ✓ Add a property of type '$nestedSourceType' to '$sourceTypeName'.
       ✓ Or remove the @NestedMapping declaration if it is no longer needed.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * One `@MapConfig` object declares a `@FieldMapping` for the same target both in
+ * `@MapConfig.fieldMappings` and as an annotation on the object.
+ */
+fun KSPLogger.fieldMappingInBothForms(
+    target: String,
+    objectName: String,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.RULE_IN_BOTH_FORMS,
+    """
+    @FieldMapping for target '$target' is declared both in @MapConfig.fieldMappings and as an annotation on '$objectName'. Keep one.
+
+    Why:
+    Kraft cannot tell which of the two rules you meant, even when they are identical.
+
+    How to fix:
+      ✓ Delete one of the two @FieldMapping declarations for '$target'.
+      ✓ Prefer one form per object: the annotations on the object, or the @MapConfig array.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * One `@MapConfig` object declares a `@MapIgnoreField` for the same name both in
+ * `@MapConfig.ignoredMappings` and as an annotation on the object.
+ */
+fun KSPLogger.mapIgnoreFieldInBothForms(
+    name: String,
+    objectName: String,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.RULE_IN_BOTH_FORMS,
+    """
+    @MapIgnoreField for '$name' is declared both in @MapConfig.ignoredMappings and as an annotation on '$objectName'. Keep one.
+
+    Why:
+    Kraft cannot tell which of the two rules you meant, even when they are identical.
+
+    How to fix:
+      ✓ Delete one of the two @MapIgnoreField declarations for '$name'.
+      ✓ Prefer one form per object: the annotations on the object, or the @MapConfig array.
+    """.trimIndent(),
+    symbol
+)
+
+/** A flat `@FieldMapping` is on a declaration that has no `@MapConfig`. */
+fun KSPLogger.flatFieldMappingWithoutMapConfig(
+    declarationName: String,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.FLAT_RULE_WITHOUT_MAP_CONFIG,
+    """
+    @FieldMapping on '$declarationName' requires @MapConfig on the same object. Use @MapField on the property for @MapFrom/@MapTo classes.
+
+    Why:
+    A flat @FieldMapping is read only from a @MapConfig object. On any other declaration it would be ignored without a word.
+
+    How to fix:
+      ✓ Add @MapConfig(source = ..., target = ...) to '$declarationName' and make it an object.
+      ✓ Or, for a @MapFrom/@MapTo class, remove the @FieldMapping and put @MapField on the property instead.
+    """.trimIndent(),
+    symbol
+)
+
+/** A flat `@MapIgnoreField` is on a declaration that has no `@MapConfig`. */
+fun KSPLogger.flatMapIgnoreFieldWithoutMapConfig(
+    declarationName: String,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.FLAT_RULE_WITHOUT_MAP_CONFIG,
+    """
+    @MapIgnoreField on '$declarationName' requires @MapConfig on the same object. Use @MapIgnore on the property for @MapFrom/@MapTo classes.
+
+    Why:
+    A flat @MapIgnoreField is read only from a @MapConfig object. On any other declaration it would be ignored without a word.
+
+    How to fix:
+      ✓ Add @MapConfig(source = ..., target = ...) to '$declarationName' and make it an object.
+      ✓ Or, for a @MapFrom/@MapTo class, remove the @MapIgnoreField and put @MapIgnore on the property instead.
+    """.trimIndent(),
+    symbol
+)
+
+/** `KRAFT-E067`: a `@MapConstant` names a target that is not a constructor parameter. */
+fun KSPLogger.mapConstantUnknownTarget(
+    constantName: String,
+    target: String,
+    targetClass: String,
+    available: Collection<String>,
+    symbol: KSNode
+) {
+    val suggestions = suggestNames(target, available)
+    val didYouMean = if (suggestions.isEmpty()) "" else " Did you mean: ${suggestions.joinToString(", ")} ?"
+    report(
+        KraftDiagnostic.MAP_CONSTANT_UNKNOWN_TARGET,
+        """
+        @MapConstant '$constantName' targets '$target', which is not a constructor parameter of '$targetClass'.
+
+        Available parameters of '$targetClass': ${available.sorted().joinToString(", ")}
+
+        How to fix:
+          ✓ Name the member after the parameter, or set @MapConstant(target = "<parameter>").$didYouMean
+          ✓ On a @MapReverse mapper, check the direction: FORWARD fills the @MapConfig target, REVERSE fills the source.
+        """.trimIndent(),
+        symbol
+    )
+}
+
+/** `KRAFT-E068`: a `@MapConstant` member's type does not fit its target parameter. */
+fun KSPLogger.mapConstantTypeMismatch(
+    constantName: String,
+    memberType: String,
+    target: String,
+    targetClass: String,
+    targetType: String,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.MAP_CONSTANT_TYPE_MISMATCH,
+    """
+    @MapConstant '$constantName' has type $memberType, but target '$target' in '$targetClass' has type $targetType.
+
+    How to fix:
+      ✓ Give the member the target's type, for example by declaring it explicitly: @MapConstant val $target: $targetType = ...
+      ✓ A nullable member cannot fill a non-null target. Make the member non-null, or the target nullable.
+    """.trimIndent(),
+    symbol
+)
+
+/** `KRAFT-E069`: a private `@MapConstant` member. */
+fun KSPLogger.mapConstantPrivate(constantName: String, isFunction: Boolean, symbol: KSNode) = report(
+    KraftDiagnostic.MAP_CONSTANT_INVALID_MEMBER,
+    """
+    @MapConstant ${if (isFunction) "function " else ""}'$constantName' must not be private: the generated mapper cannot read it.
+
+    How to fix:
+      ✓ Remove the private modifier. internal and public members both work.
+    """.trimIndent(),
+    symbol
+)
+
+/** `KRAFT-E069`: a `@MapConstant` function that declares parameters. */
+fun KSPLogger.mapConstantFunctionWithParameters(constantName: String, symbol: KSNode) = report(
+    KraftDiagnostic.MAP_CONSTANT_INVALID_MEMBER,
+    """
+    @MapConstant function '$constantName' must take no parameters. To compute a value from the source, use @MapUsing.
+
+    How to fix:
+      ✓ Remove the parameters, so the generated mapper can call it as '$constantName()'.
+      ✓ Or, to derive the value from the source object, write @MapUsing(target = "<name>") fun Source.compute(): T instead.
+    """.trimIndent(),
+    symbol
+)
+
+/** `KRAFT-E069`: a `@MapConstant` extension function. */
+fun KSPLogger.mapConstantExtensionFunction(constantName: String, symbol: KSNode) = report(
+    KraftDiagnostic.MAP_CONSTANT_INVALID_MEMBER,
+    """
+    @MapConstant function '$constantName' must not be an extension function. To compute a value from the source, use @MapUsing.
+
+    How to fix:
+      ✓ Remove the receiver, so the generated mapper can call it as '$constantName()'.
+      ✓ Or, to derive the value from the source object, replace @MapConstant with @MapUsing(target = "<name>").
+    """.trimIndent(),
+    symbol
+)
+
+/** `KRAFT-E069`: a `@MapConstant` member outside a `@MapConfig` object. */
+fun KSPLogger.mapConstantOutsideMapConfig(constantName: String, symbol: KSNode) = report(
+    KraftDiagnostic.MAP_CONSTANT_INVALID_MEMBER,
+    """
+    @MapConstant '$constantName' must be declared in a @MapConfig object.
+
+    Why:
+    Kraft reads @MapConstant only from the members of a @MapConfig object. Anywhere else it would be ignored without a word.
+
+    How to fix:
+      ✓ Move the member into the @MapConfig object of the mapper it belongs to.
+      ✓ Or add @MapConfig(source = ..., target = ...) to the enclosing object.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * `KRAFT-E070`: a target claimed by a `@MapConstant` is also claimed, in the same direction,
+ * by [otherRule] (already rendered, for example `@FieldMapping(source = "a", target = "b")`).
+ */
+fun KSPLogger.mapConstantConflict(
+    target: String,
+    targetClass: String,
+    objectName: String,
+    constantMember: String,
+    otherRule: String,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.MAP_CONSTANT_CONFLICT,
+    """
+    Target '$target' in '$targetClass' has more than one rule on '$objectName': @MapConstant '$constantMember' and $otherRule. Keep one.
+
+    Why:
+    Each target property takes its value from exactly one rule. Kraft does not pick one for you.
+
+    How to fix:
+      ✓ Delete the rule you do not want for '$target'.
+      ✓ On a @MapReverse mapper, set @MapConstant(direction = ...) if the two rules are meant for different directions.
     """.trimIndent(),
     symbol
 )

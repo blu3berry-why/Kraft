@@ -4,6 +4,7 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.blu3berry.kraft.config.ConverterDirection
 import com.blu3berry.kraft.model.MapperId
 import com.blu3berry.kraft.model.PropertyInfo
+import com.blu3berry.kraft.model.descriptor.ConstantDescriptor
 import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
 import com.blu3berry.kraft.model.descriptor.MappingContext
@@ -58,6 +59,7 @@ class ClassDescriptorBuilder(
         val converters = configObjects.flatMap { it.converters }
             .filter { it.resolvedDirection != ConverterDirection.REVERSE }
         val nestedMappings = configObjects.flatMap { it.nestedMappings }
+        val constants = forwardConstants(targetProps)
         val classNestedOverrides = extractClassNestedOverrides()
 
         val configsAllowGlobal = configObjects.all { it.useGlobalConverters }
@@ -73,7 +75,8 @@ class ClassDescriptorBuilder(
             classNestedOverrides = classNestedOverrides,
             sourceTypeName = sourceTypeName,
             targetTypeName = targetTypeName,
-            mappingDeclaration = mapping.annotatedClass
+            mappingDeclaration = mapping.annotatedClass,
+            constants = constants
         )
 
         val resolver = PropertyResolver()
@@ -92,6 +95,15 @@ class ClassDescriptorBuilder(
             converters = converters
         )
     }
+
+    // Forward `@MapConstant` members of the matching config objects, checked against the target (KRAFT-E067)
+    private fun forwardConstants(targetProps: List<PropertyInfo>): List<ConstantDescriptor> =
+        validateConstantTargets(
+            logger,
+            configObjects.flatMap { it.constants }.filter { it.resolvedDirection != ConverterDirection.REVERSE },
+            targetProps,
+            mapping.targetType.simpleName.asString()
+        )
 
     // ---------------------------------------------------------
     // Extract class-level nested overrides (@MapNested)

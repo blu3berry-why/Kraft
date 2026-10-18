@@ -116,6 +116,16 @@ sealed interface PropertyMappingStrategy {
     ) : PropertyMappingStrategy
 
     /**
+     * Reads a `@MapConstant` member of the `@MapConfig` object:
+     * `target.currency = UserMapper.currency` (property) or
+     * `target.createdAt = UserMapper.now()` (function, called on every mapping).
+     */
+    data class ConstantMember(
+        override val targetProperty: PropertyInfo,
+        val constant: ConstantDescriptor
+    ) : PropertyMappingStrategy
+
+    /**
      * Target property is ignored — left to its default value.
      * No argument is emitted for this property in the constructor call.
      */
@@ -131,5 +141,6 @@ sealed interface PropertyMappingStrategy {
 fun PropertyMappingStrategy.nestedDescriptors(): List<NestedMappingDescriptor> = when (this) {
     is PropertyMappingStrategy.NestedMapper -> listOf(nestedMappingDescriptor)
     is PropertyMappingStrategy.ContainerMapping -> shape.nestedDescriptors()
+    is PropertyMappingStrategy.ConstantMember -> emptyList()
     else -> emptyList()
 }

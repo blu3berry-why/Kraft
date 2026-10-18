@@ -9,6 +9,7 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
@@ -16,6 +17,7 @@ import com.blu3berry.kraft.config.AliasEmitMode
 import com.blu3berry.kraft.config.ConverterDirection
 import com.blu3berry.kraft.config.IgnoreSide
 import com.blu3berry.kraft.model.MapperId
+import com.blu3berry.kraft.model.descriptor.ConstantDescriptor
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.descriptor.NestedMappingDescriptor
 import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
@@ -24,12 +26,18 @@ import com.blu3berry.kraft.model.scan.IgnoredMappingConfig
 import com.blu3berry.kraft.model.toTypeInfo
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 import com.blu3berry.kraft.processor.util.annotationTargetError
+import com.blu3berry.kraft.processor.util.fieldMappingInBothForms
 import com.blu3berry.kraft.processor.util.findAnnotation
+import com.blu3berry.kraft.processor.util.flatFieldMappingWithoutMapConfig
+import com.blu3berry.kraft.processor.util.flatMapIgnoreFieldWithoutMapConfig
+import com.blu3berry.kraft.processor.util.mapIgnoreFieldInBothForms
 import com.blu3berry.kraft.processor.util.getArrayArgOrNull
 import com.blu3berry.kraft.processor.util.getEnumArgOrDefault
 import com.blu3berry.kraft.processor.util.getKClassArgOrNull
 import com.blu3berry.kraft.processor.util.getStringArgOrDefault
 import com.blu3berry.kraft.processor.util.getStringArgOrNull
+import com.blu3berry.kraft.processor.util.mapConstantConflict
+import com.blu3berry.kraft.processor.util.mapConstantOutsideMapConfig
 import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
 import com.blu3berry.kraft.processor.diagnostics.report
@@ -85,8 +93,47 @@ class ConfigObjectScanner(
             }
         }
 
+        reportFlatRulesWithoutMapConfig()
+        reportConstantsOutsideMapConfig()
+
         return results
     }
+
+    /**
+     * Reports KRAFT-E069 for each `@MapConstant` member whose enclosing declaration is not a
+     * `@MapConfig` object. Members of `@MapConfig` objects are validated by [ConstantMemberScanner].
+     */
+    private fun reportConstantsOutsideMapConfig() {
+        resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_CONSTANT)
+            .filterIsInstance<KSDeclaration>()
+            .filter { member ->
+                val parent = member.parentDeclaration as? KSClassDeclaration
+                parent?.findAnnotation(KraftKspConstants.FQ_MAP_CONFIG) == null
+            }
+            .forEach { member ->
+                val name = listOfNotNull(member.parentDeclaration?.simpleName?.asString(), member.simpleName.asString())
+                    .joinToString(".")
+                logger.mapConstantOutsideMapConfig(name, member)
+            }
+    }
+
+    /**
+     * Reports a flat [FieldMapping][com.blu3berry.kraft.config.FieldMapping] or
+     * [MapIgnoreField][com.blu3berry.kraft.config.MapIgnoreField] (KRAFT-E071) written on a declaration
+     * that does not carry `@MapConfig`. Annotations used as `@MapConfig` array arguments are not
+     * annotations on a symbol, so `getSymbolsWithAnnotation` never returns them.
+     */
+    private fun reportFlatRulesWithoutMapConfig() {
+        resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_FIELD_MAPPING)
+            .filter { it.findAnnotation(KraftKspConstants.FQ_MAP_CONFIG) == null }
+            .forEach { logger.flatFieldMappingWithoutMapConfig(it.displayName(), it) }
+        resolver.getSymbolsWithAnnotation(KraftKspConstants.FQ_MAP_IGNORE_FIELD)
+            .filter { it.findAnnotation(KraftKspConstants.FQ_MAP_CONFIG) == null }
+            .forEach { logger.flatMapIgnoreFieldWithoutMapConfig(it.displayName(), it) }
+    }
+
+    private fun KSAnnotated.displayName(): String =
+        (this as? KSDeclaration)?.simpleName?.asString() ?: toString()
 
     /**
      * Processes a single configuration object and returns a scan result.
@@ -104,7 +151,7 @@ class ConfigObjectScanner(
         val (fromType, toType) = extractSourceAndTargetTypes(annotation, classDeclaration) ?: return null
 
         // Extract field mappings
-        val fieldOverrides = extractFieldOverrides(annotation, classDeclaration)
+        val taggedFieldOverrides = extractFieldOverrides(annotation, classDeclaration)
 
         // Extract nested mappings
         val nestedMappings = extractNestedMappings(annotation, classDeclaration)
@@ -113,7 +160,19 @@ class ConfigObjectScanner(
         val converters = extractConverterFunctions(classDeclaration, fromType, toType, hasReverse)
 
         // Extract ignored mappings
-        val ignoredMappings = extractIgnoredMappings(annotation, classDeclaration)
+        val taggedIgnoredMappings = extractIgnoredMappings(annotation, classDeclaration)
+
+        reportRulesInBothForms(classDeclaration, taggedFieldOverrides, taggedIgnoredMappings)
+        val fieldOverrides = taggedFieldOverrides.map { it.value }
+        val ignoredMappings = taggedIgnoredMappings.map { it.value }
+
+        val constants = ConstantMemberScanner(logger).scan(classDeclaration, fromType, toType, hasReverse)
+        reportConstantConflicts(
+            classDeclaration, constants,
+            OtherRules(fieldOverrides, ignoredMappings, converters),
+            forwardTargetName = toType.simpleName.asString(),
+            reverseTargetName = fromType.simpleName.asString()
+        )
 
         val useGlobalConverters = annotation.arguments
             .firstOrNull { it.name?.asString() == KraftKspConstants.ARG_USE_GLOBAL_CONVERTERS }
@@ -143,7 +202,70 @@ class ConfigObjectScanner(
             hasReverse = hasReverse,
             useGlobalConverters = useGlobalConverters,
             aliasEmitMode = aliasEmitMode,
+            constants = constants,
         )
+    }
+
+    /** The non-constant rules of one config object that can claim a target property. */
+    private data class OtherRules(
+        val fieldOverrides: List<FieldOverride>,
+        val ignoredMappings: List<IgnoredMappingConfig>,
+        val converters: List<ConverterDescriptor>
+    )
+
+    /**
+     * Reports KRAFT-E070 once for each pair of rules that claim one target in one direction,
+     * where at least one of them is a `@MapConstant`. Forward claims: `FieldMapping.target`,
+     * `@MapIgnoreField` TARGET/BOTH, forward (or AUTO) converters and forward constants.
+     * Reverse claims: `FieldMapping.source` (renames are inverted in reverse), `@MapIgnoreField`
+     * SOURCE/BOTH, reverse converters and reverse constants.
+     */
+    private fun reportConstantConflicts(
+        symbol: KSClassDeclaration,
+        constants: List<ConstantDescriptor>,
+        others: OtherRules,
+        forwardTargetName: String,
+        reverseTargetName: String
+    ) {
+        if (constants.isEmpty()) return
+        for (reverse in listOf(false, true)) {
+            val inDirection = constants.filter { (it.resolvedDirection == ConverterDirection.REVERSE) == reverse }
+            val claims = otherClaims(others, reverse)
+            val targetClass = if (reverse) reverseTargetName else forwardTargetName
+            inDirection.forEachIndexed { index, constant ->
+                val target = constant.targetPropertyName
+                val rivals = claims.filter { it.first == target }.map { it.second } +
+                    inDirection.drop(index + 1)
+                        .filter { it.targetPropertyName == target }
+                        .map { "@MapConstant '${it.memberName}'" }
+                rivals.forEach { rival ->
+                    logger.mapConstantConflict(
+                        target = target,
+                        targetClass = targetClass,
+                        objectName = symbol.simpleName.asString(),
+                        constantMember = constant.memberName,
+                        otherRule = rival,
+                        symbol = constant.declaration
+                    )
+                }
+            }
+        }
+    }
+
+    /** `(target name, rendered rule)` for each non-constant rule active in one direction. */
+    private fun otherClaims(others: OtherRules, reverse: Boolean): List<Pair<String, String>> {
+        val renames = others.fieldOverrides.map {
+            (if (reverse) it.source else it.target) to
+                "@FieldMapping(source = \"${it.source}\", target = \"${it.target}\")"
+        }
+        val activeSides = setOf(if (reverse) IgnoreSide.SOURCE else IgnoreSide.TARGET, IgnoreSide.BOTH)
+        val ignores = others.ignoredMappings
+            .filter { it.direction in activeSides }
+            .map { it.name to "@MapIgnoreField(\"${it.name}\")" }
+        val converters = others.converters
+            .filter { (it.resolvedDirection == ConverterDirection.REVERSE) == reverse }
+            .map { it.targetPropertyName to "@MapUsing '${it.functionName}'" }
+        return renames + ignores + converters
     }
 
     /**
@@ -189,38 +311,86 @@ class ConfigObjectScanner(
     }
 
     /**
-     * Extracts field overrides from the annotation.
+     * Extracts field overrides from both forms: the [fieldMappings][KraftKspConstants.ARG_FIELD_MAPPINGS]
+     * array of `@MapConfig` and flat `@FieldMapping` annotations on the object. Array entries come
+     * first, then flat ones, each tagged with its [Origin].
      */
     private fun extractFieldOverrides(
         annotation: KSAnnotation,
         symbol: KSClassDeclaration
-    ): List<FieldOverride> {
-        val fieldPairAnnotations = annotation.getArrayArgOrNull<KSAnnotation>(
+    ): List<Tagged<FieldOverride>> {
+        val arrayAnnotations = annotation.getArrayArgOrNull<KSAnnotation>(
             name = KraftKspConstants.ARG_FIELD_MAPPINGS,
             logger = logger,
             symbol = symbol,
             annotationFqName = KraftKspConstants.FQ_MAP_CONFIG
         ) ?: emptyList()
 
-        return fieldPairAnnotations.mapNotNull { pair ->
-            if (!pair.isAnnotation(KraftKspConstants.FQ_FIELD_MAPPING)) return@mapNotNull null
+        return collectTagged(arrayAnnotations, symbol, KraftKspConstants.FQ_FIELD_MAPPING, ::parseFieldOverride)
+    }
 
-            val from = pair.getStringArgOrNull(
-                name = KraftKspConstants.ARG_SOURCE,
-                logger = logger,
-                symbol = symbol,
-                annotationFqName = KraftKspConstants.FQ_FIELD_MAPPING
-            ) ?: return@mapNotNull null
+    private fun parseFieldOverride(pair: KSAnnotation, symbol: KSClassDeclaration): FieldOverride? {
+        val from = pair.getStringArgOrNull(
+            name = KraftKspConstants.ARG_SOURCE,
+            logger = logger,
+            symbol = symbol,
+            annotationFqName = KraftKspConstants.FQ_FIELD_MAPPING
+        ) ?: return null
 
-            val to = pair.getStringArgOrNull(
-                name = KraftKspConstants.ARG_TARGET,
-                logger = logger,
-                symbol = symbol,
-                annotationFqName = KraftKspConstants.FQ_FIELD_MAPPING
-            ) ?: return@mapNotNull null
+        val to = pair.getStringArgOrNull(
+            name = KraftKspConstants.ARG_TARGET,
+            logger = logger,
+            symbol = symbol,
+            annotationFqName = KraftKspConstants.FQ_FIELD_MAPPING
+        ) ?: return null
 
-            FieldOverride(source = from, target = to)
+        return FieldOverride(source = from, target = to)
+    }
+
+    /**
+     * Collects the annotations of type [fqName] from the `@MapConfig` array argument and from the
+     * object itself, parses each one with [parse], and tags it with where it was written.
+     */
+    private fun <T : Any> collectTagged(
+        arrayAnnotations: List<KSAnnotation>,
+        symbol: KSClassDeclaration,
+        fqName: String,
+        parse: (KSAnnotation, KSClassDeclaration) -> T?
+    ): List<Tagged<T>> {
+        val fromArray = arrayAnnotations
+            .filter { it.isAnnotation(fqName) }
+            .mapNotNull { ann -> parse(ann, symbol)?.let { Tagged(Origin.ARRAY, it) } }
+        val flat = symbol.annotations
+            .filter { it.isAnnotation(fqName) }
+            .mapNotNull { ann -> parse(ann, symbol)?.let { Tagged(Origin.FLAT, it) } }
+            .toList()
+        return fromArray + flat
+    }
+
+    /**
+     * Reports KRAFT-E066 for each target (or ignored name) that is written both in the `@MapConfig`
+     * arrays and as a flat annotation. Duplicates inside one form are not checked: they stay last-wins.
+     */
+    private fun reportRulesInBothForms(
+        symbol: KSClassDeclaration,
+        fieldOverrides: List<Tagged<FieldOverride>>,
+        ignoredMappings: List<Tagged<IgnoredMappingConfig>>
+    ) {
+        val objectName = symbol.simpleName.asString()
+        bothFormsKeys(fieldOverrides) { it.target }.forEach { target ->
+            logger.fieldMappingInBothForms(target, objectName, symbol)
         }
+        bothFormsKeys(ignoredMappings) { it.name }.forEach { name ->
+            logger.mapIgnoreFieldInBothForms(name, objectName, symbol)
+        }
+    }
+
+    private fun <T> bothFormsKeys(tagged: List<Tagged<T>>, key: (T) -> String): List<String> {
+        val arrayKeys = tagged.filter { it.origin == Origin.ARRAY }.map { key(it.value) }.toSet()
+        return tagged.filter { it.origin == Origin.FLAT }
+            .map { key(it.value) }
+            .filter { it in arrayKeys }
+            .distinct()
     }
 
     /**
@@ -848,62 +1018,69 @@ class ConfigObjectScanner(
     }
 
     /**
-     * Extracts [IgnoredMappingConfig] entries from the [ignoredMappings] array of [@MapConfig][MapConfig],
-     * populated from [@MapIgnoreField][com.blu3berry.kraft.config.MapIgnoreField] entries.
+     * Extracts [IgnoredMappingConfig] entries from both forms: the [ignoredMappings] array of
+     * [@MapConfig][MapConfig] and flat [@MapIgnoreField][com.blu3berry.kraft.config.MapIgnoreField]
+     * annotations on the object.
      */
     private fun extractIgnoredMappings(
         annotation: KSAnnotation,
         symbol: KSClassDeclaration
-    ): List<IgnoredMappingConfig> {
-        val ignoreAnnotations = annotation.getArrayArgOrNull<KSAnnotation>(
+    ): List<Tagged<IgnoredMappingConfig>> {
+        val arrayAnnotations = annotation.getArrayArgOrNull<KSAnnotation>(
             name = KraftKspConstants.ARG_IGNORED_MAPPINGS,
             logger = logger,
             symbol = symbol,
             annotationFqName = KraftKspConstants.FQ_MAP_CONFIG
         ) ?: emptyList()
 
-        return ignoreAnnotations.mapNotNull { ignoreAnn ->
-            if (!ignoreAnn.isAnnotation(KraftKspConstants.FQ_MAP_IGNORE_FIELD)) return@mapNotNull null
-
-            val name = ignoreAnn.getStringArgOrNull(
-                name = KraftKspConstants.ARG_NAME,
-                logger = logger,
-                symbol = symbol,
-                annotationFqName = KraftKspConstants.FQ_MAP_IGNORE_FIELD
-            ) ?: return@mapNotNull null
-
-            if (name.isBlank()) {
-                logger.report(
-                    KraftDiagnostic.MAP_IGNORE_FIELD_BLANK_NAME,
-                    "@MapIgnoreField name must not be blank.",
-                    symbol
-                )
-                return@mapNotNull null
-            }
-
-
-            val directionName = ignoreAnn.getEnumArgOrDefault(
-                name = KraftKspConstants.ARG_DIRECTION,
-                default = KraftKspConstants.DEFAULT_MAP_IGNORE_FIELD_DIRECTION,
-                logger = logger,
-                symbol = symbol,
-                annotationFqName = KraftKspConstants.FQ_MAP_IGNORE_FIELD
-            )
-
-            val direction = try {
-                IgnoreSide.valueOf(directionName)
-            } catch (_: IllegalArgumentException) {
-                logger.report(
-                    KraftDiagnostic.MAP_IGNORE_FIELD_UNKNOWN_DIRECTION,
-                    "@MapIgnoreField unknown direction '$directionName' on property '$name'.",
-                    symbol
-                )
-                return@mapNotNull null
-            }
-
-            IgnoredMappingConfig(name = name, direction = direction)
-        }
+        return collectTagged(
+            arrayAnnotations, symbol, KraftKspConstants.FQ_MAP_IGNORE_FIELD, ::parseIgnoredMapping
+        )
     }
+
+    private fun parseIgnoredMapping(ignoreAnn: KSAnnotation, symbol: KSClassDeclaration): IgnoredMappingConfig? {
+        val name = ignoreAnn.getStringArgOrNull(
+            name = KraftKspConstants.ARG_NAME,
+            logger = logger,
+            symbol = symbol,
+            annotationFqName = KraftKspConstants.FQ_MAP_IGNORE_FIELD
+        ) ?: return null
+
+        if (name.isBlank()) {
+            logger.report(
+                KraftDiagnostic.MAP_IGNORE_FIELD_BLANK_NAME,
+                "@MapIgnoreField name must not be blank.",
+                symbol
+            )
+            return null
+        }
+
+        val directionName = ignoreAnn.getEnumArgOrDefault(
+            name = KraftKspConstants.ARG_DIRECTION,
+            default = KraftKspConstants.DEFAULT_MAP_IGNORE_FIELD_DIRECTION,
+            logger = logger,
+            symbol = symbol,
+            annotationFqName = KraftKspConstants.FQ_MAP_IGNORE_FIELD
+        )
+
+        val direction = try {
+            IgnoreSide.valueOf(directionName)
+        } catch (_: IllegalArgumentException) {
+            logger.report(
+                KraftDiagnostic.MAP_IGNORE_FIELD_UNKNOWN_DIRECTION,
+                "@MapIgnoreField unknown direction '$directionName' on property '$name'.",
+                symbol
+            )
+            return null
+        }
+
+        return IgnoredMappingConfig(name = name, direction = direction)
+    }
+
+    /** Where a rule was written: inside a `@MapConfig` array argument, or as an annotation on the object. */
+    private enum class Origin { ARRAY, FLAT }
+
+    private data class Tagged<T>(val origin: Origin, val value: T)
 }
 
 /**

@@ -164,15 +164,16 @@ object ProductReverseMapper {
 
 #### Pattern 3 — Inject a constant on a target field with no source counterpart
 
-A target field has no equivalent on the source — supply a constant via a whole-source function whose body ignores the receiver:
+A target field has no equivalent on the source — supply the value with [`@MapConstant`](constant-values.md), which needs no converter function and no receiver:
 
 ```kotlin
 @MapConfig(source = LongAmount::class, target = Money::class)
 object MoneyMapper {
-    @MapUsing(target = "currency")
-    fun LongAmount.fixedCurrency(): String = "HUF"
+    @MapConstant val currency = "HUF"
 }
 ```
+
+Keep a whole-source `@MapUsing` for values computed from the source (`@MapConstant` cannot see the object being mapped).
 
 <a id="pattern-4"></a>
 
