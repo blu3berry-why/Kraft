@@ -66,7 +66,8 @@ internal class TargetPropertyExtractor(private val logger: KSPLogger) {
                 name = paramName.asString(),
                 type = decl.toTypeInfo(ksType),
                 declaration = declProp,
-                hasDefault = param.hasDefault
+                hasDefault = param.hasDefault,
+                parameter = param
             )
         }
 

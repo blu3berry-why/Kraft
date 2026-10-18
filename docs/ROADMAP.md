@@ -352,3 +352,7 @@ mapper does the right thing".
 
 **Later.** Item 19 is genuine feature work and should not jump the queue ahead of the
 diagnostics that make feature work debuggable. Item 21 rides along with 1.0.
+
+### 27. ~~Mappers silently dropped for defaulted / nullable targets with no source~~ — done in 0.14
+
+A mapper whose target had a defaulted or nullable property with no source was skipped with no diagnostic, so the missing `toXxx()` surfaced only at the call site. Defaulted targets are now left out of the constructor call, a nullable target without a default gets `null` plus the new KRAFT-W009, and the internal guard KRAFT-E065 ensures a mapper is never dropped without a diagnostic. Upgrade note in `upgrading.md`.

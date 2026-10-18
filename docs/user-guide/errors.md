@@ -34,6 +34,7 @@ fun List<RowDto>?.toRows(): List<Row> = this.orEmpty().filter { it.visible }.map
 - The code must match exactly, including case: `@Suppress("kraft-w001")` does not suppress anything.
 - A suppression only covers the code it names. `@Suppress("KRAFT-W002")` does not silence `KRAFT-W001`.
 - The annotation goes on the declaration itself. A `@Suppress` on the enclosing class or file is not read.
+  The one exception is [`KRAFT-W009`](#kraft-w009), which is also read from the mapping declaration (the `@MapConfig` object, or the `@MapFrom` / `@MapTo` class), so one annotation covers every property of that mapper.
 - Errors cannot be suppressed: they mean Kraft cannot generate valid code.
 
 ## Errors
@@ -109,7 +110,7 @@ data class UserDto(
 
 - Add `@MapField("sourceName")` to the target property.
 - Or add a config override: `FieldMapping(source = "sourceName", target = "age")`.
-- Or make the property nullable.
+- Or make the property nullable (Kraft then passes null and warns [`KRAFT-W009`](#kraft-w009)).
 - Or provide a default value in the target constructor.
 
 ### KRAFT-E005 — Property type mismatch {#kraft-e005}
@@ -1240,6 +1241,16 @@ The same `@MapEnum` is fine for map values (`Map<String, StatusDto>` into `Map<S
 - Or use a value-class key, or an enum key whose mapping is one-to-one.
 - Or map the property with `@MapUsing`, which makes the merge your decision.
 
+### KRAFT-E065 — Mapper dropped without a diagnostic {#kraft-e065}
+
+**Severity:** error
+
+**Cause:** Kraft found no way to map a target property and no rule reported an error for it, so the mapper would have vanished without a word. This is an internal guard: with the built-in rules every unmappable property already gets a more specific error, so only a custom rule chain or a Kraft bug can reach it.
+
+**Fix:**
+
+- Report it as a Kraft bug, with the source and target types of the mapper.
+
 ## Warnings
 
 ### KRAFT-W001 — Redundant @MapUsing {#kraft-w001}
@@ -1425,3 +1436,24 @@ data class UserDto(
 
 - Declare the source or target type in a source file of the module.
 - Or write the mapping by hand.
+
+### KRAFT-W009 — Nullable property set to null {#kraft-w009}
+
+**Severity:** warning
+
+**Cause:** A nullable target property has no mapping source (no same-named source property, no `@MapField` or `FieldMapping` rename, no `@MapIgnore` / `@MapIgnoreField` entry and no `@MapUsing`) and no default value. Kraft still generates the mapper and passes `null` for it, which may hide a forgotten mapping. A property with a default value is left out of the constructor call instead, with no warning.
+
+```kotlin
+data class PersonSource(val name: String)
+data class PersonDto(val name: String, val nickname: String?) // warning: 'nickname' has no source
+
+@MapConfig(source = PersonSource::class, target = PersonDto::class)
+object PersonMapper
+// generates PersonDto(name = this.name, nickname = null)
+```
+
+**Fix:**
+
+- Give the property a default (`val nickname: String? = null`) to make null the intended value.
+- Or map it explicitly with `@MapUsing(target = "nickname")`.
+- Or add `@Suppress("KRAFT-W009")` to the property or to the mapping declaration (the `@MapConfig` object, or the `@MapFrom` / `@MapTo` class). Suppression does not change the generated code.

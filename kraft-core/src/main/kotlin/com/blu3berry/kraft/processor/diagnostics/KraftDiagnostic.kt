@@ -214,6 +214,9 @@ enum class KraftDiagnostic(
     /** `Map` keys would be mapped by an operation Kraft cannot prove one-to-one, which could merge entries. */
     NON_INJECTIVE_MAP_KEY("KRAFT-E064", Severity.ERROR, "Map key mapping can merge entries"),
 
+    /** The resolver found nothing for a target property and reported nothing: an internal guard against a silently dropped mapper. */
+    MAPPER_DROPPED_WITHOUT_DIAGNOSTIC("KRAFT-E065", Severity.ERROR, "Mapper dropped without a diagnostic"),
+
     /** A `BOTH`-direction `@MapIgnoreField` names a property missing from one direction's target. */
     IGNORE_FIELD_NOT_FOUND_BOTH("KRAFT-W003", Severity.WARNING, "@MapIgnoreField(BOTH) property not found"),
 
@@ -231,6 +234,9 @@ enum class KraftDiagnostic(
 
     /** A mapper was skipped because no originating file was found. */
     MAPPER_GENERATION_SKIPPED("KRAFT-W008", Severity.WARNING, "Mapper generation skipped"),
+
+    /** An unmapped nullable target property with no default receives `null`. */
+    NULLABLE_TARGET_DEFAULTED_TO_NULL("KRAFT-W009", Severity.WARNING, "Nullable property set to null"),
     ;
 
     /** The heading anchor on the errors reference page, e.g. `kraft-w001`. */

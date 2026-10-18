@@ -1,6 +1,7 @@
 package com.blu3berry.kraft.processor.descriptor
 
 import com.google.devtools.ksp.processing.KSPLogger
+import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSNode
 import com.blu3berry.kraft.config.ConverterDirection
@@ -119,7 +120,9 @@ class ReverseDescriptorBuilder(
             nestedMappings = reverseNestedMappings,
             ignoredProperties = ignoredProperties,
             sourceTypeName = newSourceTypeName,
-            targetTypeName = newTargetTypeName
+            targetTypeName = newTargetTypeName,
+            // The @MapConfig object for a config reverse, the @MapFrom / @MapTo class otherwise.
+            mappingDeclaration = errorNode as? KSAnnotated
         )
     }
 

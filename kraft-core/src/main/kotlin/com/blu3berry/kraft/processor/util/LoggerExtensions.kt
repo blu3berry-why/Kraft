@@ -128,8 +128,55 @@ ${
     How to fix:
       ✓ Add @MapField("sourceName") to the target property '${targetProperty.name}'
       ✓ Or add a config override: FieldMapping(source = "sourceName", target = "${targetProperty.name}")
-      ✓ Or make the property nullable
+      ✓ Or make the property nullable (Kraft then passes null and warns KRAFT-W009)
       ✓ Or provide a default value in the target constructor
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * `KRAFT-E065`: the resolver found no strategy for a target property and no rule reported an
+ * error, so the mapper would have been dropped silently.
+ */
+fun KSPLogger.mapperDroppedWithoutDiagnostic(
+    targetType: String,
+    targetProperty: PropertyInfo,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.MAPPER_DROPPED_WITHOUT_DIAGNOSTIC,
+    """
+    Kraft could not map property '${targetProperty.name}' in target type '$targetType' and reported no other error, so the mapper was not generated.
+
+    Target property:
+      • ${targetProperty.name}: ${targetProperty.type.ksType}
+
+    This is an internal guard. It means a custom rule chain or a Kraft bug let the property through unresolved.
+
+    How to fix:
+      ✓ Report it as a Kraft bug, with the source and target types of this mapper.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * `KRAFT-W009`: an unmapped nullable target property with no default receives `null`.
+ */
+fun KSPLogger.nullableTargetDefaultedToNull(
+    targetType: String,
+    targetProperty: PropertyInfo,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.NULLABLE_TARGET_DEFAULTED_TO_NULL,
+    """
+    Nullable property '${targetProperty.name}' in target type '$targetType' has no mapping source, so Kraft passes null.
+
+    Target property:
+      • ${targetProperty.name}: ${targetProperty.type.ksType}
+
+    How to fix:
+      ✓ Give '${targetProperty.name}' a default (= null) to make null the intended value.
+      ✓ Or map it explicitly with @MapUsing(target = "${targetProperty.name}").
+      ✓ Or add @Suppress("KRAFT-W009") to the property or to the mapping declaration.
     """.trimIndent(),
     symbol
 )

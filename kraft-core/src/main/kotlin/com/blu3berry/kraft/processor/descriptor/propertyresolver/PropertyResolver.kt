@@ -1,9 +1,15 @@
 package com.blu3berry.kraft.processor.descriptor.propertyresolver
 
+import com.google.devtools.ksp.symbol.Nullability
 import com.blu3berry.kraft.model.descriptor.MappingContext
 import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.descriptor.ConverterSource
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
+import com.blu3berry.kraft.processor.diagnostics.ErrorTrackingLogger
+import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.isKraftSuppressed
+import com.blu3berry.kraft.processor.util.mapperDroppedWithoutDiagnostic
+import com.blu3berry.kraft.processor.util.nullableTargetDefaultedToNull
 import com.blu3berry.kraft.processor.diagnostics.MutedKspLogger
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ClassOverrideRule
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ConfigOverrideRule
@@ -23,13 +29,20 @@ import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ValueClas
  */
 class PropertyResolver(private val rules: List<MappingRule> = default()) {
 
+    /**
+     * Resolves [target] by running the rule chain, then, when no rule produced a strategy and
+     * none reported an error for this property, falls back to [missingSourceFallback].
+     * Returns null only when the property cannot be mapped; the caller then drops the mapper.
+     */
     fun resolve(
         target: PropertyInfo,
         ctx: MappingContext
     ): PropertyMappingStrategy? {
+        val tracker = ErrorTrackingLogger(ctx.logger)
+        val trackedCtx = ctx.copy(logger = tracker)
 
         for (rule in rules) {
-            val result = when (val outcome = rule.evaluate(target, ctx)) {
+            val result = when (val outcome = rule.evaluate(target, trackedCtx)) {
                 RuleOutcome.Pass -> continue
                 RuleOutcome.Reported -> return null
                 is RuleOutcome.Resolved -> outcome.strategy
@@ -43,7 +56,45 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
             return result
         }
 
-        return null
+        if (tracker.errorCount > 0) return null
+        return missingSourceFallback(target, trackedCtx)
+    }
+
+    /**
+     * What to generate for a target property no rule resolved and no rule reported an error for:
+     * a defaulted property is left out of the constructor call so Kotlin applies its default,
+     * and a nullable property without a default receives `null` plus `KRAFT-W009`, unless
+     * suppressed. Anything else cannot be mapped.
+     */
+    private fun missingSourceFallback(
+        target: PropertyInfo,
+        ctx: MappingContext
+    ): PropertyMappingStrategy? = when {
+        target.hasDefault -> PropertyMappingStrategy.Ignored(target)
+        target.type.ksType.nullability != Nullability.NOT_NULL -> {
+            if (!target.isW009Suppressed(ctx)) {
+                ctx.logger.nullableTargetDefaultedToNull(ctx.targetTypeName, target, target.declaration)
+            }
+            PropertyMappingStrategy.Constant(target, "null")
+        }
+        else -> {
+            // Guard (KRAFT-E065): a mapper must never be dropped without an error.
+            ctx.logger.mapperDroppedWithoutDiagnostic(ctx.targetTypeName, target, target.declaration)
+            null
+        }
+    }
+
+    /**
+     * `KRAFT-W009` is suppressed by `@Suppress("KRAFT-W009")` on the target property, on its
+     * constructor parameter (where Kotlin puts an annotation on a constructor `val` without a
+     * use-site target), or on the mapping declaration. Three single-declaration checks, so
+     * [isKraftSuppressed] keeps its "only this declaration" contract.
+     */
+    private fun PropertyInfo.isW009Suppressed(ctx: MappingContext): Boolean {
+        val w009 = KraftDiagnostic.NULLABLE_TARGET_DEFAULTED_TO_NULL
+        return declaration.isKraftSuppressed(w009) ||
+            parameter?.isKraftSuppressed(w009) == true ||
+            ctx.mappingDeclaration?.isKraftSuppressed(w009) == true
     }
 
     /**
