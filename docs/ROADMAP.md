@@ -334,7 +334,7 @@ unaffected, which is why it went unnoticed.
 
 *Scope:* use `testRepo.toURI()` / `libsRepo.toURI()`; ship as its own `fix:` PR.
 
-### 24. One cause, three errors for KRAFT-E015 — S · DX · open
+### 24. One cause, three errors for KRAFT-E015 — S · DX · done in 0.14 (#126)
 
 A `@MapNested` property whose element type is not a mappable class (e.g. an interface)
 reports KRAFT-E015, then a follow-on KRAFT-E005 and KRAFT-E004 for the same property. 0.14

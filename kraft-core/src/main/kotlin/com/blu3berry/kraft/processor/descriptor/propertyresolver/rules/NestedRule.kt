@@ -7,6 +7,7 @@ import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.LeafOperationResolver
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.MappingRule
+import com.blu3berry.kraft.processor.descriptor.propertyresolver.RuleOutcome
 import com.blu3berry.kraft.processor.util.ambiguousNestedDescriptors
 import com.blu3berry.kraft.processor.util.ambiguousNestedSourceProperty
 import com.blu3berry.kraft.processor.util.isMappableClass
@@ -27,7 +28,10 @@ class NestedRule : MappingRule {
     override fun tryResolve(
         target: PropertyInfo,
         ctx: MappingContext
-    ): PropertyMappingStrategy? {
+    ): PropertyMappingStrategy? = (evaluate(target, ctx) as? RuleOutcome.Resolved)?.strategy
+
+    /** [RuleOutcome.Reported] once a non-mappable `@MapNested` type (KRAFT-E015) is reported, so no KRAFT-E005 follows. */
+    override fun evaluate(target: PropertyInfo, ctx: MappingContext): RuleOutcome {
         // 1. @MapNested path (highest priority)
         val mapNested = ctx.classNestedOverrides[target.name]
         if (mapNested != null) {
@@ -39,12 +43,15 @@ class NestedRule : MappingRule {
             nm.targetType.qualifiedName == target.type.qualifiedName
         }
         if (targetCandidates.isNotEmpty()) {
-            return resolveExplicitNested(target, ctx, targetCandidates)
+            return resolveExplicitNested(target, ctx, targetCandidates).asOutcome()
         }
 
         // 3. Auto-detection fallback
-        return resolveAutoDetected(target, ctx)
+        return resolveAutoDetected(target, ctx).asOutcome()
     }
+
+    private fun PropertyMappingStrategy?.asOutcome(): RuleOutcome =
+        this?.let { RuleOutcome.Resolved(it) } ?: RuleOutcome.Pass
 
     // ---------- 1. @MapNested path ----------
 
@@ -53,11 +60,11 @@ class NestedRule : MappingRule {
         target: PropertyInfo,
         ctx: MappingContext,
         mapNested: MapNestedAnnotation
-    ): PropertyMappingStrategy? {
+    ): RuleOutcome {
         val sourceName = mapNested.sourceNameFor(target)
         val sourceProp = ctx.sourceProps[sourceName]
         // ContainerRule has already claimed (or reported) a same-kind container pair.
-        if (sourceProp != null && isMappedContainerPair(sourceProp.type, target.type)) return null
+        if (sourceProp != null && isMappedContainerPair(sourceProp.type, target.type)) return RuleOutcome.Pass
 
         reportMapNestedWarnings(target, ctx, mapNested)
         if (sourceProp == null) {
@@ -69,7 +76,7 @@ class NestedRule : MappingRule {
                     "${ctx.sourceProps.keys.sorted()}",
                 target.declaration
             )
-            return null
+            return RuleOutcome.Pass
         }
 
         val nonMappableType = listOf(sourceProp.type, target.type)
@@ -80,18 +87,20 @@ class NestedRule : MappingRule {
                 typeName = nonMappableType.simpleName,
                 symbol = target.declaration
             )
-            return null
+            return RuleOutcome.Reported
         }
 
         if (!checkNullabilityForSingleObject(sourceProp, target, ctx)) {
-            return null
+            return RuleOutcome.Pass
         }
 
-        return PropertyMappingStrategy.NestedMapper(
-            targetProperty = target,
-            sourceProperty = sourceProp,
-            nestedMappingDescriptor = LeafOperationResolver.nestedDescriptor(
-                sourceProp.type, target.type
+        return RuleOutcome.Resolved(
+            PropertyMappingStrategy.NestedMapper(
+                targetProperty = target,
+                sourceProperty = sourceProp,
+                nestedMappingDescriptor = LeafOperationResolver.nestedDescriptor(
+                    sourceProp.type, target.type
+                )
             )
         )
     }
