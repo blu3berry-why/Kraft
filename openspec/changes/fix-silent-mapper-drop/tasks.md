@@ -46,7 +46,7 @@ When this file and the dispatch brief conflict, this file and `design.md` win.
 
 > Agent: sonnet · effort medium · scope: none (report only; fix only if a failure is in this change's files) · verify: the commands below · after: 5
 
-- [ ] 6.1 Run `./gradlew detekt :kraft-ksp:jvmTest :kraft-gradle-plugin:test` plus the KMP integration-test tasks, all green. `agp9Test` may fail on Windows from the known unrelated `file://` URI bug (ROADMAP #23). Verify by recording the test counts in this task.
+- [x] 6.1 Run `./gradlew detekt :kraft-ksp:jvmTest :kraft-gradle-plugin:test` plus the KMP integration-test tasks, all green. `agp9Test` may fail on Windows from the known unrelated `file://` URI bug (ROADMAP #23). Verify by recording the test counts in this task. (gate 2026-10-18: detekt ✓, kraft-ksp 425/0, plugin 14/0, kmp-consumer jvm 5/0 + JS compile ✓, ambiguity fixture fails with exactly KRAFT-E030 ✓; agp9Test not run — Windows-only ROADMAP #23)
 
 ## Workflow follow-up
 
