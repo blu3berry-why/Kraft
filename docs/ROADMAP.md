@@ -298,8 +298,15 @@ widening. It saves writing the same five `@KraftConverter`s in every project.
 
 *Evidence (Re-Claw, 2026-10-18):* `Long → Int` is declared in 4 modules and `Int → Long` in 2,
 all with identical bodies, even though `core/data/SharedKraftConverters.kt` already declares
-`Long → Int`. First find out whether that's the missing built-ins or a cross-module discovery
-gap (the feature modules may not see the shared copy); the answer may change this item's priority.
+`Long → Int`. It is neither the missing built-ins nor a discovery gap. All three feature
+modules (`product-catalog`, `reporting`, `walk-through`) depend on `core/data`. Its generated
+`Converters__core_data.kt` emits `kraftDelegate_Long_to_Int_*`, and modules without a local copy
+(`locations`, `pos-import`) call that delegate in their generated mappers, so cross-module
+discovery works. The duplicates are stale consumer code: `product-catalog` (2026-05) and
+`walk-through` (2026-06) predate the shared converter (2026-07-24), and `reporting` (2026-08) kept
+a local copy by choice. Kraft resolves them as designed: the local converter shadows the
+registry delegate. Only `Int → Long` is genuinely missing from the shared set. The Re-Claw data
+therefore does not raise this item's priority; it stays an RFC-first nice-to-have.
 
 ### 20. `Map<K, V>` and arrays are unsupported — L · Nice-to-have · done in 0.14 (#120)
 
