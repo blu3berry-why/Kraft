@@ -12,6 +12,8 @@ context: |
   Roadmap and priorities live in docs/ROADMAP.md.
 
 rules:
+  proposal:
+    - 'Name the docs/ROADMAP.md items the change closes or advances as "Roadmap: #N" (or "Roadmap: none") in the Why section'
   specs:
     - Write each scenario as input source (annotations + types) -> generated code or compile error, so it maps one-to-one onto a KSP compile-test
     - Name the exact error message wording when a scenario expects a compile failure
@@ -23,6 +25,7 @@ rules:
     - Final task is the full gate - detekt, kraft-ksp:jvmTest, kraft-gradle-plugin:test, KMP integration tests
     - Include a docs/user-guide and kraft-mappers SKILL.md update task when user-facing behaviour changes
     - Include a docs sweep task before the full gate - grep docs/ROADMAP.md, docs/user-guide/ and .claude/skills/kraft-mappers/SKILL.md for every limitation the change lifts (its roadmap item numbers, "not supported", "not yet", removed type names) and update each hit
+    - 'In the docs sweep task, set the heading status of every "Roadmap: #N" item named in the proposal to "done in <version> (<change-name or #PR>)" or "partial (<what remains>)"; never put roadmap updates in a Workflow follow-up bullet, which is not tracked'
 
 # Project context (optional)
 # Add only constraints that should guide OpenSpec artifacts and workflows.
