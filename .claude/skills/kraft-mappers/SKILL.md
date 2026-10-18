@@ -46,6 +46,8 @@ These recur as "Kraft can't do this" and all four are native. Reach for an annot
 | `List<A>?` → `List<B>` | `this.xs?.map { it.toB() } ?: emptyList()` — the nullable source needs **no** `@MapUsing` |
 | `List<A?>` → `List<B>` | `this.xs.mapNotNull { it?.toB() }` |
 | `A?` → `B?` with only a non-null `A → B` converter registered | `this.x?.toB()` — the non-null bridge is threaded through a safe call (Kraft 0.13.0+) |
+| Target property with a default and no source | Left out of the constructor call, so the default applies. No `@MapUsing` / `@MapIgnore` needed, no diagnostic (0.14+) |
+| Nullable target with no default and no source | `= null` in the call plus **KRAFT-W009**. Write `= null` on the target to make it intentional (then no warning), or `@Suppress("KRAFT-W009")` on the target property or on the mapping declaration (`@MapConfig` object, or the `@MapFrom` / `@MapTo` class) |
 
 The one nullable shape that is **not** automatic is `A?` → `B` (nullable source, non-null target): a safe call would yield a null the target cannot hold, and a scalar has no `emptyList()` equivalent. Supply the fallback with a whole-source `@MapUsing` (see Pattern 4 below). Collections are the exception — `List<A>?` → `List<B>` *is* handled, via the empty-collection fallback.
 
@@ -114,7 +116,7 @@ Whole-source `@MapUsing` (omit `source`) is the right tool — *not* a hand-writ
 |---|---|---|
 | **Decompose** 1 → N | Source value type → N target primitives | `@MapUsing(target = "salePriceMinorUnits") fun Product.minorUnits() = salePrice.amount` *(one per target field)* |
 | **Compose** N → 1 | N source primitives → target value type | `@MapUsing(target = "salePrice") fun ProductDto.toMoney() = Money(salePriceMinorUnits, salePriceCurrency)` |
-| **Constant injection** | Target field has no source counterpart | `@MapUsing(target = "currency") fun LongAmount.fixedCurrency() = "HUF"` |
+| **Constant injection** | Target field has no source counterpart and the value is not its default or `null` (those are automatic) | `@MapUsing(target = "currency") fun LongAmount.fixedCurrency() = "HUF"` |
 | **Nullable → non-null default** | Source nullable, target non-null | `@MapUsing(target = "packSize") fun CartItemDto.packSizeOrDefault() = packSize ?: 1` |
 
 Rule of thumb: if you're tempted to write `fun X.toY(): Y = ...` by hand because "Kraft can't express this", you're almost certainly looking at one of these four. A whole-source `@MapUsing` keeps the rest of the mapper auto-generated.
@@ -269,9 +271,10 @@ If Kraft would add more boilerplate (lots of `@MapUsing` overrides per field) th
 | [KRAFT-E005](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e005) | `Type mismatch` where the ONLY difference is `?` on the source | Nullable source, non-null target — never auto-lifted (K5) | Make the target nullable, or add a whole-source `@MapUsing` that supplies the default |
 | [KRAFT-E005](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e005) | `Type mismatch` on a `List`/`Set` property | The ELEMENT pair has no mapping — the collection itself is never the problem | Register `@MapConfig` (classes) or `@MapEnum` (enums) for the element types; do not write a `List → List` converter (parameterized receivers are rejected). A registered `@KraftConverter` for the element pair also works (0.14+) |
 | — | Opt-in error (`This declaration needs opt-in`) in a generated mapper | Kraft < 0.13.0 dropped file-level `@file:OptIn` (K4) | Upgrade to 0.13.0+; do not paper over it with module-wide `-opt-in` compiler args |
-| [KRAFT-E004](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e004) | `Required property X has no mapping source` | Target has a field with no matching source field | Add `@FieldMapping` rename, make target field nullable, supply a default, or use whole-source `@MapUsing` for constant injection |
+| [KRAFT-E004](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e004) | `Required property X has no mapping source` | Target has a field with no matching source field | Add `@FieldMapping` rename, give the target a default (omitted automatically), make it nullable (null plus W009; `= null` silences it), or use whole-source `@MapUsing` for constant injection |
 | — | `Unresolved reference 'toXFromY'` in a generated file | Cross-package extension import missing in generated file | Open the generated file, add the FQN import; flag as an upstream Kraft bug |
 | — | `FileAlreadyExistsException ... _EnumMapper.kt.kt` | Two `@MapEnum`s with same target simpleName (K-A1) | Upgrade to Kraft 0.8.x+; on older versions, replace one with hand-written `@KraftConverter` extensions |
+| [KRAFT-W009](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-w009) | `Nullable property set to null` | Nullable target, no default, no source: Kraft passes `null` | Write `= null` on the target, or `@Suppress("KRAFT-W009")` on the property or mapping declaration; if the source was renamed, add `@FieldMapping` |
 | — | KSP succeeds but call site fails to compile | Stale generated files after annotation edits | `./gradlew clean` then rebuild |
 | [KRAFT-W001](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-w001) | `@MapUsing ... duplicates a mapping Kraft already generates` | Your converter re-implements native mapping (element-wise List/Set, null lift, value class, direct match) | Delete the `@MapUsing` function; keep it only with `@Suppress("KRAFT-W001")` if its body intentionally differs |
 | [KRAFT-W002](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-w002) | `@KraftConverter ... only lifts ... through null` | A nullable twin `S?.toT(): T?` next to `S.toT(): T` | Delete the nullable twin; Kraft lifts the non-null converter through `?.` |

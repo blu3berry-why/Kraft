@@ -38,9 +38,9 @@ When this file and the dispatch brief conflict, this file and `design.md` win.
 
 > Agent: sonnet · effort medium · scope: docs/**, .claude/skills/kraft-mappers/SKILL.md · verify: mkdocs build --strict (if available) · after: 4
 
-- [ ] 5.1 Add an Upgrading entry to `docs/user-guide/upgrading.md`: "Mappers that were silently missing are now generated". Name the symptom (a conflicting overload or redeclaration of a hand-written `toXxx()`) and the fix (delete the hand-written function), plus the new KRAFT-W009 for nullable fields without a default. Verify that the entry links to `errors.md#kraft-w009`.
-- [ ] 5.2 Update `.claude/skills/kraft-mappers/SKILL.md` "what Kraft does automatically": defaulted targets are omitted, nullable targets with no default get `null` plus W009, and how to suppress W009. Verify that the wording matches the spec requirements.
-- [ ] 5.3 Docs sweep: grep `docs/ROADMAP.md`, `docs/user-guide/` and `.claude/skills/kraft-mappers/SKILL.md` for `default value`, `make the property nullable`, `is omitted`, `KRAFT-E004` and `Constant`, and update each stale hit. Add a `docs/ROADMAP.md` Bugs entry ("Mappers silently dropped for defaulted / nullable targets with no source") marked done in 0.14. Verify by re-running the grep and listing the remaining hits with a reason each is correct.
+- [x] 5.1 Add an Upgrading entry to `docs/user-guide/upgrading.md`: "Mappers that were silently missing are now generated". Name the symptom (a conflicting overload or redeclaration of a hand-written `toXxx()`) and the fix (delete the hand-written function), plus the new KRAFT-W009 for nullable fields without a default. Verify that the entry links to `errors.md#kraft-w009`.
+- [x] 5.2 Update `.claude/skills/kraft-mappers/SKILL.md` "what Kraft does automatically": defaulted targets are omitted, nullable targets with no default get `null` plus W009, and how to suppress W009. Verify that the wording matches the spec requirements.
+- [x] 5.3 Docs sweep: grep `docs/ROADMAP.md`, `docs/user-guide/` and `.claude/skills/kraft-mappers/SKILL.md` for `default value`, `make the property nullable`, `is omitted`, `KRAFT-E004` and `Constant`, and update each stale hit. Add a `docs/ROADMAP.md` Bugs entry ("Mappers silently dropped for defaulted / nullable targets with no source") marked done in 0.14. Verify by re-running the grep and listing the remaining hits with a reason each is correct.
 
 ## 6. Full gate
 

@@ -15,6 +15,14 @@ This page lists the changes in each release that can affect a build that already
 
 If your build treats KSP warnings as errors, it fails on these. Delete the redundant helper, or keep it with `@Suppress("KRAFT-W001")` / `@Suppress("KRAFT-W002")` on its declaration when its body does something the native mapping does not (filtering, sorting, logging).
 
+### Mappers that were silently missing are now generated
+
+Before 0.14, a mapper whose target had a defaulted or nullable property with no source property was skipped without an error. Kraft now generates it: a defaulted target is left out of the constructor call, so its default applies, and a nullable target without a default receives `null`.
+
+If you wrote the missing function by hand to work around this (`fun PersonSource.toPersonDto()`), it now clashes with the generated one and the build fails with a conflicting-overloads or redeclaration error. Delete the hand-written function.
+
+A nullable target with no default and no source also reports [`KRAFT-W009`](errors.md#kraft-w009), so a renamed source property cannot turn into a silent `null`. Write `= null` on the target to make `null` intended, or suppress the warning with `@Suppress("KRAFT-W009")`. If your build treats KSP warnings as errors, it fails on W009 until you do. See [Properties with Default Values](basic-mapping.md#properties-with-default-values).
+
 ### Every diagnostic starts with a code
 
 Each Kraft error and warning now begins with a stable code (`KRAFT-E005`, `KRAFT-W001`, …) and links to the [errors reference](errors.md). If a script or test matches Kraft's message text, match the code instead. Codes are never reused or renumbered.
