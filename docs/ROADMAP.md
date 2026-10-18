@@ -292,11 +292,19 @@ raises questions about ambiguity against user-declared converters (local should 
 registry already models) and about the "no runtime dependency" promise. Worth an RFC before
 any code.
 
+*Candidate first set* (from the feature roadmap, Tier 1): an optional `kraft-converters`
+module with kotlinx-datetime `Instant` ↔ `String`/`Long`, `Uuid` ↔ `String`, and numeric
+widening. It saves writing the same five `@KraftConverter`s in every project.
+
 ### 20. `Map<K, V>` and arrays are unsupported — L · Nice-to-have · done in 0.14 (#120)
 
 Shipped by the `map-and-collection-mapping` OpenSpec change (PR #120): `Map`/`MutableMap`,
 `Array`, `Collection`, `Iterable` and the `Mutable*` kinds, lossless conversions between them,
 one-to-one key mapping (KRAFT-E064 otherwise) and nesting to any depth.
+
+*Before:* `CollectionKind { LIST, SET }` and the "non-List collections are not supported"
+error meant any other container fell back to a hand-written mapper. It was Tier 1 #1 of the
+feature roadmap.
 
 ### 21. Remove the deprecated nested-mapping annotations at 1.0 — S · Nice-to-have · open
 
@@ -349,6 +357,92 @@ Between the two, the docs site describes a version consumers cannot resolve.
 *Scope:* deploy stable docs by `workflow_dispatch` after clicking Publish, or switch stable
 releases to `AUTOMATIC` now that every release is tested as an RC first.
 
+## Positioning
+
+*Checked 2026-10-11. Re-check before relying on the timing.*
+
+"Best cross-platform mapper" is judged against two kinds of competitor:
+
+- **Konvert** (KSP, the feature leader on JVM): data/enum/**value** classes, POJOs, **Map**
+  element mapping, reusable `@Konverter`s, built-in type converters. **KMP status:** not in any
+  release (latest is v4.5.1, 2026-07-24). The maintainer has a draft PR open, mcarleio/konvert#219
+  (`feat/multiplatform`, 33 commits, last updated 2026-08-10), and a contributor PR fixing
+  `kspCommonMainKotlinMetadata` crashes (#223) was merged into that branch. **Kraft's KMP lead is
+  real but temporary**, likely a matter of months. Close Tier 1 before Konvert ships KMP.
+- **Small KMP mappers** (komap, kMapper, KMapper, MapKt, kautoMapper): KMP-native but shallow.
+  KMapper's selling point is a `Result<T>` return for fallible mapping.
+
+Kraft already wins on: KMP-first design, a Gradle plugin and `kraft { }` DSL, side aliases
+(`.toDomain()`), cross-module `@KraftConverter` discovery, a CI version matrix, a docs site and
+the AI skill. Its gap is **type coverage**: users drop a mapper library the first time it can't
+map a field, not over a missing advanced feature.
+
+---
+
+## Features
+
+Sizes for #29–#38 are first estimates.
+
+**Tier 1: parity gaps (target 0.14).** Removes the "falls back to hand-written" moments. Already
+covered elsewhere: Map and other collections (#20, done), "use the target default when the source
+is missing" (#27, done), and the built-in converter module (#19).
+
+### 28. Value classes are not wrapped or unwrapped automatically — M · Feature · done in 0.14 (#114)
+
+`UserId(val value: String)` ↔ `String` now maps without a converter: plain, nullable (safe call)
+and element-wise, including Map keys and values. Typed IDs are standard in domain models.
+
+### 29. No way to set a target property to a constant or expression — M · Feature · open
+
+Today a constant (`isActive = true`, `currency = "HUF"`) needs a whole-source `@MapUsing`.
+`PropertyMappingStrategy.Constant` already exists and generates `name = <expr>`; since #122 it
+also carries the KRAFT-W009 null fill. What's missing is the annotation (`@MapConstant` or an
+expression form) and the rule that produces it.
+
+*When it ships:* add it to KRAFT-W009's fix list.
+
+**Tier 2: differentiators (0.15–0.16).** Makes the "best" claim possible.
+
+### 30. No sealed hierarchy mapping — L · Feature · open
+
+Subtype-to-subtype `when` (OpenAPI `oneOf`). Few KSP mappers do this well, and it's where
+API-first clients hurt most.
+
+### 31. No fallible mapping — M · Feature · open
+
+A `toDomainOrNull()` / `Result`-returning variant for `X?` → `X`. Matches KMapper's pitch
+without giving up compile-time strictness.
+
+### 32. Mappers cannot take extra parameters — M · Feature · open
+
+`fun Dto.toDomain(now: Instant)`. Removes the main reason for whole-source converters.
+
+### 33. No update/patch mappers — M · Feature · open
+
+`fun Patch.applyTo(t: T): T` via `copy`, for PATCH endpoints and form state.
+
+### 34. No unmapped-target policy — M · Feature · open
+
+`strict` / `warn` / `ignore` in the DSL, plus a per-mapper coverage report. Matches MapStruct's
+`unmappedTargetPolicy`, which JVM users expect. It would also be the project-wide knob for
+KRAFT-W009.
+
+**Tier 3: trust and adoption (alongside).**
+
+### 35. No comparison page or Konvert migration guide — M · Docs · open
+
+Kraft vs Konvert vs MapStruct, plus a Konvert → Kraft migration guide.
+
+### 36. No build-time benchmark or verified incremental-processing story — M · Test · open
+
+### 37. Generated extensions are unchecked from Swift — S · DX · open
+
+Check how the generated extensions look from iOS (is `@ObjCName` needed?).
+
+### 38. New Kotlin and KSP releases are tracked by hand — S · CI · open
+
+Track new Kotlin 2.x and KSP releases in the existing version matrix.
+
 ---
 
 ## Suggested order
@@ -366,6 +460,11 @@ are the two that would have caught real problems.
 found: today the only way to learn what the processor decided is to read its output. Items 17
 and 18 belong here too — both close the gap between "the generated text looks right" and "the
 mapper does the right thing".
+
+**Features.** 0.14 has #29 left. 0.15 is #30 (sealed) and #34 (unmapped policy). 0.16 is #31,
+#32 and #33 together, because they change the generated function signatures. Tier 3 (#35–#38)
+runs alongside. Watch Konvert's KMP branch (see Positioning): Tier 1 should be closed before it
+ships.
 
 **Later.** Item 19 is genuine feature work and should not jump the queue ahead of the
 diagnostics that make feature work debuggable. Item 21 rides along with 1.0.
