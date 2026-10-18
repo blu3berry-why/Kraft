@@ -296,6 +296,11 @@ any code.
 module with kotlinx-datetime `Instant` ↔ `String`/`Long`, `Uuid` ↔ `String`, and numeric
 widening. It saves writing the same five `@KraftConverter`s in every project.
 
+*Evidence (Re-Claw, 2026-10-18):* `Long → Int` is declared in 4 modules and `Int → Long` in 2,
+all with identical bodies, even though `core/data/SharedKraftConverters.kt` already declares
+`Long → Int`. First find out whether that's the missing built-ins or a cross-module discovery
+gap (the feature modules may not see the shared copy); the answer may change this item's priority.
+
 ### 20. `Map<K, V>` and arrays are unsupported — L · Nice-to-have · done in 0.14 (#120)
 
 Shipped by the `map-and-collection-mapping` OpenSpec change (PR #120): `Map`/`MutableMap`,
@@ -386,7 +391,7 @@ Sizes for #29–#38 are first estimates.
 **Tier 1: parity gaps (target 0.14).** Removes the "falls back to hand-written" moments. Already
 covered elsewhere: Map and other collections (#20, done), "use the target default when the source
 is missing" (#27, done). The built-in converter module (#19) is deferred: it needs an RFC
-first (see Suggested order, "Later").
+first (see Suggested order, "Later"). #29 moves to 0.15 to be designed with #40.
 
 ### 28. Value classes are not wrapped or unwrapped automatically — M · Feature · done in 0.14 (#114)
 
@@ -399,6 +404,9 @@ Today a constant (`isActive = true`, `currency = "HUF"`) needs a whole-source `@
 `PropertyMappingStrategy.Constant` already exists and generates `name = <expr>`; since #122 it
 also carries the KRAFT-W009 null fill. What's missing is the annotation (`@MapConstant` or an
 expression form) and the rule that produces it.
+
+Moved to 0.15 so it is designed together with #40: with flat annotations, `@MapConstant` is a
+class-level annotation on the mapper object rather than a fourth array in `@MapConfig`.
 
 *When it ships:* add it to KRAFT-W009's fix list.
 
@@ -444,6 +452,33 @@ Check how the generated extensions look from iOS (is `@ObjCName` needed?).
 
 Track new Kotlin 2.x and KSP releases in the existing version matrix.
 
+### 39. Coding agents searching for a KMP mapper don't find Kraft — M · Docs · open
+
+Parked 2026-10-18; not yet explored. Agents tend to find libraries through search results,
+READMEs and docs pages, Maven Central / package metadata and `llms.txt`-style files more than
+through video comments. Work out where they actually look before choosing channels.
+
+### 40. `@MapConfig` rules can only be written as nested arrays — M · Feature · open
+
+`fieldMappings = [FieldMapping(...)]`, `ignoredMappings = [MapIgnoreField(...)]` and friends
+nest every rule inside one annotation, which is hard to read, review and edit. Allow the same
+rules as flat, repeatable annotations on the mapper object, one line per rule:
+
+```kotlin
+@MapConfig(source = UserDto::class, target = User::class)
+@FieldMapping(source = "name", target = "fullName")
+@MapIgnoreField("internalNotes")
+@MapConstant(target = "currency", value = "\"HUF\"")   // #29
+object UserMapper
+```
+
+*Scope:* reuse the existing annotation classes (add `@Target(CLASS)` and `@Repeatable`) so there
+are no new names; keep the array form working; the same rule given both ways is a compile error.
+Both forms feed the existing `ConfigObjectScanResult`, so nothing after the scanner changes.
+*First step:* a spike confirming KSP2 sees repeatable `SOURCE` annotations in the KMP metadata
+compilation, and that a class-targeted annotation can still be used inside an array argument.
+Designed together with #29.
+
 ---
 
 ## Suggested order
@@ -462,7 +497,8 @@ found: today the only way to learn what the processor decided is to read its out
 and 18 belong here too — both close the gap between "the generated text looks right" and "the
 mapper does the right thing".
 
-**Features.** 0.14 has #29 left. 0.15 is #30 (sealed) and #34 (unmapped policy). 0.16 is #31,
+**Features.** 0.14 ships what is done; nothing in Features is left for it. 0.15 is #40 (flat
+annotations) with #29 (constants) designed together, then #30 (sealed) and #34 (unmapped policy). 0.16 is #31,
 #32 and #33 together, because they change the generated function signatures. Tier 3 (#35–#38)
 runs alongside. Watch Konvert's KMP branch (see Positioning): Tier 1 should be closed before it
 ships.
