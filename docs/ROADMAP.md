@@ -314,6 +314,24 @@ already use it.
 *Scope:* return `RuleOutcome.Reported` after `nestedTypeNotMappable` in `NestedRule`, and
 assert in the existing E015 test that no `[KRAFT-E005]` follows.
 
+### 25. Broken docs links never fail a build — S · CI
+
+Found 2026-10-18 while writing `upgrading.md`. `docs-deploy.yml` runs `mkdocs build` without
+`--strict`, so a broken link or anchor deploys silently, and no PR check builds the site at
+all. mkdocs is not installed on the dev machine either, so new links are checked by hand.
+
+*Scope:* use `mkdocs build --strict` in `docs-deploy.yml`, and add the same strict build as a
+PR check that runs when `docs/**` or `mkdocs.yml` changes.
+
+### 26. Docs deploy before the stable release is on Maven Central — S · CI
+
+`docs-deploy.yml` fires on the GitHub Release, but stable publishing is `USER_MANAGED`
+(`settings.gradle.kts`): artifacts wait in the Central Portal until someone clicks Publish.
+Between the two, the docs site describes a version consumers cannot resolve.
+
+*Scope:* deploy stable docs by `workflow_dispatch` after clicking Publish, or switch stable
+releases to `AUTOMATIC` now that every release is tested as an RC first.
+
 ---
 
 ## Suggested order
@@ -324,7 +342,7 @@ a consumer to reach a wrong conclusion about working code. The audit's clearest 
 Kraft's defect rate is low, and that its *explanation* rate is what has been costing consumers
 days.
 
-**Second — close the CI gaps.** Items 14, 15, 16 and 22 are all S and mechanical. 14 and 16
+**Second — close the CI gaps.** Items 14, 15, 16, 22, 25 and 26 are all S and mechanical. 14 and 16
 are the two that would have caught real problems.
 
 **Third — diagnostics.** Items 5 and 6 are the structural fix behind most of what this audit
