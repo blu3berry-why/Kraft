@@ -53,6 +53,7 @@ nav:
   - Roadmap: ROADMAP.md
   - User Guide:
       - Getting Started: user-guide/getting-started.md
+      - Upgrading: user-guide/upgrading.md
       - Basic Mapping: user-guide/basic-mapping.md
       - Field Renaming: user-guide/field-renaming.md
       - Nested Mapping: user-guide/nested-mapping.md

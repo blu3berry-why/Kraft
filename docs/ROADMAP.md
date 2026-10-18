@@ -82,16 +82,16 @@ Shipped by the same change: a hand-written converter is applied at element posit
 own name, at any nesting depth. `CollectionElementConverterTest`'s second case now asserts it,
 and gotcha K6 in the shipped agent skill is marked fixed.
 
-### 3. Nullable collection source silently becomes empty; the scalar equivalent errors — S (document) / M (opt-out)
+### 3. Nullable collection source silently becomes empty; the scalar equivalent errors — ~~S (document)~~ done / M (opt-out)
 
-`List<X>?` → `List<Y>` compiles to `?: emptyList()`, collapsing "absent" and "empty" without
-comment. The single-object equivalent (`X?` → `Y`) is a hard error via `nullableNestedSource`,
-and the scalar converter equivalent is deliberately not lifted. Both choices are defensible;
-having all three in one library with no stated rationale is what costs users time.
+`List<X>?` → `List<Y>` compiles to `?: emptyList()`, collapsing "absent" and "empty". The
+single-object equivalent (`X?` → `Y`) is a hard error (KRAFT-E014), and the scalar converter
+equivalent is deliberately not lifted (KRAFT-E005).
 
-*Scope:* document the rule and the reasoning in `collection-mapping.md` (S). Optionally add a
-`@MapConfig` flag to make the nullable-collection case an error instead, for codebases that
-treat null and empty as distinct (M).
+*Done:* `collection-mapping.md` now states the three rules side by side, with the reasoning and
+the "keep the target nullable" escape hatch for codebases where null and empty differ.
+
+*Open (M):* a `@MapConfig` flag that makes the nullable-collection case an error instead.
 
 ---
 
@@ -194,13 +194,12 @@ page uses a `<ksp-version>` placeholder. It will go stale silently.
 *Scope:* use the placeholder consistently, or add a docs build check that flags hardcoded
 dependency versions in snippets.
 
-### 13. No migration note for the 0.13.0 behaviour change — S
+### 13. ~~No migration note for the 0.13.0 behaviour change~~ — done
 
-Nullable-scalar bridging changed resolution: a property pair that previously failed to compile
-now compiles and calls a converter. That is a welcome change, and it is also exactly the kind
-of change a consumer wants stated explicitly rather than inferred from a `fix:` line.
-
-*Scope:* a "Behaviour changes" subsection in the release notes for 0.13.0.
+`docs/user-guide/upgrading.md` lists the changes that can affect a working build, per release:
+the 0.13.0 nullable-scalar bridging and `@file:OptIn` propagation, and the 0.14.0 warnings,
+diagnostic codes, new error codes and frozen deprecated annotations. Add a section there for
+every release that changes behaviour.
 
 ---
 
@@ -319,9 +318,9 @@ assert in the existing E015 test that no `[KRAFT-E005]` follows.
 
 ## Suggested order
 
-**First — correctness of what we tell people.** Items 7, 8, 9, 10 and 4 are done. Follow with
-11, 13, and item 3's documentation half: all S, and every one of them removes a way for a
-consumer to reach a wrong conclusion about working code. The audit's clearest lesson is that
+**First — correctness of what we tell people.** Items 7, 8, 9, 10, 4, 13 and item 3's
+documentation half are done. Item 11 is the last one (S); like the others, it removes a way for
+a consumer to reach a wrong conclusion about working code. The audit's clearest lesson is that
 Kraft's defect rate is low, and that its *explanation* rate is what has been costing consumers
 days.
 
