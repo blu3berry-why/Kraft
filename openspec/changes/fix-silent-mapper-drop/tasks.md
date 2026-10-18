@@ -30,9 +30,9 @@ When this file and the dispatch brief conflict, this file and `design.md` win.
 
 > Agent: sonnet · effort medium · scope: kraft-core/src/main/**, kraft-ksp/src/jvmTest/**, docs/user-guide/errors.md · verify: ./gradlew :kraft-ksp:jvmTest · after: 3
 
-- [ ] 4.1 Add `KraftDiagnostic` E065 and its message (exact spec wording), reported from the fallback's last branch (design D3). Verify with jvmTest `missingsource/NoSilentDropTest` scenario "Resolution yields nothing and nothing was reported", using `PropertyResolver(rules = listOf(MappingRule { _, _ -> null }))` on a hand-built `MappingContext`, which asserts the first line and the `See:` link.
-- [ ] 4.2 Add the `KRAFT-E065` entry to `errors.md`. Verify with a green `ErrorsReferenceCompletenessTest`.
-- [ ] 4.3 Change the E004 fix hint to `Or make the property nullable (Kraft then passes null and warns KRAFT-W009)` in `LoggerExtensions` and in the E004 entry of `errors.md` (design D5). Verify with a `RequiredFieldErrorRuleTest` assertion covering spec scenario "Required property without a source" (first line and new hint).
+- [x] 4.1 Add `KraftDiagnostic` E065 and its message (exact spec wording), reported from the fallback's last branch (design D3). Verify with jvmTest `missingsource/NoSilentDropTest` scenario "Resolution yields nothing and nothing was reported", using `PropertyResolver(rules = listOf(MappingRule { _, _ -> null }))` on a hand-built `MappingContext`, which asserts the first line and the `See:` link.
+- [x] 4.2 Add the `KRAFT-E065` entry to `errors.md`. Verify with a green `ErrorsReferenceCompletenessTest`.
+- [x] 4.3 Change the E004 fix hint to `Or make the property nullable (Kraft then passes null and warns KRAFT-W009)` in `LoggerExtensions` and in the E004 entry of `errors.md` (design D5). Verify with a `RequiredFieldErrorRuleTest` assertion covering spec scenario "Required property without a source" (first line and new hint).
 
 ## 5. User-facing docs and skill
 

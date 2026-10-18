@@ -110,7 +110,7 @@ data class UserDto(
 
 - Add `@MapField("sourceName")` to the target property.
 - Or add a config override: `FieldMapping(source = "sourceName", target = "age")`.
-- Or make the property nullable.
+- Or make the property nullable (Kraft then passes null and warns [`KRAFT-W009`](#kraft-w009)).
 - Or provide a default value in the target constructor.
 
 ### KRAFT-E005 — Property type mismatch {#kraft-e005}
@@ -1240,6 +1240,16 @@ The same `@MapEnum` is fine for map values (`Map<String, StatusDto>` into `Map<S
 - Keep the key type the same on both sides.
 - Or use a value-class key, or an enum key whose mapping is one-to-one.
 - Or map the property with `@MapUsing`, which makes the merge your decision.
+
+### KRAFT-E065 — Mapper dropped without a diagnostic {#kraft-e065}
+
+**Severity:** error
+
+**Cause:** Kraft found no way to map a target property and no rule reported an error for it, so the mapper would have vanished without a word. This is an internal guard: with the built-in rules every unmappable property already gets a more specific error, so only a custom rule chain or a Kraft bug can reach it.
+
+**Fix:**
+
+- Report it as a Kraft bug, with the source and target types of the mapper.
 
 ## Warnings
 

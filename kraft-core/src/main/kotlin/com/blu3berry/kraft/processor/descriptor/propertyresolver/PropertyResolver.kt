@@ -8,6 +8,7 @@ import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.processor.diagnostics.ErrorTrackingLogger
 import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
 import com.blu3berry.kraft.processor.diagnostics.isKraftSuppressed
+import com.blu3berry.kraft.processor.util.mapperDroppedWithoutDiagnostic
 import com.blu3berry.kraft.processor.util.nullableTargetDefaultedToNull
 import com.blu3berry.kraft.processor.diagnostics.MutedKspLogger
 import com.blu3berry.kraft.processor.descriptor.propertyresolver.rules.ClassOverrideRule
@@ -76,7 +77,11 @@ class PropertyResolver(private val rules: List<MappingRule> = default()) {
             }
             PropertyMappingStrategy.Constant(target, "null")
         }
-        else -> null
+        else -> {
+            // Guard (KRAFT-E065): a mapper must never be dropped without an error.
+            ctx.logger.mapperDroppedWithoutDiagnostic(ctx.targetTypeName, target, target.declaration)
+            null
+        }
     }
 
     /**

@@ -128,8 +128,32 @@ ${
     How to fix:
       ✓ Add @MapField("sourceName") to the target property '${targetProperty.name}'
       ✓ Or add a config override: FieldMapping(source = "sourceName", target = "${targetProperty.name}")
-      ✓ Or make the property nullable
+      ✓ Or make the property nullable (Kraft then passes null and warns KRAFT-W009)
       ✓ Or provide a default value in the target constructor
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * `KRAFT-E065`: the resolver found no strategy for a target property and no rule reported an
+ * error, so the mapper would have been dropped silently.
+ */
+fun KSPLogger.mapperDroppedWithoutDiagnostic(
+    targetType: String,
+    targetProperty: PropertyInfo,
+    symbol: KSNode
+) = report(
+    KraftDiagnostic.MAPPER_DROPPED_WITHOUT_DIAGNOSTIC,
+    """
+    Kraft could not map property '${targetProperty.name}' in target type '$targetType' and reported no other error, so the mapper was not generated.
+
+    Target property:
+      • ${targetProperty.name}: ${targetProperty.type.ksType}
+
+    This is an internal guard. It means a custom rule chain or a Kraft bug let the property through unresolved.
+
+    How to fix:
+      ✓ Report it as a Kraft bug, with the source and target types of this mapper.
     """.trimIndent(),
     symbol
 )

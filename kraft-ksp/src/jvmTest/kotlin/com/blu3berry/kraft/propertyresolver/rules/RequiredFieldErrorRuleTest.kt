@@ -29,6 +29,10 @@ class RequiredFieldErrorRuleTest {
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         assertThat(result.messages).contains("[KRAFT-E004]")
         assertThat(result.messages).contains("age")
+        assertThat(result.messages.lines().first { it.contains("[KRAFT-E004]") })
+            .startsWith("[KRAFT-E004] Required property 'age' in target type")
+        assertThat(result.messages)
+            .contains("Or make the property nullable (Kraft then passes null and warns KRAFT-W009)")
     }
 
     @Test
