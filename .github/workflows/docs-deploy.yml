@@ -1,16 +1,20 @@
 name: Deploy Docs
 
-# Docs deploy on release (not on every main push): the site documents released
-# artifacts, and deploying docs for merged-but-unreleased features would
-# advertise APIs that aren't on Maven Central yet. The release event checks out
-# the tagged commit, so the site always matches the released code.
-# workflow_dispatch stays as the escape hatch for urgent docs-only fixes
-# between releases (deploys main HEAD — check it doesn't document unreleased
-# features first).
+# Docs deploy by manual dispatch, after the release is on Maven Central. Stable
+# publishing is USER_MANAGED: publish.yml uploads to the Central Portal, where
+# the artifacts wait until the maintainer clicks Publish. Deploying on the
+# GitHub Release would document a version consumers cannot resolve yet.
+# So: click Publish on the Central Portal, then run this workflow (Actions ->
+# Deploy Docs -> Run workflow) with the release tag, e.g. 0.14.0. It checks
+# out that tag, so the site always matches the released code. Pre-release tags
+# (containing '-') are skipped and never overwrite the stable site.
 on:
-  release:
-    types: [published]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Release tag to deploy (e.g. 0.14.0)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -24,14 +28,9 @@ concurrency:
 jobs:
   deploy:
     # Pre-releases (e.g. 0.14.0-RC1) must not overwrite the stable docs site.
-    # publish-rc.yml never creates a GitHub Release, so this guard is a backstop.
-    # Guard on the tag name, not github.event.release.prerelease: stable tags
-    # never contain '-', pre-release tags always do, and the flag would need
-    # release-please's `prerelease` option — which also flags every pre-major
-    # (0.x) release, so it cannot be used while Kraft is pre-1.0.
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      !contains(github.event.release.tag_name, '-')
+    # Guard on the tag name: stable tags never contain '-', pre-release tags
+    # always do.
+    if: ${{ !contains(inputs.ref, '-') }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -39,6 +38,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5

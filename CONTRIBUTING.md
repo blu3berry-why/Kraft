@@ -195,7 +195,8 @@ The workflow authenticates with the `RELEASE_PLEASE_TOKEN` repository secret —
 1. Every push to `main` runs the **Release Please** workflow (`release-please.yml`), which maintains a rolling release PR containing the version bump and CHANGELOG, computed from conventional commits since the last release. Pre-1.0, breaking changes bump **minor** (`bump-minor-pre-major`); `feat:` bumps minor; `fix:` bumps patch; docs/refactor/test/ci accumulate without forcing a release.
 2. When you want to release, review and merge the release PR. Nothing publishes before that merge — the release PR is the dry run.
 3. Merging it creates the git tag and the GitHub Release, which triggers the **Publish** workflow (`publish.yml`) to sign and publish all modules to Maven Central.
-4. To force an exact version (e.g. the deliberate `1.0.0`), land a commit on `main` whose body contains `Release-As: 1.0.0` — release-please retargets the release PR to that version.
+4. Stable publishing is `USER_MANAGED`, so the artifacts wait in the Central Portal. Click **Publish** there, then deploy the docs: run the **Deploy Docs** workflow (`docs-deploy.yml`, Actions → Deploy Docs → Run workflow) with the release tag (e.g. `0.14.0`) as `ref`. Tags containing `-` are skipped so a pre-release never overwrites the stable site.
+5. To force an exact version (e.g. the deliberate `1.0.0`), land a commit on `main` whose body contains `Release-As: 1.0.0` — release-please retargets the release PR to that version.
 
 ### Pre-releases (RCs)
 
