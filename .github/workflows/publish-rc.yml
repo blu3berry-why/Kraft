@@ -50,7 +50,7 @@ jobs:
           fi
           echo "All required secrets are set."
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: main
           fetch-depth: 0
