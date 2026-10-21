@@ -129,7 +129,7 @@ Generated: `combined = with(SrcMapper) { this@toDst.combine() }`
 
 ### Whole-Source Mode Patterns
 
-Whole-source mode is the right tool for several patterns where source and target fields don't line up 1:1. Each one is a single `@MapUsing(target = "...")` declaration that reads any combination of source fields.
+Whole-source mode is the right tool for several patterns where source and target fields don't line up 1:1. Patterns 1, 2 and 4 are each a single `@MapUsing(target = "...")` declaration that reads any combination of source fields; Pattern 3 uses `@MapConstant` instead.
 
 #### Pattern 1 — Decompose one source field into N target fields
 
@@ -192,7 +192,7 @@ object CartItemMapper {
 }
 ```
 
-These four patterns cover almost every "fields don't line up" case without writing manual mappers. If you find yourself reaching for a hand-written extension function or a global `@KraftConverter`, check whether one of these whole-source patterns fits first.
+These four patterns cover almost every "fields don't line up" case without writing manual mappers. If you find yourself reaching for a hand-written extension function or a global `@KraftConverter`, check whether one of these patterns fits first.
 
 ## Type Matching Rules
 
