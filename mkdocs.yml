@@ -67,6 +67,7 @@ nav:
       - Enum Mapping: user-guide/enum-mapping.md
       - Custom Converters: user-guide/custom-converters.md
       - Ignore Rules: user-guide/ignore-rules.md
+      - Constant Values: user-guide/constant-values.md
       - Configuration Objects: user-guide/configuration-objects.md
       - Reverse Mapping: user-guide/reverse-mapping.md
       - KSP Options: user-guide/ksp-options.md

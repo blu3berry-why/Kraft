@@ -4,6 +4,7 @@ import com.blu3berry.kraft.config.FieldMapping
 import com.blu3berry.kraft.config.KraftConverter
 import com.blu3berry.kraft.config.KraftConverterDelegate
 import com.blu3berry.kraft.config.MapConfig
+import com.blu3berry.kraft.config.MapConstant
 import com.blu3berry.kraft.config.MapEnum
 import com.blu3berry.kraft.config.MapIgnoreField
 import com.blu3berry.kraft.config.MapReverse
@@ -42,6 +43,8 @@ object KraftKspConstants {
     const val DEFAULT_MAP_CONFIG_USE_GLOBAL_CONVERTERS   = true
     const val DEFAULT_MAP_NESTED_SOURCE_NAME             = ""
     const val DEFAULT_KRAFT_CONVERTER_DELEGATE_MODULE_ID = ""
+    const val DEFAULT_MAP_CONSTANT_TARGET                = ""
+    const val DEFAULT_MAP_CONSTANT_DIRECTION             = "AUTO"
 
     const val GENERATED_REGISTRY_PACKAGE = "kraft.generated.registry"
 
@@ -53,6 +56,7 @@ object KraftKspConstants {
     val FQ_MAP_IGNORE       = MapIgnore::class.qualifiedName!!
     val FQ_MAP_CONFIG       = MapConfig::class.qualifiedName!!
     val FQ_MAP_USING        = MapUsing::class.qualifiedName!!
+    val FQ_MAP_CONSTANT     = MapConstant::class.qualifiedName!!
     val FQ_MAP_IGNORE_FIELD = MapIgnoreField::class.qualifiedName!!
     val FQ_FIELD_MAPPING    = FieldMapping::class.qualifiedName!!
     val FQ_NESTED_MAPPING   = NestedMapping::class.qualifiedName!!

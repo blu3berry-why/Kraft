@@ -129,7 +129,7 @@ Generated: `combined = with(SrcMapper) { this@toDst.combine() }`
 
 ### Whole-Source Mode Patterns
 
-Whole-source mode is the right tool for several patterns where source and target fields don't line up 1:1. Each one is a single `@MapUsing(target = "...")` declaration that reads any combination of source fields.
+Whole-source mode is the right tool for several patterns where source and target fields don't line up 1:1. Patterns 1, 2 and 4 are each a single `@MapUsing(target = "...")` declaration that reads any combination of source fields; Pattern 3 uses `@MapConstant` instead.
 
 #### Pattern 1 — Decompose one source field into N target fields
 
@@ -164,15 +164,16 @@ object ProductReverseMapper {
 
 #### Pattern 3 — Inject a constant on a target field with no source counterpart
 
-A target field has no equivalent on the source — supply a constant via a whole-source function whose body ignores the receiver:
+A target field has no equivalent on the source — supply the value with [`@MapConstant`](constant-values.md), which needs no converter function and no receiver:
 
 ```kotlin
 @MapConfig(source = LongAmount::class, target = Money::class)
 object MoneyMapper {
-    @MapUsing(target = "currency")
-    fun LongAmount.fixedCurrency(): String = "HUF"
+    @MapConstant val currency = "HUF"
 }
 ```
+
+Keep a whole-source `@MapUsing` for values computed from the source (`@MapConstant` cannot see the object being mapped).
 
 <a id="pattern-4"></a>
 
@@ -191,7 +192,7 @@ object CartItemMapper {
 }
 ```
 
-These four patterns cover almost every "fields don't line up" case without writing manual mappers. If you find yourself reaching for a hand-written extension function or a global `@KraftConverter`, check whether one of these whole-source patterns fits first.
+These four patterns cover almost every "fields don't line up" case without writing manual mappers. If you find yourself reaching for a hand-written extension function or a global `@KraftConverter`, check whether one of these patterns fits first.
 
 ## Type Matching Rules
 

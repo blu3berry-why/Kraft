@@ -109,6 +109,13 @@ class ReverseDescriptorBuilder(
             )
         } else emptySet()
 
+        val reverseConstants = validateConstantTargets(
+            logger,
+            configObjects.flatMap { it.constants }.filter { it.resolvedDirection == ConverterDirection.REVERSE },
+            newTargetProps,
+            forwardDescriptor.sourceType.simpleName
+        )
+
         val configsAllowGlobal = configObjects.all { it.useGlobalConverters }
         return MappingContext(
             logger = logger,
@@ -122,7 +129,8 @@ class ReverseDescriptorBuilder(
             sourceTypeName = newSourceTypeName,
             targetTypeName = newTargetTypeName,
             // The @MapConfig object for a config reverse, the @MapFrom / @MapTo class otherwise.
-            mappingDeclaration = errorNode as? KSAnnotated
+            mappingDeclaration = errorNode as? KSAnnotated,
+            constants = reverseConstants
         )
     }
 

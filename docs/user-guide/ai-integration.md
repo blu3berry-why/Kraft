@@ -8,7 +8,7 @@ Kraft ships a ready-made agent skill so you don't have to write (or paste) that 
 
 The skill covers:
 
-- The **decision tree** for choosing between `@MapConfig`, `@MapFrom`/`@MapTo`, `@MapEnum`, `@KraftConverter`, and `@MapUsing` (including whole-source mode for decompose / compose / constant / default patterns)
+- The **decision tree** for choosing between `@MapConfig`, `@MapFrom`/`@MapTo`, `@MapEnum`, `@KraftConverter`, and `@MapUsing` (including whole-source mode for decompose / compose / default patterns), flat `@FieldMapping` / `@MapIgnoreField` rules and `@MapConstant`
 - Reverse mapping with `@MapReverse` and converter direction inference
 - The **Gradle plugin** and `kraft { }` DSL — build setup, side aliases (never hand-write `.toDomain()` wrapper extensions), `functionNameFormat`, `moduleId`
 - Placement and naming conventions for mapper objects and converter functions
@@ -161,11 +161,8 @@ data class OrderDto(
 data class AddressDto(val street: String, val city: String, val zip: String, val country: String)
 data class OrderItemDto(val sku: String, val name: String, val quantity: Int, val priceCents: Long)
 
-@MapConfig(
-    source = Order::class,
-    target = OrderDto::class,
-    fieldMappings = [FieldMapping(source = "orderId", target = "id")]
-)
+@MapConfig(source = Order::class, target = OrderDto::class)
+@FieldMapping(source = "orderId", target = "id")
 object OrderMapper
 ```
 

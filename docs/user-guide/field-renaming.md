@@ -2,34 +2,31 @@
 
 When source and target properties have different names, Kraft provides two ways to declare the mapping: `FieldMapping` (in `@MapConfig`) and `@MapField` (on properties in annotated classes). These are the recommended approaches for new code.
 
-> **Note:** `@MapNested` is **deprecated** — nested data classes are auto-detected when their types differ, and renamed nested pairs should use `@MapField` / `FieldMapping`. See the [migration note](#migration-note-replacing-mapnested) below.
+> **Note:** `@MapNested` is **deprecated** — nested data classes are auto-detected when their types differ, and renamed nested pairs should use `@MapField` / `@FieldMapping`. See the [migration note](#migration-note-replacing-mapnested) below.
 
 ## FieldMapping (in @MapConfig)
 
-When using `@MapConfig`, declare renames with `FieldMapping`. Its parameters use explicit `source` and `target` names -- no ambiguity about direction.
+When using `@MapConfig`, declare each rename as a `@FieldMapping` written directly on the config object. Its parameters use explicit `source` and `target` names -- no ambiguity about direction.
 
 ```kotlin
 import com.blu3berry.kraft.config.MapConfig
 import com.blu3berry.kraft.config.FieldMapping
 
-data class PersonDto(val fullName: String)
-data class Person(val name: String)
+data class UserDto(val name: String, val mail: String)
+data class User(val fullName: String, val email: String)
 
-@MapConfig(
-    source = PersonDto::class,
-    target = Person::class,
-    fieldMappings = [
-        FieldMapping(source = "fullName", target = "name")
-    ]
-)
-object PersonMapper
+@MapConfig(source = UserDto::class, target = User::class)
+@FieldMapping(source = "name", target = "fullName")
+@FieldMapping(source = "mail", target = "email")
+object UserMapper
 ```
 
 Generated output:
 
 ```kotlin
-fun PersonDto.toPerson(): Person = Person(
-    name = this.fullName,
+fun UserDto.toUser(): User = User(
+    fullName = this.name,
+    email = this.mail,
 )
 ```
 
@@ -37,20 +34,25 @@ fun PersonDto.toPerson(): Person = Person(
 
 ### Multiple Field Mappings
 
-You can declare as many renames as needed in a single `@MapConfig`:
+`@FieldMapping` is repeatable: write one annotation per rename, as many as you need. Under `@MapReverse` each rename also applies, swapped, to the reverse mapper (`User.toUserDto()` reads `name = this.fullName` and `mail = this.email`).
+
+### Also supported: the fieldMappings array
+
+The same renames can be written as entries of `@MapConfig.fieldMappings`. Both forms behave the same.
 
 ```kotlin
 @MapConfig(
-    source = EmployeeRecord::class,
-    target = EmployeeDto::class,
+    source = UserDto::class,
+    target = User::class,
     fieldMappings = [
-        FieldMapping(source = "empId", target = "id"),
-        FieldMapping(source = "empName", target = "name"),
-        FieldMapping(source = "empEmail", target = "email"),
+        FieldMapping(source = "name", target = "fullName"),
+        FieldMapping(source = "mail", target = "email"),
     ]
 )
-object EmployeeMapper
+object UserMapper
 ```
+
+Pick one form per object. Mixing them works when they name different targets, but naming the same target in both is a compile-time error ([KRAFT-E066](errors.md#kraft-e066)). A flat `@FieldMapping` on a class without `@MapConfig` is a compile-time error too ([KRAFT-E071](errors.md#kraft-e071)); on `@MapFrom` / `@MapTo` classes use `@MapField` instead.
 
 ## @MapField (on @MapFrom / @MapTo Classes)
 

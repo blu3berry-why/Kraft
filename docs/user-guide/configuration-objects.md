@@ -32,31 +32,44 @@ public fun User.toUserDto(): UserDto = UserDto(
 
 ## Field Renames with FieldMapping
 
-Use `fieldMappings` when the source and target have properties with different names.
+Use one `@FieldMapping` per rename, written directly on the config object, when the source and target have properties with different names.
 
 ```kotlin
-data class User(val userId: Int, val fullName: String)
-data class UserDto(val id: Int, val name: String)
+data class UserDto(val name: String, val mail: String)
+data class User(val fullName: String, val email: String)
 
-@MapConfig(
-    source = User::class,
-    target = UserDto::class,
-    fieldMappings = [
-        FieldMapping(source = "userId", target = "id"),
-        FieldMapping(source = "fullName", target = "name")
-    ]
-)
+@MapConfig(source = UserDto::class, target = User::class)
+@FieldMapping(source = "name", target = "fullName")
+@FieldMapping(source = "mail", target = "email")
 object UserMapper
 ```
 
 **Generated output:**
 
 ```kotlin
-public fun User.toUserDto(): UserDto = UserDto(
-  id = this.userId,
-  name = this.fullName
+public fun UserDto.toUser(): User = User(
+  fullName = this.name,
+  email = this.mail
 )
 ```
+
+### Also supported: the fieldMappings array
+
+The same renames can be written as entries of `@MapConfig.fieldMappings`. Both forms behave the same.
+
+```kotlin
+@MapConfig(
+    source = UserDto::class,
+    target = User::class,
+    fieldMappings = [
+        FieldMapping(source = "name", target = "fullName"),
+        FieldMapping(source = "mail", target = "email")
+    ]
+)
+object UserMapper
+```
+
+Pick one form per object. Mixing them works when they name different targets, but it reads worse, and naming the same target in both is a compile-time error ([KRAFT-E066](errors.md#kraft-e066)).
 
 ## Nested Objects
 
@@ -90,29 +103,38 @@ If the nested property is renamed, use `FieldMapping` -- the child mapper is sti
 
 ## Ignoring Properties with MapIgnoreField
 
-Use `ignoredMappings` to skip target constructor parameters. The skipped property must have a default value.
+Use one `@MapIgnoreField` per property, written directly on the config object, to skip target constructor parameters. The skipped property must have a default value.
 
 ```kotlin
-data class User(val id: Int, val name: String, val internalNotes: String)
-data class UserDto(val id: Int, val name: String, val internalNotes: String = "")
+data class UserDto(val name: String, val internalNotes: String)
+data class User(val name: String, val internalNotes: String = "")
 
-@MapConfig(
-    source = User::class,
-    target = UserDto::class,
-    ignoredMappings = [MapIgnoreField("internalNotes")]
-)
+@MapConfig(source = UserDto::class, target = User::class)
+@MapIgnoreField("internalNotes")
 object UserMapper
 ```
 
 **Generated output:**
 
 ```kotlin
-public fun User.toUserDto(): UserDto = UserDto(
-  id = this.id,
+public fun UserDto.toUser(): User = User(
   name = this.name
   // internalNotes is omitted; its default value "" is used
 )
 ```
+
+### Also supported: the ignoredMappings array
+
+```kotlin
+@MapConfig(
+    source = UserDto::class,
+    target = User::class,
+    ignoredMappings = [MapIgnoreField("internalNotes")]
+)
+object UserMapper
+```
+
+As with renames, pick one form per object. Naming the same property in both forms is a compile-time error ([KRAFT-E066](errors.md#kraft-e066)).
 
 ## Custom Converters with @MapUsing
 
@@ -181,13 +203,13 @@ public fun Src.toDst(): Dst = Dst(
 
 #### Whole-source patterns at a glance
 
-Whole-source mode covers four practical patterns. See [custom-converters.md → Whole-Source Mode Patterns](custom-converters.md#whole-source-mode-patterns) for full examples.
+Whole-source mode covers three practical patterns, plus constants via `@MapConstant`. See [custom-converters.md → Whole-Source Mode Patterns](custom-converters.md#whole-source-mode-patterns) for full examples.
 
 | Pattern | Shape | One-line example |
 |---|---|---|
 | Decompose 1 → N | Value type on source, primitives on target | `@MapUsing(target = "salePriceMinorUnits") fun Product.minorUnits() = salePrice.amount` |
 | Compose N → 1 | Primitives on source, value type on target | `@MapUsing(target = "salePrice") fun ProductDto.toMoney() = Money(salePriceMinorUnits, salePriceCurrency)` |
-| Constant injection | Target field has no source counterpart | `@MapUsing(target = "currency") fun LongAmount.fixedCurrency() = "HUF"` |
+| Constant injection | Target field has no source counterpart | `@MapConstant val currency = "HUF"` (see [Constant Values](constant-values.md); no whole-source converter needed) |
 | Nullable → non-null default | Source nullable, target non-null | `@MapUsing(target = "packSize") fun CartItemDto.packSizeOrDefault() = packSize ?: 1` |
 
 If a target field doesn't line up with a source field, reach for one of these patterns before writing a manual mapper or a global `@KraftConverter`.
@@ -235,12 +257,9 @@ data class OrderDto(
     val shippingAddress: AddressDto
 )
 
-@MapConfig(
-    source = Order::class,
-    target = OrderDto::class,
-    fieldMappings = [FieldMapping(source = "orderId", target = "id")],
-    ignoredMappings = [MapIgnoreField("internalNotes")]
-)
+@MapConfig(source = Order::class, target = OrderDto::class)
+@FieldMapping(source = "orderId", target = "id")
+@MapIgnoreField("internalNotes")
 object OrderMapper {
     @MapUsing(source = "createdAt", target = "dateStr")
     fun formatDate(v: Long): String = v.toString()
@@ -291,3 +310,5 @@ Both the class annotation and the config must reference the same source/target p
 | `@MapIgnoreField` (default `IgnoreSide.BOTH`) names a property absent from the forward target | KSP warning; the rule is skipped for that direction to allow declaring reverse-only ignores |
 | `@MapUsing` whole-source converter parameter type does not match source class | Compile-time error |
 | Duplicate source-to-target pair across multiple `@MapConfig` objects | Compile-time error |
+| The same `@FieldMapping` target or `@MapIgnoreField` name is written both in the `@MapConfig` array and as an annotation on the object | Compile-time error ([KRAFT-E066](errors.md#kraft-e066)) |
+| `@FieldMapping` or `@MapIgnoreField` on a class that has no `@MapConfig` | Compile-time error ([KRAFT-E071](errors.md#kraft-e071)) |

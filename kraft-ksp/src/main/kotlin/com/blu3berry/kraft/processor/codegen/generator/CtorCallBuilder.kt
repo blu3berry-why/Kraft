@@ -1,8 +1,10 @@
 package com.blu3berry.kraft.processor.codegen.generator
 
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.MemberName
+import com.squareup.kotlinpoet.ksp.toClassName
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.descriptor.ConverterSource
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
@@ -17,7 +19,7 @@ import com.blu3berry.kraft.processor.codegen.generatedMapperPackage
  * Assembles the `TargetClass(param = value, ...)` constructor invocation [CodeBlock]
  * from the resolved [PropertyMappingStrategy] entries in a [MapperDescriptor].
  *
- * Handles all strategy variants: direct, renamed, constant, converter function
+ * Handles all strategy variants: direct, renamed, constant, `@MapConstant` member, converter function
  * (property-source and whole-object, plain and member-extension), nested mapper,
  * value-class wrap/unwrap, and container mappings (rendered by [ContainerShapeRenderer]).
  * Ignored properties are filtered out before the block is built.
@@ -83,6 +85,14 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
             }
             is PropertyMappingStrategy.Constant -> {
                 block.add("%N = %L", strategy.targetProperty.name, strategy.expression)
+            }
+            is PropertyMappingStrategy.ConstantMember -> {
+                val constant = strategy.constant
+                val format = if (constant.isFunction) "%N = %T.%N()" else "%N = %T.%N"
+                block.add(
+                    format, strategy.targetProperty.name,
+                    enclosingClassName(constant.enclosingObject), constant.memberName
+                )
             }
             is PropertyMappingStrategy.ConverterFunction -> {
                 addConverterLine(block, strategy, receiverLabel)
@@ -235,10 +245,11 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
         return MemberName(pkg, config.functionNameForNested(nested))
     }
 
-    private fun enclosingClassName(converter: ConverterDescriptor): ClassName {
-        val obj = converter.enclosingObject!!
-        return ClassName(obj.packageName.asString(), obj.simpleName.asString())
-    }
+    private fun enclosingClassName(converter: ConverterDescriptor): ClassName =
+        enclosingClassName(converter.enclosingObject!!)
+
+    // toClassName() keeps enclosing declarations, so a nested object renders as Outer.Mapper.
+    private fun enclosingClassName(obj: KSClassDeclaration): ClassName = obj.toClassName()
 
     private fun topLevelMemberName(converter: ConverterDescriptor): MemberName =
         MemberName(converter.callPackageName, converter.callFunctionName)

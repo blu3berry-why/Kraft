@@ -4,6 +4,7 @@ import com.blu3berry.kraft.processor.descriptor.propertyresolver.PropertyResolve
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.blu3berry.kraft.config.ConverterDirection
+import com.blu3berry.kraft.model.descriptor.ConstantDescriptor
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.scan.ConfigObjectScanResult
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
@@ -48,9 +49,16 @@ class ConfigDescriptorBuilder(
         }
 
         val ignoredProperties = buildIgnoredProperties(targetProps, toDecl.simpleName.asString())
+        // Reverse-only constants belong to ReverseDescriptorBuilder
+        val forwardConstants = validateConstantTargets(
+            logger,
+            config.constants.filter { it.resolvedDirection != ConverterDirection.REVERSE },
+            targetProps,
+            toDecl.simpleName.asString()
+        )
         val ctx = buildMappingContext(
             fromDecl, toDecl, sourceProps, forwardConverters,
-            config.nestedMappings, ignoredProperties
+            config.nestedMappings, ignoredProperties, forwardConstants
         )
 
         val resolver = PropertyResolver()
@@ -84,7 +92,8 @@ class ConfigDescriptorBuilder(
         sourceProps: Map<String, PropertyInfo>,
         converters: List<ConverterDescriptor>,
         nestedMappings: List<NestedMappingDescriptor>,
-        ignoredProperties: Set<String>
+        ignoredProperties: Set<String>,
+        constants: List<ConstantDescriptor>
     ): MappingContext {
         return MappingContext(
             logger = logger,
@@ -97,7 +106,8 @@ class ConfigDescriptorBuilder(
             ignoredProperties = ignoredProperties,
             sourceTypeName = fromDecl.qualifiedName?.asString() ?: fromDecl.simpleName.asString(),
             targetTypeName = toDecl.qualifiedName?.asString() ?: toDecl.simpleName.asString(),
-            mappingDeclaration = config.configObject
+            mappingDeclaration = config.configObject,
+            constants = constants
         )
     }
 

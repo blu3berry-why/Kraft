@@ -1,7 +1,7 @@
 ---
 name: kraft-mappers
 description: |
-  Authoring guide for the Kraft KSP automapper library (com.blu3berry.kraft) in Kotlin/KMP. Covers the decision tree for @MapConfig, @MapEnum, @KraftConverter, and @MapUsing (including whole-source mode for decompose/compose/constant/default patterns); reverse mapping with @MapReverse; the Gradle plugin and kraft { } DSL (side aliases, functionNameFormat, moduleId); placement and naming conventions; what Kraft already does automatically (element-wise List/Set/Collection/Iterable/Array/Mutable* and Map mapping nested to any depth, nullable collection and nullable-scalar bridging); and the kmpgen-DTO interaction gotchas (K1, K-A1, K3, K4, K5, K6). Use this skill whenever writing or reviewing mappers in a project that depends on Kraft. Trigger on phrases like "Kraft mapper", "@MapConfig", "@KraftConverter", "@MapEnum", "@MapReverse", "DTO mapper", "auto-mapper", "side alias", "kraft plugin", or anytime a `*Mappers.kt` file is being authored.
+  Authoring guide for the Kraft KSP automapper library (com.blu3berry.kraft) in Kotlin/KMP. Covers the decision tree for @MapConfig, @MapEnum, @KraftConverter, and @MapUsing (including whole-source mode for decompose/compose/default patterns), flat repeatable @FieldMapping/@MapIgnoreField on the @MapConfig object, and @MapConstant for fixed target values; reverse mapping with @MapReverse; the Gradle plugin and kraft { } DSL (side aliases, functionNameFormat, moduleId); placement and naming conventions; what Kraft already does automatically (element-wise List/Set/Collection/Iterable/Array/Mutable* and Map mapping nested to any depth, nullable collection and nullable-scalar bridging); and the kmpgen-DTO interaction gotchas (K1, K-A1, K3, K4, K5, K6). Use this skill whenever writing or reviewing mappers in a project that depends on Kraft. Trigger on phrases like "Kraft mapper", "@MapConfig", "@KraftConverter", "@MapEnum", "@MapReverse", "DTO mapper", "auto-mapper", "side alias", "kraft plugin", or anytime a `*Mappers.kt` file is being authored.
 ---
 
 # Kraft Mappers — Authoring Guide
@@ -98,28 +98,44 @@ Source S, Target T:
 │       fun S.toT(): T = ...
 │       fun T.toS(): S = ...     // reverse, if needed
 │
+├── Rename or ignore a property in a @MapConfig object
+│   → flat, repeatable annotations on the object (default form)
+│       @FieldMapping(source = "name", target = "fullName")
+│       @MapIgnoreField("internalNotes")
+│     The array form (fieldMappings = [..], ignoredMappings = [..]) still works;
+│     the same target in both forms is KRAFT-E066. Flat rules need @MapConfig (E071).
+│
+├── Target field gets a fixed value that is not from the source (currency, flag, timestamp)
+│   → @MapConstant on a member INSIDE the @MapConfig object
+│       @MapConstant val currency = "HUF"                 // evaluated once
+│       @MapConstant(target = "createdAt") fun now() = …  // called per mapping
+│     Not whole-source @MapUsing. Use @MapUsing only when the value is computed from the source.
+│
 ├── Field-specific override needed inside an otherwise auto-mapped @MapConfig
 │   → @MapUsing inside the @MapConfig object
 │      • Property-source mode:  @MapUsing(source = "x", target = "y") fun convert(v: X): Y
 │      • Whole-source mode:     @MapUsing(target = "y")              fun S.compute(): Y
-│        ↑ omit `source` to read multiple fields, inject a constant, or coalesce a nullable
+│        ↑ omit `source` to read multiple fields or coalesce a nullable
 │
 └── Want both directions for free?
     → Add @MapReverse — Kraft also emits the reverse mapper
 ```
 
+### `@MapConstant` — fixed values
+
+`@MapConstant(target = "", direction = ConverterDirection.AUTO)` goes on a non-private property or a zero-parameter, non-extension function declared **inside** the `@MapConfig` object. The target defaults to the member name. The generated mapper reads `currency = UserMapper.currency` (property, evaluated once) or `createdAt = UserMapper.now()` (function, called on every mapping). It wins over a same-named source property. The member type must fit the target (a non-null member may fill a nullable target). Each target takes exactly one rule (E070). On a `@MapReverse` object, `AUTO` applies forward when the forward target has the parameter, else reverse, never both; set `FORWARD` or `REVERSE` to choose.
+
 ### When to reach for `@MapUsing` whole-source mode (not `@KraftConverter` or hand-written)
 
-Whole-source `@MapUsing` (omit `source`) is the right tool — *not* a hand-written extension function and *not* a global `@KraftConverter` — for these four patterns. They are the patterns that most often push authors toward "Kraft can't do this":
+Whole-source `@MapUsing` (omit `source`) is the right tool — *not* a hand-written extension function and *not* a global `@KraftConverter` — for these patterns. They are the patterns that most often push authors toward "Kraft can't do this". (A constant that does not depend on the source is `@MapConstant`, above.)
 
 | Pattern | Shape | Example |
 |---|---|---|
 | **Decompose** 1 → N | Source value type → N target primitives | `@MapUsing(target = "salePriceMinorUnits") fun Product.minorUnits() = salePrice.amount` *(one per target field)* |
 | **Compose** N → 1 | N source primitives → target value type | `@MapUsing(target = "salePrice") fun ProductDto.toMoney() = Money(salePriceMinorUnits, salePriceCurrency)` |
-| **Constant injection** | Target field has no source counterpart and the value is not its default or `null` (those are automatic) | `@MapUsing(target = "currency") fun LongAmount.fixedCurrency() = "HUF"` |
 | **Nullable → non-null default** | Source nullable, target non-null | `@MapUsing(target = "packSize") fun CartItemDto.packSizeOrDefault() = packSize ?: 1` |
 
-Rule of thumb: if you're tempted to write `fun X.toY(): Y = ...` by hand because "Kraft can't express this", you're almost certainly looking at one of these four. A whole-source `@MapUsing` keeps the rest of the mapper auto-generated.
+Rule of thumb: if you're tempted to write `fun X.toY(): Y = ...` by hand because "Kraft can't express this", you're almost certainly looking at one of these three (or a `@MapConstant`). A whole-source `@MapUsing` keeps the rest of the mapper auto-generated.
 
 ### Naming convention for `@KraftConverter` functions
 
@@ -145,9 +161,12 @@ Mappers belong in the data layer, in a `mapper/` subpackage. One file per featur
 ```kotlin
 package com.example.feature.data.mapper
 
+import com.blu3berry.kraft.config.FieldMapping
 import com.blu3berry.kraft.config.KraftConverter
 import com.blu3berry.kraft.config.MapConfig
+import com.blu3berry.kraft.config.MapConstant
 import com.blu3berry.kraft.config.MapEnum
+import com.blu3berry.kraft.config.MapIgnoreField
 import com.blu3berry.kraft.config.MapReverse
 import com.blu3berry.kraft.config.MapUsing
 import com.example.feature.data.generated.models.SomeDto
@@ -169,10 +188,15 @@ fun String.toUuid(): Uuid = Uuid.parse(this)
 
 @MapReverse
 @MapConfig(source = SomeDto::class, target = SomeEntity::class)
+@FieldMapping(source = "title", target = "name")   // flat rules, one per line
+@MapIgnoreField("internalNotes")
 object SomeMapper {
-    // Whole-source mode for fields that don't line up 1:1
-    @MapUsing(target = "currency")
-    fun SomeDto.fixedCurrency(): String = "HUF"
+    // Fixed value, no source counterpart
+    @MapConstant val currency = "HUF"
+
+    // Whole-source mode for fields computed from the source
+    @MapUsing(target = "displayName")
+    fun SomeDto.displayName(): String = title.uppercase()
 }
 
 // 3. Enums
@@ -267,13 +291,19 @@ If Kraft would add more boilerplate (lots of `@MapUsing` overrides per field) th
 
 | Code | Error | Cause | Fix |
 |---|---|---|---|
-| [KRAFT-E005](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e005) | `Type mismatch for property X` | Source field type ≠ target field type, no converter registered | Add `@KraftConverter` for the type pair, `@MapEnum` for enum pairs, or `@MapUsing` (whole-source) for composite/constant/default cases |
+| [KRAFT-E005](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e005) | `Type mismatch for property X` | Source field type ≠ target field type, no converter registered | Add `@KraftConverter` for the type pair, `@MapEnum` for enum pairs, or `@MapUsing` (whole-source) for composite/default cases, `@MapConstant` for fixed values |
 | [KRAFT-E005](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e005) | `Type mismatch` where the ONLY difference is `?` on the source | Nullable source, non-null target — never auto-lifted (K5) | Make the target nullable, or add a whole-source `@MapUsing` that supplies the default |
 | [KRAFT-E005](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e005) | `Type mismatch` on a `List`/`Set` property | The ELEMENT pair has no mapping — the collection itself is never the problem | Register `@MapConfig` (classes) or `@MapEnum` (enums) for the element types; do not write a `List → List` converter (parameterized receivers are rejected). A registered `@KraftConverter` for the element pair also works (0.14+) |
 | — | Opt-in error (`This declaration needs opt-in`) in a generated mapper | Kraft < 0.13.0 dropped file-level `@file:OptIn` (K4) | Upgrade to 0.13.0+; do not paper over it with module-wide `-opt-in` compiler args |
-| [KRAFT-E004](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e004) | `Required property X has no mapping source` | Target has a field with no matching source field | Add `@FieldMapping` rename, give the target a default (omitted automatically), make it nullable (null plus W009; `= null` silences it), or use whole-source `@MapUsing` for constant injection |
+| [KRAFT-E004](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e004) | `Required property X has no mapping source` | Target has a field with no matching source field | Add `@FieldMapping` rename, give the target a default (omitted automatically), make it nullable (null plus W009; `= null` silences it), or use `@MapConstant` for a fixed value (whole-source `@MapUsing` only when the value is computed from the source) |
 | — | `Unresolved reference 'toXFromY'` in a generated file | Cross-package extension import missing in generated file | Open the generated file, add the FQN import; flag as an upstream Kraft bug |
 | — | `FileAlreadyExistsException ... _EnumMapper.kt.kt` | Two `@MapEnum`s with same target simpleName (K-A1) | Upgrade to Kraft 0.8.x+; on older versions, replace one with hand-written `@KraftConverter` extensions |
+| [KRAFT-E066](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e066) | Same rule in both annotation forms | `@FieldMapping`/`@MapIgnoreField` for one target appears in both `@MapConfig` arrays and as a flat annotation | Keep one of the two |
+| [KRAFT-E067](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e067) | `@MapConstant` target not found | `target` (or the member name) is not a constructor parameter of the target class | Fix the name, or set `target = "…"` |
+| [KRAFT-E068](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e068) | `@MapConstant` type mismatch | Member type does not fit the target (a nullable member cannot fill a non-null target) | Change the member type or the target |
+| [KRAFT-E069](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e069) | Invalid `@MapConstant` member | Private member, function with parameters or a receiver, or an object without `@MapConfig` | Make it non-private and argument-free inside the `@MapConfig` object; use `@MapUsing` for source-dependent values |
+| [KRAFT-E070](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e070) | More than one rule for one target | `@MapConstant` plus `@FieldMapping`/`@MapUsing`/`@MapIgnoreField`/another `@MapConstant` on one target | Keep one rule per target |
+| [KRAFT-E071](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-e071) | Flat rule without `@MapConfig` | Flat `@FieldMapping`/`@MapIgnoreField` on a class or object that has no `@MapConfig` | Add `@MapConfig`, or use `@MapField` on the property for `@MapFrom`/`@MapTo` classes |
 | [KRAFT-W009](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-w009) | `Nullable property set to null` | Nullable target, no default, no source: Kraft passes `null` | Write `= null` on the target, or `@Suppress("KRAFT-W009")` on the property or mapping declaration; if the source was renamed, add `@FieldMapping` |
 | — | KSP succeeds but call site fails to compile | Stale generated files after annotation edits | `./gradlew clean` then rebuild |
 | [KRAFT-W001](https://blu3berry-why.github.io/Kraft/user-guide/errors/#kraft-w001) | `@MapUsing ... duplicates a mapping Kraft already generates` | Your converter re-implements native mapping (element-wise List/Set, null lift, value class, direct match) | Delete the `@MapUsing` function; keep it only with `@Suppress("KRAFT-W001")` if its body intentionally differs |

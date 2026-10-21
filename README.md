@@ -26,6 +26,21 @@ Every Kotlin codebase has that file. Forty lines of `id = id, name = name, email
 val dto = user.toUserDto() // generated at compile time
 ```
 
+When the models differ, add one line per rule, directly on the object:
+
+```kotlin
+data class UserDto(val name: String, val mail: String, val internalNotes: String)
+data class User(val fullName: String, val email: String, val currency: String, val internalNotes: String = "")
+
+@MapConfig(source = UserDto::class, target = User::class)
+@FieldMapping(source = "name", target = "fullName")
+@FieldMapping(source = "mail", target = "email")
+@MapIgnoreField("internalNotes")
+object UserMapper {
+    @MapConstant val currency = "HUF" // generated: currency = UserMapper.currency
+}
+```
+
 That's the whole mapper. Kraft is a KSP processor that generates type-safe extension functions between your data classes — plain, readable Kotlin you can inspect in `build/generated`. No reflection, no runtime library, nothing to ship.
 
 ## Why Kraft
@@ -40,7 +55,7 @@ That's the whole mapper. Kraft is a KSP processor that generates type-safe exten
 ### Mapping
 
 - **Automatic property matching** — same-name properties mapped without configuration
-- **Field renaming** — `@MapField` or `@FieldMapping` for cross-name mapping
+- **Field renaming** — `@MapField`, or flat `@FieldMapping` lines on the `@MapConfig` object, for cross-name mapping
 - **Nested objects** — auto-detected when types differ, including renamed properties
 - **Collections** — `List<T>` and `Set<T>` with nested element mapping
 - **Value classes** — typed IDs like `UserId(val value: String)` are wrapped and unwrapped automatically, including nullable and collection properties
@@ -52,6 +67,7 @@ That's the whole mapper. Kraft is a KSP processor that generates type-safe exten
 - **Custom converters** — `@MapUsing` for property-source or whole-source transformations
 - **Global converters** — `@KraftConverter` on a top-level extension is auto-discovered across the module and the classpath, with `@OptIn` markers propagated onto the generated mapper
 - **Ignore rules** — `@MapIgnore` and `@MapIgnoreField` with directional control
+- **Constant values** — `@MapConstant` fills a target property from a member of the `@MapConfig` object
 - **Configuration objects** — `@MapConfig` for mapping without modifying data classes
 - **Layer-aware aliases** — register `Dto` / `Domain` / `Entity` sides via the `kraft { }` Gradle DSL to emit short `.toDomain()` / `.toEntity()` extensions alongside the verbose mappers
 
@@ -122,9 +138,10 @@ Full guides for every feature live on the docs site:
 | `aliasEmitMode` | Per-mapper alias control (`AliasEmitMode` enum) | Parameter on `@MapConfig` and `@MapEnum` |
 | `ConverterDirection` | Direction selector for `@MapUsing` (`AUTO` / `FORWARD` / `REVERSE`) | Parameter on `@MapUsing(direction = …)` |
 | `IgnoreSide` | Direction selector for `@MapIgnoreField` (`TARGET` / `SOURCE` / `BOTH`) | Parameter on `@MapIgnoreField(direction = …)` |
-| `@FieldMapping` | Config-level rename | In `@MapConfig.fieldMappings` |
+| `@FieldMapping` | Config-level rename (repeatable) | On the `@MapConfig` object, or in `@MapConfig.fieldMappings` |
+| `@MapConstant` | Fixed target value (`val` once, `fun` per call) | On a property or function inside the `@MapConfig` object |
 | `@NestedMapping` | ~~Deprecated~~ — auto-detected | In `@MapConfig.nestedMappings` |
-| `@MapIgnoreField` | Config-level ignore | In `@MapConfig.ignoredMappings` |
+| `@MapIgnoreField` | Config-level ignore (repeatable) | On the `@MapConfig` object, or in `@MapConfig.ignoredMappings` |
 
 ## License
 

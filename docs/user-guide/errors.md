@@ -109,7 +109,8 @@ data class UserDto(
 **Fix:**
 
 - Add `@MapField("sourceName")` to the target property.
-- Or add a config override: `FieldMapping(source = "sourceName", target = "age")`.
+- Or add a config override: `@FieldMapping(source = "sourceName", target = "age")`.
+- Or set it from the mapper object: `@MapConstant val age = ...` (see [Constant Values](constant-values.md)).
 - Or make the property nullable (Kraft then passes null and warns [`KRAFT-W009`](#kraft-w009)).
 - Or provide a default value in the target constructor.
 
@@ -1251,6 +1252,163 @@ The same `@MapEnum` is fine for map values (`Map<String, StatusDto>` into `Map<S
 
 - Report it as a Kraft bug, with the source and target types of the mapper.
 
+### KRAFT-E066 — Rule declared in both annotation forms {#kraft-e066}
+
+**Severity:** error
+
+**Cause:** One `@MapConfig` object gives a `@FieldMapping` for the same `target`, or a `@MapIgnoreField` for the same `name`, both in the `@MapConfig` array (`fieldMappings` / `ignoredMappings`) and as an annotation on the object. Kraft refuses it even when the two rules are identical, because it cannot tell which one you meant. For `@MapIgnoreField` the direction does not matter: the same name in both forms is a conflict. Two rules for one target inside the *same* form are not reported: the last one wins, as before.
+
+```kotlin
+@MapConfig(
+    source = UserDto::class,
+    target = User::class,
+    fieldMappings = [FieldMapping(source = "name", target = "fullName")]
+)
+@FieldMapping(source = "name", target = "fullName") // error: 'fullName' is declared in both forms
+object UserMapper
+```
+
+The error reads:
+
+```text
+[KRAFT-E066] @FieldMapping for target 'fullName' is declared both in @MapConfig.fieldMappings and as an annotation on 'UserMapper'. Keep one.
+```
+
+**Fix:**
+
+- Delete one of the two declarations.
+- Prefer one form per object: the annotations on the object, or the `@MapConfig` array.
+
+### KRAFT-E067 — @MapConstant target not found {#kraft-e067}
+
+**Severity:** error
+
+**Cause:** A `@MapConstant` member fills a target that is not a constructor parameter of the class the mapper builds. The target is the member's name, or `@MapConstant(target = ...)` when that is set. On a `@MapReverse` mapper the check uses the class of the constant's direction: the `@MapConfig` target for a forward constant, the `@MapConfig` source for a reverse one.
+
+```kotlin
+data class User(val name: String)
+
+@MapConfig(source = UserDto::class, target = User::class)
+object UserMapper {
+    @MapConstant val curency = "HUF" // error: User has no parameter 'curency'
+}
+```
+
+The error reads:
+
+```text
+[KRAFT-E067] @MapConstant 'UserMapper.curency' targets 'curency', which is not a constructor parameter of 'User'.
+```
+
+**Fix:**
+
+- Name the member after the parameter, or set `@MapConstant(target = "<parameter>")`.
+- On a `@MapReverse` mapper, check `direction`: `FORWARD` fills the `@MapConfig` target, `REVERSE` fills the source.
+
+### KRAFT-E068 — @MapConstant type mismatch {#kraft-e068}
+
+**Severity:** error
+
+**Cause:** The type of a `@MapConstant` member (a property's type or a function's return type, declared or inferred) cannot be assigned to its target parameter. A non-null member may fill a nullable target; a nullable member cannot fill a non-null one. A type Kraft cannot resolve is shown as `<unresolved>`.
+
+```kotlin
+data class User(val name: String, val isActive: Boolean)
+
+@MapConfig(source = UserDto::class, target = User::class)
+object UserMapper {
+    @MapConstant val isActive = "yes" // error: String is not Boolean
+}
+```
+
+The error reads:
+
+```text
+[KRAFT-E068] @MapConstant 'UserMapper.isActive' has type String, but target 'isActive' in 'User' has type Boolean.
+```
+
+**Fix:**
+
+- Give the member the target's type, for example by declaring it: `@MapConstant val isActive: Boolean = true`.
+- For a nullable member, make it non-null, or make the target nullable.
+
+### KRAFT-E069 — Invalid @MapConstant member {#kraft-e069}
+
+**Severity:** error
+
+**Cause:** The generated mapper must be able to read a `@MapConstant` member as `UserMapper.member` or call it as `UserMapper.member()`. So the member must be declared directly in a `@MapConfig` object, must not be `private`, and, for a function, must take no parameters and must not be an extension. Each rejected member gets one error, with one of these first lines:
+
+```text
+[KRAFT-E069] @MapConstant 'UserMapper.currency' must not be private: the generated mapper cannot read it.
+[KRAFT-E069] @MapConstant function 'UserMapper.currency' must take no parameters. To compute a value from the source, use @MapUsing.
+[KRAFT-E069] @MapConstant function 'UserMapper.currency' must not be an extension function. To compute a value from the source, use @MapUsing.
+[KRAFT-E069] @MapConstant 'Defaults.currency' must be declared in a @MapConfig object.
+```
+
+```kotlin
+@MapConfig(source = UserDto::class, target = User::class)
+object UserMapper {
+    @MapConstant fun UserDto.currency() = "HUF" // error: extension function
+}
+```
+
+**Fix:**
+
+- Remove `private` (`internal` and public members both work), the parameters, or the receiver.
+- To compute the value from the source object, use `@MapUsing` instead.
+- Move a member outside a `@MapConfig` object into the `@MapConfig` object of its mapper.
+
+### KRAFT-E070 — More than one rule for one target {#kraft-e070}
+
+**Severity:** error
+
+**Cause:** A target property filled by a `@MapConstant` is also claimed, in the same direction, by another `@MapConstant`, a `@FieldMapping` (either form), a `@MapUsing` converter or a `@MapIgnoreField`. Kraft does not pick one. On a `@MapReverse` mapper the directions are checked separately: in reverse, a `@FieldMapping` claims its `source` name, and a `@MapIgnoreField` claims its name when its direction is `SOURCE` or `BOTH`.
+
+```kotlin
+@MapConfig(source = UserDto::class, target = User::class)
+@FieldMapping(source = "cur", target = "currency")
+object UserMapper {
+    @MapConstant val currency = "HUF" // error: 'currency' is also renamed from 'cur'
+}
+```
+
+The error reads:
+
+```text
+[KRAFT-E070] Target 'currency' in 'User' has more than one rule on 'UserMapper': @MapConstant 'currency' and @FieldMapping(source = "cur", target = "currency"). Keep one.
+```
+
+The other rule is shown as `@FieldMapping(source = "...", target = "...")`, `@MapUsing '<function>'`, `@MapIgnoreField("<name>")` or `@MapConstant '<member>'`.
+
+**Fix:**
+
+- Delete the rule you do not want for that target.
+- On a `@MapReverse` mapper, set `@MapConstant(direction = ...)` when the two rules are meant for different directions.
+
+### KRAFT-E071 — Flat rule without @MapConfig {#kraft-e071}
+
+**Severity:** error
+
+**Cause:** A `@FieldMapping` or `@MapIgnoreField` is written directly on a declaration that has no `@MapConfig`. Kraft reads these annotations only from a `@MapConfig` object, so on any other class they would be ignored without a word. A typical case is a `@MapFrom` / `@MapTo` class, where the per-property annotations are `@MapField` and `@MapIgnore`.
+
+```kotlin
+@MapFrom(UserDto::class)
+@FieldMapping(source = "name", target = "fullName") // error: no @MapConfig on User
+data class User(val fullName: String)
+```
+
+The error reads:
+
+```text
+[KRAFT-E071] @FieldMapping on 'User' requires @MapConfig on the same object. Use @MapField on the property for @MapFrom/@MapTo classes.
+```
+
+For `@MapIgnoreField` the hint is `Use @MapIgnore on the property for @MapFrom/@MapTo classes.`
+
+**Fix:**
+
+- On a `@MapFrom` / `@MapTo` class, remove the annotation and put `@MapField(counterPartName = ...)` (rename) or `@MapIgnore` (ignore) on the property.
+- Or move the rule to a `@MapConfig` object for the same source and target.
+
 ## Warnings
 
 ### KRAFT-W001 — Redundant @MapUsing {#kraft-w001}
@@ -1456,4 +1614,5 @@ object PersonMapper
 
 - Give the property a default (`val nickname: String? = null`) to make null the intended value.
 - Or map it explicitly with `@MapUsing(target = "nickname")`.
+- Or set it from the mapper object: `@MapConstant val nickname = ...` (see [Constant Values](constant-values.md)).
 - Or add `@Suppress("KRAFT-W009")` to the property or to the mapping declaration (the `@MapConfig` object, or the `@MapFrom` / `@MapTo` class). Suppression does not change the generated code.

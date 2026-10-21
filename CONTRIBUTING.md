@@ -45,6 +45,15 @@ lefthook install
 
 Detekt runs automatically on every pull request via GitHub Actions. PRs with violations will fail the check.
 
+## Line Endings
+
+The repository stores text files with LF endings. There is no `.gitattributes`, so what you
+see in the working tree depends on `core.autocrlf`: with `true` (the Git for Windows default)
+files check out as CRLF and are converted back to LF on commit. Tools that write LF into a
+CRLF checkout (`sed -i`, scripts, generators) are therefore harmless; the
+"LF will be replaced by CRLF" warning on `git add` is expected and needs no action.
+Check the stored form with `git ls-files --eol <path>` (`i/lf` is correct).
+
 ## Commit Conventions
 
 Kraft uses [Conventional Commits](https://www.conventionalcommits.org/). The commit message drives automated versioning via the project's `release-please.yml` workflow.

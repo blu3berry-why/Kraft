@@ -32,6 +32,10 @@ class RequiredFieldErrorRuleTest {
         assertThat(result.messages.lines().first { it.contains("[KRAFT-E004]") })
             .startsWith("[KRAFT-E004] Required property 'age' in target type")
         assertThat(result.messages)
+            .contains("Or add a config override: @FieldMapping(source = \"sourceName\", target = \"age\")")
+        assertThat(result.messages)
+            .contains("Or set it from the mapper object: @MapConstant val age = ...")
+        assertThat(result.messages)
             .contains("Or make the property nullable (Kraft then passes null and warns KRAFT-W009)")
     }
 

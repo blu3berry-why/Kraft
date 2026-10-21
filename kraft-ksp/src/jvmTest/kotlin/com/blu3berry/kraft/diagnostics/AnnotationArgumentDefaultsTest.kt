@@ -5,6 +5,7 @@ package com.blu3berry.kraft.diagnostics
 import com.blu3berry.kraft.config.ConverterDirection
 import com.blu3berry.kraft.config.KraftConverterDelegate
 import com.blu3berry.kraft.config.MapConfig
+import com.blu3berry.kraft.config.MapConstant
 import com.blu3berry.kraft.config.MapEnum
 import com.blu3berry.kraft.config.MapIgnoreField
 import com.blu3berry.kraft.config.MapUsing
@@ -154,5 +155,9 @@ class AnnotationArgumentDefaultsTest {
             .isEqualTo(KraftKspConstants.DEFAULT_MAP_NESTED_SOURCE_NAME)
         assertThat(KraftConverterDelegate().moduleId)
             .isEqualTo(KraftKspConstants.DEFAULT_KRAFT_CONVERTER_DELEGATE_MODULE_ID)
+        assertThat(MapConstant().target)
+            .isEqualTo(KraftKspConstants.DEFAULT_MAP_CONSTANT_TARGET)
+        assertThat(MapConstant().direction.name)
+            .isEqualTo(KraftKspConstants.DEFAULT_MAP_CONSTANT_DIRECTION)
     }
 }

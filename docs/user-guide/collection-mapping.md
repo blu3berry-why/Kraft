@@ -300,11 +300,8 @@ data class ArticleSource(val title: String, val articleTags: List<TagSource>)
 data class TagDto(val value: String)
 data class ArticleDto(val title: String, val tags: List<TagDto>)
 
-@MapConfig(
-    source = ArticleSource::class,
-    target = ArticleDto::class,
-    fieldMappings = [FieldMapping(source = "articleTags", target = "tags")]
-)
+@MapConfig(source = ArticleSource::class, target = ArticleDto::class)
+@FieldMapping(source = "articleTags", target = "tags")
 object ArticleMapper
 ```
 

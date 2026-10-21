@@ -32,6 +32,7 @@ import com.blu3berry.kraft.model.scan.MapNestedAnnotation
  *                             object, or the class annotated with `@MapFrom` / `@MapTo`.
  *                             A `@Suppress` on it silences suppressible per-property warnings
  *                             such as `KRAFT-W009`. Null when the context is built by hand.
+ * @param constants            `@MapConstant` members that apply to this direction.
  */
 data class MappingContext(
     val logger: KSPLogger,
@@ -45,5 +46,6 @@ data class MappingContext(
     val classNestedOverrides: Map<String, MapNestedAnnotation> = emptyMap(),
     val sourceTypeName: String,
     val targetTypeName: String,
-    val mappingDeclaration: KSAnnotated? = null
+    val mappingDeclaration: KSAnnotated? = null,
+    val constants: List<ConstantDescriptor> = emptyList()
 )

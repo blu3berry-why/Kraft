@@ -51,6 +51,7 @@ class NullableWithoutDefaultTest {
         assertThat(warnings.single()).endsWith(firstLine)
         assertThat(result.messages).contains("Give 'nickname' a default (= null) to make null the intended value.")
         assertThat(result.messages).contains("Or map it explicitly with @MapUsing(target = \"nickname\").")
+        assertThat(result.messages).contains("Or set it from the mapper object: @MapConstant val nickname = ...")
         assertThat(result.messages).contains(
             "Or add @Suppress(\"KRAFT-W009\") to the property or to the mapping declaration."
         )
