@@ -4,6 +4,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.MemberName
+import com.squareup.kotlinpoet.ksp.toClassName
 import com.blu3berry.kraft.model.descriptor.ConverterDescriptor
 import com.blu3berry.kraft.model.descriptor.ConverterSource
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
@@ -247,8 +248,8 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
     private fun enclosingClassName(converter: ConverterDescriptor): ClassName =
         enclosingClassName(converter.enclosingObject!!)
 
-    private fun enclosingClassName(obj: KSClassDeclaration): ClassName =
-        ClassName(obj.packageName.asString(), obj.simpleName.asString())
+    // toClassName() keeps enclosing declarations, so a nested object renders as Outer.Mapper.
+    private fun enclosingClassName(obj: KSClassDeclaration): ClassName = obj.toClassName()
 
     private fun topLevelMemberName(converter: ConverterDescriptor): MemberName =
         MemberName(converter.callPackageName, converter.callFunctionName)
