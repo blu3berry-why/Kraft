@@ -66,6 +66,7 @@ nav:
       - Value Classes: user-guide/value-classes.md
       - Enum Mapping: user-guide/enum-mapping.md
       - Custom Converters: user-guide/custom-converters.md
+      - Experimental APIs and Opt-in: user-guide/opt-in.md
       - Ignore Rules: user-guide/ignore-rules.md
       - Constant Values: user-guide/constant-values.md
       - Configuration Objects: user-guide/configuration-objects.md
