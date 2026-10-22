@@ -90,7 +90,7 @@ Kraft is on **Maven Central** (`com.blu3berry.kraft`) — ensure `mavenCentral()
 // build.gradle.kts
 plugins {
     kotlin("multiplatform") // or kotlin("jvm") / kotlin("android")
-    id("com.google.devtools.ksp") version "2.3.3"
+    id("com.google.devtools.ksp") version "<ksp-version>"
     id("com.blu3berry.kraft") version "<version>"
 }
 ```
