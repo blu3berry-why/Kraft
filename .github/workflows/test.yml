@@ -70,6 +70,11 @@ jobs:
       # Expected-failure counterpart: two producer klibs publish the same converter
       # pair, so the consumer's KSP run MUST fail with the classpath ambiguity error.
       # Asserts both the failure and the user-facing message.
+      # The sample exercises the annotations end to end; ./gradlew build otherwise
+      # only runs in the push-to-main Sonar job, so a PR breaking it merged green.
+      - name: Compile sample app
+        run: ./gradlew :composeApp:compileKotlinMetadata
+
       - name: KMP cross-module ambiguity error test
         run: |
           set +e
