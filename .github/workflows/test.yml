@@ -34,7 +34,7 @@ jobs:
       # Caches Gradle distribution, dependencies, and build caches.
       # Writes only on main (default), so PR runs read without thrashing quota.
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Run detekt
         run: ./gradlew detekt --continue
@@ -140,7 +140,7 @@ jobs:
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Gradle plugin functional tests (KSP ${{ matrix.ksp }})
         run: ./gradlew :kraft-gradle-plugin:test -Pkraft.test.kspVersion=${{ matrix.ksp }}
@@ -188,7 +188,7 @@ jobs:
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Gradle plugin functional tests (Gradle ${{ matrix.gradle }})
         run: >-
@@ -228,7 +228,7 @@ jobs:
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Gradle plugin functional tests (newest stack)
         run: >-
@@ -267,7 +267,7 @@ jobs:
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Resolve latest KSP version
         id: ksp
