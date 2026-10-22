@@ -15,7 +15,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # This job doesn't push; don't leave the token in .git/config.
           persist-credentials: false
