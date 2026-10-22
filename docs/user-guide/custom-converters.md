@@ -383,9 +383,7 @@ Two `@KraftConverter` functions registering the same `(sourceType, targetType)` 
 
 ### Opt-in propagation
 
-When the source class, target class, `@MapConfig` object, `@MapUsing` function, or any invoked `@KraftConverter` carries an `@OptIn(...)` or an `@RequiresOptIn`-meta-annotated marker, Kraft copies a deduplicated `@OptIn(...)` onto the generated mapper function. This keeps experimental APIs like `kotlin.uuid.Uuid` from forcing every consumer of the generated mapper to add an opt-in at the call site.
-
-Both placements are honoured: a marker on the declaration itself **and** a file-level `@file:OptIn(...)` on the file that declares it. That second form matters for generated DTOs — code generators differ on which one they emit, and on Kraft < 0.13.0 the file-level form was silently dropped, so the same models produced a compiling mapper with one generator version and an opt-in error with another. On 0.13.0+ the generated mapper carries its own opt-ins either way, and you do not need a module-wide `freeCompilerArgs += "-opt-in=..."` to compile it.
+When the source class, target class, `@MapConfig` object, `@MapUsing` function, or any invoked `@KraftConverter` carries an `@OptIn(...)` or `@file:OptIn(...)` marker, Kraft copies a deduplicated `@OptIn(...)` onto the generated mapper, so experimental APIs like `kotlin.uuid.Uuid` do not force an opt-in on its callers. On 0.13.0+ you should not need a module-wide `-opt-in` compiler argument. See [Experimental APIs and Opt-in](opt-in.md) for the sites, the contract, and what to do if a marker still leaks.
 
 ### Restrictions and caveats
 
