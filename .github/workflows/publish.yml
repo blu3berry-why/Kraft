@@ -16,6 +16,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # This job doesn't push; don't leave the token in .git/config.
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@v5
