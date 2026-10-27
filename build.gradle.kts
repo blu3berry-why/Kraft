@@ -18,6 +18,7 @@ plugins {
 dependencies {
     kover(project(":kraft-core"))
     kover(project(":kraft-ksp"))
+    kover(project(":kraft-gradle-plugin"))
 }
 
 sonar {

@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.jetbrainsKotlinJvm)
+    alias(libs.plugins.kover)
     `java-gradle-plugin`
     `maven-publish`
     signing
