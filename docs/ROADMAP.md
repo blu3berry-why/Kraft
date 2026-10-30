@@ -203,7 +203,7 @@ annotated, gotchas K4 (opt-in) and K5 (the one non-lifted nullable pair), three 
 common-error rows, and a corrected version reference. `ai-integration.md`'s summary of the
 skill was updated to match.
 
-### 11. No stated opt-in contract in the user guide — S · Docs · open
+### 11. No stated opt-in contract in the user guide — S · Docs · done in 0.14 (#131)
 
 The generated-code opt-in guarantee is now described inside the `@KraftConverter` section,
 which is not where someone hitting an opt-in error will look.
@@ -212,7 +212,7 @@ which is not where someone hitting an opt-in error will look.
 what to do when a marker still leaks, and why compiler-level `-opt-in` is a workaround rather
 than the intended setup.
 
-### 12. Version drift in example snippets — S · Docs · open
+### 12. Version drift in example snippets — S · Docs · done in 0.14 (#130)
 
 `docs/index.md` hardcodes `id("com.google.devtools.ksp") version "2.3.3"` while every other
 page uses a `<ksp-version>` placeholder. It will go stale silently.
@@ -231,7 +231,7 @@ every release that changes behaviour.
 
 ## Test and CI gaps
 
-### 14. The sample app is never compiled on pull requests — S · CI · open
+### 14. The sample app is never compiled on pull requests — S · CI · done in 0.14 (#132)
 
 `test.yml` runs detekt, `:kraft-ksp:jvmTest`, the Gradle plugin suites, and the KMP
 integration tests. It never builds `:composeApp`, the sample that exercises the annotations
@@ -240,7 +240,7 @@ a PR that breaks the sample merges green and fails afterwards on the default bra
 
 *Scope:* add `:composeApp:compileKotlinJvm` (or the metadata compile) to the test job.
 
-### 15. Kover aggregation omits the Gradle plugin — S · CI · open
+### 15. Kover aggregation omits the Gradle plugin — S · CI · done in 0.14 (#133)
 
 The root `build.gradle.kts` aggregates `:kraft-core` and `:kraft-ksp` only. `:kraft-gradle-plugin`
 has a substantial functional-test suite (wiring, DSL, AGP 9, error paths) whose coverage is
@@ -265,6 +265,14 @@ rather than applied, since the matrix leg it would change runs the Android tests
 bump the leg to 2.3.11 and refresh the date in the comment. Separately, consider having the
 weekly probe open an issue when it passes against a version newer than the pin, so closing the
 loop does not depend on someone remembering.
+
+*Update 2026-10-30:* the probe went red on 2026-09-14 when KSP **2.3.12** shipped and stayed red
+for seven weekly runs. Not a Kraft bug: KSP 2.3.12 refuses to apply below AGP 8.12.0 ("The minimum
+supported AGP version is 8.12.0"), and the functional tests ran on the catalog's AGP 8.11.2, so
+all four Android cases failed at plugin apply. The probe now runs on AGP 8.13.2 and passes
+(14 tests, Android included, run locally). This changes the bump: moving the leg to 2.3.12 also
+needs that leg on AGP ≥ 8.12, and the README/Getting Started should say that KSP 2.3.12+ needs
+AGP 8.12+. 2.3.11 remains the newest bump that works with the AGP 8.11.2 floor.
 
 ### 17. No cross-module test for opt-in propagation — M · Test · open
 
@@ -335,7 +343,7 @@ deprecation warnings in Kraft's own build (`KraftKspConstants.kt`) on every comp
 *Scope:* schedule removal for 1.0; until then suppress at the reference sites so the build
 output stays clean and real warnings stay visible.
 
-### 22. Action version drift in workflows — S · Nice-to-have · open
+### 22. Action version drift in workflows — S · Nice-to-have · done in 0.14 (#134)
 
 `docs-deploy.yml` uses `actions/checkout@v4`; every other workflow uses `@v6`.
 
@@ -369,7 +377,7 @@ all. mkdocs is not installed on the dev machine either, so new links are checked
 *Scope:* use `mkdocs build --strict` in `docs-deploy.yml`, and add the same strict build as a
 PR check that runs when `docs/**` or `mkdocs.yml` changes.
 
-### 26. Docs deploy before the stable release is on Maven Central — S · CI · open
+### 26. Docs deploy before the stable release is on Maven Central — S · CI · done in 0.14 (#135)
 
 `docs-deploy.yml` fires on the GitHub Release, but stable publishing is `USER_MANAGED`
 (`settings.gradle.kts`): artifacts wait in the Central Portal until someone clicks Publish.
@@ -416,14 +424,14 @@ Sizes for #29–#38 are first estimates.
 **Tier 1: parity gaps (target 0.14).** Removes the "falls back to hand-written" moments. Already
 covered elsewhere: Map and other collections (#20, done), "use the target default when the source
 is missing" (#27, done). The built-in converter module (#19) is deferred: it needs an RFC
-first (see Suggested order, "Later"). #29 shipped in 0.15 together with #40.
+first (see Suggested order, "Later"). #29 shipped in 0.14 together with #40.
 
 ### 28. Value classes are not wrapped or unwrapped automatically — M · Feature · done in 0.14 (#114)
 
 `UserId(val value: String)` ↔ `String` now maps without a converter: plain, nullable (safe call)
 and element-wise, including Map keys and values. Typed IDs are standard in domain models.
 
-### 29. No way to set a target property to a constant or expression — M · Feature · done in 0.15 (flat-mapconfig-annotations)
+### 29. No way to set a target property to a constant or expression — M · Feature · done in 0.14 (#129)
 
 `@MapConstant(target = "", direction = ConverterDirection.AUTO)` marks a non-private property or a
 zero-parameter, non-extension function declared inside the `@MapConfig` object. The value is
@@ -484,7 +492,7 @@ Parked 2026-10-18; not yet explored. Agents tend to find libraries through searc
 READMEs and docs pages, Maven Central / package metadata and `llms.txt`-style files more than
 through video comments. Work out where they actually look before choosing channels.
 
-### 40. `@MapConfig` rules can only be written as nested arrays — M · Feature · done in 0.15 (flat-mapconfig-annotations)
+### 40. `@MapConfig` rules can only be written as nested arrays — M · Feature · done in 0.14 (#129)
 
 `fieldMappings = [FieldMapping(...)]`, `ignoredMappings = [MapIgnoreField(...)]` and friends
 nest every rule inside one annotation, which is hard to read, review and edit. Allow the same
@@ -520,22 +528,23 @@ Open Questions).
 
 ## Suggested order
 
-**First — correctness of what we tell people.** Item 11 is the last one (S); like the
-finished docs items, it removes a way for a consumer to reach a wrong conclusion about
+**First — correctness of what we tell people.** Done: item 11 (#131) was the last one. Like the
+other docs items, it removed a way for a consumer to reach a wrong conclusion about
 working code. The audit's clearest lesson is that
 Kraft's defect rate is low, and that its *explanation* rate is what has been costing consumers
 days.
 
-**Second — close the CI gaps.** Items 14, 15, 16, 22, 25 and 26 are all S and mechanical. 14 and 16
-are the two that would have caught real problems.
+**Second — close the CI gaps.** Items 14, 15, 22, 25 and 26 are done; 16 is the one left (it now
+also needs an AGP decision, see its update). 14 and 16 are the two that would have caught real
+problems.
 
 **Third — diagnostics.** Item 5 is the structural fix behind most of what this audit
 found: today the only way to learn what the processor decided is to read its output. Items 17
 and 18 belong here too — both close the gap between "the generated text looks right" and "the
 mapper does the right thing".
 
-**Features.** 0.14 ships what is done; nothing in Features is left for it. 0.15 shipped #40 (flat
-annotations) and #29 (constants) together; what remains for it is #30 (sealed) and #34 (unmapped policy). 0.16 is #31,
+**Features.** 0.14 ships what is done; nothing in Features is left for it. #40 (flat
+annotations) and #29 (constants) shipped together in 0.14 as well; what remains for 0.15 is #30 (sealed) and #34 (unmapped policy). 0.16 is #31,
 #32 and #33 together, because they change the generated function signatures. Tier 3 (#35–#38)
 runs alongside. Watch Konvert's KMP branch (see Positioning): Tier 1 should be closed before it
 ships.
