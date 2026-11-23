@@ -140,7 +140,12 @@ class DelegateRegistryGenerator(
         val receiverType: TypeName = receiverKsType.toTypeName()
         val returnType: TypeName = returnKsType.toTypeName()
 
-        val originalMember = MemberName(original.packageName.asString(), original.simpleName.asString())
+        // isExtension = true: see CtorCallBuilder.nestedMapperMemberName. One registry file holds
+        // every delegate in the module, so same-name converters from different packages meet here
+        // (covered by CrossModuleConverterTest).
+        val originalMember = MemberName(
+            original.packageName.asString(), original.simpleName.asString(), isExtension = true
+        )
 
         val builder = FunSpec.builder(DelegateNaming.delegateNameFor(key))
             .addModifiers(KModifier.PUBLIC)
@@ -172,7 +177,7 @@ class DelegateRegistryGenerator(
         val returnType: TypeName = entry.targetTypeInfo.className
             .copy(nullable = entry.targetTypeInfo.isNullable)
 
-        val originalMember = MemberName(entry.packageName, entry.simpleName)
+        val originalMember = MemberName(entry.packageName, entry.simpleName, isExtension = true)
 
         return FunSpec.builder(DelegateNaming.delegateNameFor(key))
             .addModifiers(KModifier.PUBLIC)

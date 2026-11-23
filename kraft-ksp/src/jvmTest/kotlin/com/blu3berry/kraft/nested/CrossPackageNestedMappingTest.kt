@@ -90,11 +90,12 @@ class CrossPackageNestedMappingTest {
             .single { it.name.startsWith("SessionDtoToSessionMapper") }
             .readText()
 
-        // The same-package mapper keeps its simple name; only the foreign one is aliased.
-        assertThat(parentContent).contains("import com.example.auth.generated.toUser as toUserAuthGenerated")
-        assertThat(parentContent).doesNotContain("as toUserApiGenerated")
+        // The same-package mapper keeps its simple name; the foreign one is imported under an
+        // alias. The alias spelling is KotlinPoet's, so only its presence is asserted.
+        assertThat(parentContent).contains("import com.example.auth.generated.toUser as ")
+        assertThat(parentContent).doesNotContain("import com.example.api.generated.toUser")
         assertThat(parentContent).contains("owner = this.owner.toUser()")
-        assertThat(parentContent).contains("actor = this.actor.toUserAuthGenerated()")
+        assertThat(parentContent).doesNotContain("this.actor.com.")
         assertThat(result.messages).doesNotContain("Unresolved reference")
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
     }
@@ -147,10 +148,11 @@ class CrossPackageNestedMappingTest {
             .single { it.name.startsWith("SessionDtoToSessionMapper") }
             .readText()
 
-        assertThat(parentContent).contains("import com.example.api.generated.toUser as toUserApiGenerated")
-        assertThat(parentContent).contains("import com.example.auth.generated.toUser as toUserAuthGenerated")
-        assertThat(parentContent).contains("owner = this.owner.toUserApiGenerated()")
-        assertThat(parentContent).contains("actor = this.actor.toUserAuthGenerated()")
+        assertThat(parentContent).contains("import com.example.api.generated.toUser as ")
+        assertThat(parentContent).contains("import com.example.auth.generated.toUser as ")
+        assertThat(parentContent).doesNotContain("this.owner.com.")
+        assertThat(parentContent).doesNotContain("this.actor.com.")
+        assertThat(result.messages).doesNotContain("Unresolved reference")
         assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
     }
 }
