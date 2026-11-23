@@ -71,4 +71,25 @@ class ConstantDirectionTest {
         assertThat(result.mapperDeclaring(reverse)).contains("currency = UserMapper.currency")
         assertThat(result.mapperDeclaring(forward)).contains("currency = this.currency")
     }
+
+    @Test
+    fun `Explicit REVERSE without @MapReverse reports KRAFT-E031`() {
+        // Roadmap #41: the constant applied to nothing and nothing was reported.
+        val result = compileInAppMapping(
+            """
+            data class UserDto(val name: String, val currency: String)
+            data class User(val name: String, val currency: String)
+
+            @MapConfig(source = UserDto::class, target = User::class)
+            object UserMapper {
+                @MapConstant(direction = ConverterDirection.REVERSE) val currency = "HUF"
+            }
+            """
+        )
+
+        assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.singleLineWith("[KRAFT-E031]"))
+            .contains("[KRAFT-E031] @MapConstant(direction = REVERSE) 'UserMapper.currency' has no effect")
+        assertThat(result.messages).contains("Add @MapReverse to the object")
+    }
 }

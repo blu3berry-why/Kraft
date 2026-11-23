@@ -23,7 +23,8 @@ package com.blu3berry.kraft.config
  *                  carries [@MapReverse][MapReverse]. [ConverterDirection.AUTO] (the
  *                  default) applies it forward when the forward target has the parameter,
  *                  otherwise in reverse, never both. Use [ConverterDirection.FORWARD] or
- *                  [ConverterDirection.REVERSE] to choose explicitly.
+ *                  [ConverterDirection.REVERSE] to choose explicitly. REVERSE on an object
+ *                  without [@MapReverse][MapReverse] is a compile error (KRAFT-E031).
  *
  * Example:
  * ```

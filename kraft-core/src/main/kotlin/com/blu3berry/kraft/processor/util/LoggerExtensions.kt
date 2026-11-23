@@ -1053,6 +1053,36 @@ fun KSPLogger.mapConstantConflict(
     symbol
 )
 
+/** `KRAFT-E031`: a `@MapConstant(direction = REVERSE)` on a `@MapConfig` object without `@MapReverse`. */
+fun KSPLogger.mapConstantReverseWithoutMapReverse(constantName: String, symbol: KSNode) = report(
+    KraftDiagnostic.REVERSE_RULE_WITHOUT_MAP_REVERSE,
+    """
+    @MapConstant(direction = REVERSE) '$constantName' has no effect: its object has no @MapReverse, so no reverse mapper is generated.
+
+    How to fix:
+      ✓ Add @MapReverse to the object, if a reverse mapper is wanted.
+      ✓ Or remove direction = REVERSE (or set FORWARD), if the constant belongs to the forward mapper.
+    """.trimIndent(),
+    symbol
+)
+
+/**
+ * `KRAFT-W010`: a `@MapIgnoreField(direction = SOURCE)` on a `@MapConfig` object without
+ * `@MapReverse`. A warning rather than an error, so configs that already carry one keep compiling.
+ */
+fun KSPLogger.mapIgnoreFieldSourceWithoutMapReverse(name: String, objectName: String, symbol: KSNode) = report(
+    KraftDiagnostic.IGNORE_SOURCE_WITHOUT_MAP_REVERSE,
+    """
+    @MapIgnoreField("$name", direction = SOURCE) on '$objectName' has no effect: SOURCE applies only to the reverse mapper, and '$objectName' has no @MapReverse.
+
+    How to fix:
+      ✓ To skip '$name' in the forward mapper, use direction = TARGET (or leave the default, BOTH).
+      ✓ Add @MapReverse to '$objectName', if a reverse mapper is wanted.
+      ✓ Or delete the rule. Add @Suppress("KRAFT-W010") to '$objectName' to keep it without the warning.
+    """.trimIndent(),
+    symbol
+)
+
 private fun suggestNames(target: String, candidates: Collection<String>): List<String> =
     candidates
         .map { it to levenshtein(target, it) }

@@ -31,6 +31,7 @@ import com.blu3berry.kraft.processor.util.findAnnotation
 import com.blu3berry.kraft.processor.util.flatFieldMappingWithoutMapConfig
 import com.blu3berry.kraft.processor.util.flatMapIgnoreFieldWithoutMapConfig
 import com.blu3berry.kraft.processor.util.mapIgnoreFieldInBothForms
+import com.blu3berry.kraft.processor.util.mapIgnoreFieldSourceWithoutMapReverse
 import com.blu3berry.kraft.processor.util.getArrayArgOrNull
 import com.blu3berry.kraft.processor.util.getEnumArgOrDefault
 import com.blu3berry.kraft.processor.util.getKClassArgOrNull
@@ -40,6 +41,7 @@ import com.blu3berry.kraft.processor.util.mapConstantConflict
 import com.blu3berry.kraft.processor.util.mapConstantOutsideMapConfig
 import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.isKraftSuppressed
 import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
@@ -165,6 +167,7 @@ class ConfigObjectScanner(
         reportRulesInBothForms(classDeclaration, taggedFieldOverrides, taggedIgnoredMappings)
         val fieldOverrides = taggedFieldOverrides.map { it.value }
         val ignoredMappings = taggedIgnoredMappings.map { it.value }
+        if (!hasReverse) reportReverseOnlyIgnores(classDeclaration, ignoredMappings)
 
         val constants = ConstantMemberScanner(logger).scan(classDeclaration, fromType, toType, hasReverse)
         reportConstantConflicts(
@@ -368,6 +371,19 @@ class ConfigObjectScanner(
     }
 
     /**
+     * Reports KRAFT-W010 for each `@MapIgnoreField(direction = SOURCE)` on an object without
+     * `@MapReverse`: SOURCE applies only to the reverse mapper, so the rule does nothing.
+     * Suppressible with `@Suppress("KRAFT-W010")` on the object.
+     */
+    private fun reportReverseOnlyIgnores(symbol: KSClassDeclaration, ignoredMappings: List<IgnoredMappingConfig>) {
+        if (symbol.isKraftSuppressed(KraftDiagnostic.IGNORE_SOURCE_WITHOUT_MAP_REVERSE)) return
+        val objectName = symbol.simpleName.asString()
+        ignoredMappings
+            .filter { it.direction == IgnoreSide.SOURCE }
+            .forEach { logger.mapIgnoreFieldSourceWithoutMapReverse(it.name, objectName, symbol) }
+    }
+
+    /**
      * Reports KRAFT-E066 for each target (or ignored name) that is written both in the `@MapConfig`
      * arrays and as a flat annotation. Duplicates inside one form are not checked: they stay last-wins.
      */
@@ -489,7 +505,7 @@ class ConfigObjectScanner(
         val parsed = parseConverterAnnotation(fn) ?: return null
         if (parsed.direction == ConverterDirection.REVERSE) {
             logger.report(
-                KraftDiagnostic.MAP_USING_REVERSE_WITHOUT_MAP_REVERSE,
+                KraftDiagnostic.REVERSE_RULE_WITHOUT_MAP_REVERSE,
                 "@MapUsing(direction = REVERSE) on '${fn.simpleName.asString()}' " +
                     "in '${symbol.simpleName.asString()}' has no effect: the enclosing " +
                     "@MapConfig is not annotated with @MapReverse, so only forward " +

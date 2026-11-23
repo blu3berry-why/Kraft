@@ -18,6 +18,7 @@ import com.blu3berry.kraft.processor.util.getStringArgOrDefault
 import com.blu3berry.kraft.processor.util.mapConstantExtensionFunction
 import com.blu3berry.kraft.processor.util.mapConstantFunctionWithParameters
 import com.blu3berry.kraft.processor.util.mapConstantPrivate
+import com.blu3berry.kraft.processor.util.mapConstantReverseWithoutMapReverse
 import com.blu3berry.kraft.processor.util.mapConstantTypeMismatch
 import com.blu3berry.kraft.processor.util.mapConstantUnknownTarget
 import com.blu3berry.kraft.processor.util.simpleRendering
@@ -65,10 +66,15 @@ internal class ConstantMemberScanner(private val logger: KSPLogger) {
                     symbol = member,
                     annotationFqName = KraftKspConstants.FQ_MAP_CONSTANT
                 )
-                val direction = resolveDirection(
-                    ConverterDirection.entries.firstOrNull { it.name == directionName } ?: ConverterDirection.AUTO,
-                    target, forwardSource, forwardTarget, hasReverse
-                )
+                val declared = ConverterDirection.entries.firstOrNull { it.name == directionName }
+                    ?: ConverterDirection.AUTO
+                if (declared == ConverterDirection.REVERSE && !hasReverse) {
+                    logger.mapConstantReverseWithoutMapReverse(
+                        "${configObject.simpleName.asString()}.$memberName", member
+                    )
+                    return@mapNotNull null
+                }
+                val direction = resolveDirection(declared, target, forwardSource, forwardTarget, hasReverse)
                 val directionTarget = if (direction == ConverterDirection.REVERSE) forwardSource else forwardTarget
 
                 val valueKsType = member.valueType()

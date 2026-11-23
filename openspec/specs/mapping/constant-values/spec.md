@@ -110,6 +110,10 @@ A target property claimed by a `@MapConstant` SHALL NOT also be claimed, in the 
 - **WHEN** both classes declare `val currency: String` and the object declares `@MapConstant(direction = ConverterDirection.REVERSE) val currency = "HUF"`
 - **THEN** `fun User.toUserDto()` contains `currency = UserMapper.currency` and `fun UserDto.toUser()` contains `currency = this.currency`
 
+#### Scenario: Explicit REVERSE without @MapReverse
+- **WHEN** a `@MapConfig(source = UserDto::class, target = User::class)` object without `@MapReverse` declares `@MapConstant(direction = ConverterDirection.REVERSE) val currency = "HUF"`
+- **THEN** compilation fails with an error whose first line starts with `[KRAFT-E031] @MapConstant(direction = REVERSE) 'UserMapper.currency' has no effect`
+
 ### Requirement: Constants work in the KMP metadata compilation
 A `@MapConstant` member of a `commonMain` `@MapConfig` object SHALL be honoured when Kraft runs as `kspCommonMainMetadata`, including members whose type is inferred.
 
