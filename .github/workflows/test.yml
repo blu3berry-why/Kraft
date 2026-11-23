@@ -285,12 +285,19 @@ jobs:
           echo "Latest KSP on Maven Central: $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      # KSP 2.3.12 raised its minimum AGP to 8.12.0 ("The minimum supported AGP
+      # version is 8.12.0" at plugin apply), so the catalog's AGP 8.11.2 fails
+      # every Android case. The probe runs on the newest AGP 8.x instead; the
+      # pinned ksp-compat legs keep covering the 8.11.2 floor.
       - name: Gradle plugin functional tests (KSP ${{ steps.ksp.outputs.version }})
         # The resolved version comes from an external HTTP response; pass it as
         # env data instead of splicing it into the script text.
         env:
           KSP_VERSION: ${{ steps.ksp.outputs.version }}
-        run: ./gradlew :kraft-gradle-plugin:test -Pkraft.test.kspVersion="$KSP_VERSION"
+        run: >-
+          ./gradlew :kraft-gradle-plugin:test
+          -Pkraft.test.kspVersion="$KSP_VERSION"
+          -Pkraft.test.agpVersion=8.13.2
 
       - name: Publish test results
         uses: actions/upload-artifact@v7
