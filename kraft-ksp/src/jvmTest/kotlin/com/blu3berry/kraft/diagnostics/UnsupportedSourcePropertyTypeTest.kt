@@ -55,4 +55,26 @@ class UnsupportedSourcePropertyTypeTest {
         assertThat(result.messages).contains("Property 'value' on 'Box'")
         assertThat(result.messages).doesNotContain("Kraft cannot map 'T'")
     }
+
+    @Test
+    fun `parameterized type alias source property reports KRAFT-E011`() {
+        val source = SourceFile.kotlin(
+            "Models.kt",
+            """
+            typealias Bag<T> = List<T>
+
+            @com.blu3berry.kraft.mapping.MapTo(Target::class)
+            data class Source(val id: Int, val items: Bag<String>)
+
+            data class Target(val id: Int, val items: List<String>)
+            """
+        )
+
+        val result = TestKspRunner.compile(source)
+
+        assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        assertThat(result.messages).contains("[KRAFT-E011]")
+        assertThat(result.messages).contains("Property 'items' on 'Source'")
+        assertThat(result.messages).doesNotContain("parameterized type aliases")
+    }
 }
