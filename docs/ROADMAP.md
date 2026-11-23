@@ -444,7 +444,7 @@ KRAFT-E067 (unknown target), E068 (type mismatch), E069 (unsupported member), E0
 one target). It rides on the existing `PropertyMappingStrategy.Constant`. KRAFT-W009's fix list
 names it. See [Constant Values](user-guide/constant-values.md).
 
-**Tier 2: differentiators (0.15–0.16).** Makes the "best" claim possible.
+**Tier 2: differentiators (0.15–0.17).** Makes the "best" claim possible.
 
 ### 30. No sealed hierarchy mapping — L · Feature · open
 
@@ -543,11 +543,25 @@ found: today the only way to learn what the processor decided is to read its out
 and 18 belong here too — both close the gap between "the generated text looks right" and "the
 mapper does the right thing".
 
-**Features.** 0.14 ships what is done; nothing in Features is left for it. #40 (flat
-annotations) and #29 (constants) shipped together in 0.14 as well; what remains for 0.15 is #30 (sealed) and #34 (unmapped policy). 0.16 is #31,
-#32 and #33 together, because they change the generated function signatures. Tier 3 (#35–#38)
-runs alongside. Watch Konvert's KMP branch (see Positioning): Tier 1 should be closed before it
-ships.
+**Release plan (revised 2026-11-23).** 0.14 shipped #40 (flat annotations) and #29
+(constants).
+
+- **0.15 — Kraft explains itself.** First the silent-behaviour bugs, one `fix:` PR each with a
+  failing test first: the KRAFT-E011 crash on type-parameter sources, the same-name import
+  collision, #41 and #43 (warning only). Then #5 (`kraft.report`) as an OpenSpec change that
+  sets the reporting model, and #34 (unmapped-target policy) built on top of it, since #34's
+  per-mapper coverage report is a kind of report. Doing #34 first would fix a warning format
+  that #5 then has to work around.
+- **0.16 — #18, then #30 (sealed).** Sealed mapping generates `when` branches, which is
+  behaviour, and text-only assertions catch little of it, so the generated code is executed in
+  tests (#18) before #30 lands. #30 moves ahead of #31–#33 because Positioning puts Kraft's gap
+  in *type coverage*: users leave over a field Kraft can't map, not over a missing advanced
+  feature.
+- **0.17 — #31, #32 and #33 together**, because they change the generated function signatures.
+
+Tier 3 (#35–#38) runs alongside. Watch Konvert's KMP branch (see Positioning): as of
+2026-11-23 mcarleio/konvert#219 is still a draft, untouched since 2026-08-10, and v4.5.2
+(2026-11-18) shipped without KMP. Tier 1 should be closed before it ships.
 
 **Later.** Item 19 is genuine feature work and should not jump the queue ahead of the
 diagnostics that make feature work debuggable. Item 21 rides along with 1.0.
