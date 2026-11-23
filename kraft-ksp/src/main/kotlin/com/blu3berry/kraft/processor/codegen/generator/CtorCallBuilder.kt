@@ -16,6 +16,13 @@ import com.blu3berry.kraft.processor.codegen.functionNameForNested
 import com.blu3berry.kraft.processor.codegen.generatedMapperPackage
 
 /**
+ * A built constructor call plus every top-level function it references through `%M`
+ * (nested mappers and top-level converters), so the file builder can alias imports whose
+ * simple names collide.
+ */
+internal data class CtorCall(val code: CodeBlock, val referencedMembers: Set<MemberName>)
+
+/**
  * Assembles the `TargetClass(param = value, ...)` constructor invocation [CodeBlock]
  * from the resolved [PropertyMappingStrategy] entries in a [MapperDescriptor].
  *
@@ -25,6 +32,9 @@ import com.blu3berry.kraft.processor.codegen.generatedMapperPackage
  * Ignored properties are filtered out before the block is built.
  */
 internal class CtorCallBuilder(private val config: GenerationConfig) {
+
+    /** Members referenced since the last [build] started; [build] returns a snapshot. */
+    private val referencedMembers = LinkedHashSet<MemberName>()
 
     private val containerRenderer = ContainerShapeRenderer(
         nestedMapperMember = ::nestedMapperMemberName,
@@ -40,7 +50,8 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
      * )
      * ```
      */
-    fun build(descriptor: MapperDescriptor): CodeBlock {
+    fun build(descriptor: MapperDescriptor): CtorCall {
+        referencedMembers.clear()
         val toClass = descriptor.targetType.className
         val receiverLabel = config.functionNameFor(descriptor)
 
@@ -60,7 +71,7 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
         block.unindent()
         block.add(")")
 
-        return block.build()
+        return CtorCall(block.build(), referencedMembers.toSet())
     }
 
     /**
@@ -242,7 +253,7 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
 
     private fun nestedMapperMemberName(nested: NestedMappingDescriptor): MemberName {
         val pkg = generatedMapperPackage(nested.sourceType.className.packageName)
-        return MemberName(pkg, config.functionNameForNested(nested))
+        return MemberName(pkg, config.functionNameForNested(nested)).also(referencedMembers::add)
     }
 
     private fun enclosingClassName(converter: ConverterDescriptor): ClassName =
@@ -252,5 +263,5 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
     private fun enclosingClassName(obj: KSClassDeclaration): ClassName = obj.toClassName()
 
     private fun topLevelMemberName(converter: ConverterDescriptor): MemberName =
-        MemberName(converter.callPackageName, converter.callFunctionName)
+        MemberName(converter.callPackageName, converter.callFunctionName).also(referencedMembers::add)
 }

@@ -75,15 +75,17 @@ class ExtensionMapperGenerator(
 
         reportRedundantConverters(descriptor, packageName, functionName)
 
+        val ctorCall = ctorCallBuilder.build(descriptor)
         val verboseFn = FunSpec.builder(functionName)
             .receiver(fromClass)
             .returns(toClass)
-            .addCode("return %L\n", ctorCallBuilder.build(descriptor))
+            .addCode("return %L\n", ctorCall.code)
 
         optInAnnotation(OptInMarkerCollector.collect(descriptor))?.let(verboseFn::addAnnotation)
 
         val fileBuilder = FileSpec.builder(packageName, fileName)
             .addFileComment(CodeGenUtils.generatedBanner())
+            .aliasCollidingMemberImports(ctorCall.referencedMembers)
             .addFunction(verboseFn.build())
 
         // ----- Side alias (if any) -----
