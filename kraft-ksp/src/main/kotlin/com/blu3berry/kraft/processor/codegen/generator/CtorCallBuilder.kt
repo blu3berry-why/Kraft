@@ -240,9 +240,14 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
         block.add("%N = this.%N%L%L", t, s, dot, underlying)
     }
 
+    // isExtension = true declares the KotlinPoet contract we rely on: always import the member,
+    // aliasing it when another member shares its simple name, never fall back to a fully
+    // qualified name, which is not valid syntax for an extension call (`this.x.com.example.toUser()`).
+    // KotlinPoet before 1.17.0 still did that fallback when one same-name member was in the
+    // file's own package (Re-Claw report A2; CrossPackageNestedMappingTest).
     private fun nestedMapperMemberName(nested: NestedMappingDescriptor): MemberName {
         val pkg = generatedMapperPackage(nested.sourceType.className.packageName)
-        return MemberName(pkg, config.functionNameForNested(nested))
+        return MemberName(pkg, config.functionNameForNested(nested), isExtension = true)
     }
 
     private fun enclosingClassName(converter: ConverterDescriptor): ClassName =
@@ -252,5 +257,5 @@ internal class CtorCallBuilder(private val config: GenerationConfig) {
     private fun enclosingClassName(obj: KSClassDeclaration): ClassName = obj.toClassName()
 
     private fun topLevelMemberName(converter: ConverterDescriptor): MemberName =
-        MemberName(converter.callPackageName, converter.callFunctionName)
+        MemberName(converter.callPackageName, converter.callFunctionName, isExtension = converter.isExtension)
 }

@@ -36,6 +36,36 @@ class CrossModuleConverterTest {
     }
 
     @Test
+    fun `registry compiles when two converters from different packages share a name`() {
+        // One registry file holds every delegate in the module. Without an import per
+        // converter, the second `toLabel` was written fully qualified, which is not valid
+        // syntax for an extension call.
+        val first = SourceFile.kotlin(
+            "IntConverters.kt",
+            """
+            package converters.ints
+
+            @com.blu3berry.kraft.config.KraftConverter
+            fun Int.toLabel(): String = "int=" + this
+            """
+        )
+        val second = SourceFile.kotlin(
+            "LongConverters.kt",
+            """
+            package converters.longs
+
+            @com.blu3berry.kraft.config.KraftConverter
+            fun Long.toLabel(): String = "long=" + this
+            """
+        )
+
+        val result = TestKspRunner.compile(first, second)
+
+        assertThat(result.messages).doesNotContain("Unresolved reference")
+        assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
+    }
+
+    @Test
     fun `consumer module picks up upstream @KraftConverter via classpath delegate`() {
         val upstream = SourceFile.kotlin(
             "Converters.kt",
