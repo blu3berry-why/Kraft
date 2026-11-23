@@ -14,6 +14,7 @@ import com.blu3berry.kraft.processor.util.collectPropertyTypeRefs
 import com.blu3berry.kraft.processor.util.enumEntryNames
 import com.blu3berry.kraft.processor.util.isMappableClass
 import com.blu3berry.kraft.processor.util.mappedContainerOf
+import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 
 /**
  * Walks every parent `@MapConfig` / `@MapTo` mapping pair and synthesizes an
@@ -146,11 +147,17 @@ class AutoEnumMappingDeriver {
      * `ItemSource`/`ItemDto`). Yields nothing for a level where only one side is
      * a container (or one side is a map and the other is not) — `ContainerRule`
      * does not auto-map those. For non-container inputs returns the inputs unchanged.
+     *
+     * Yields nothing when either side is not class-backed (a type parameter `T`, or a
+     * parameterized type alias). There is nothing to recurse into, and this pre-pass
+     * must not throw: the descriptor builder reports those properties as KRAFT-E011.
      */
+    @Suppress("ReturnCount")
     private fun resolveRecursableTypes(
         sourceType: KSType,
         targetType: KSType,
     ): List<Pair<KSType, KSType>> {
+        if (!sourceType.isClassBacked() || !targetType.isClassBacked()) return emptyList()
         val srcContainer = mappedContainerOf(TypeInfo.fromKSType(sourceType))
         val tgtContainer = mappedContainerOf(TypeInfo.fromKSType(targetType))
         if (srcContainer == null && tgtContainer == null) return listOf(sourceType to targetType)
@@ -266,3 +273,6 @@ class AutoEnumMappingDeriver {
     private fun KSClassDeclaration.isLocalEnum(): Boolean =
         classKind == ClassKind.ENUM_CLASS && containingFile != null
 }
+
+/** `true` when this type, after unwrapping type aliases, is backed by a class declaration. */
+private fun KSType.isClassBacked(): Boolean = unwrapTypeAliases().declaration is KSClassDeclaration
