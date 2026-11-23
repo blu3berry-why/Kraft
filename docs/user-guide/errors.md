@@ -1616,3 +1616,23 @@ object PersonMapper
 - Or map it explicitly with `@MapUsing(target = "nickname")`.
 - Or set it from the mapper object: `@MapConstant val nickname = ...` (see [Constant Values](constant-values.md)).
 - Or add `@Suppress("KRAFT-W009")` to the property or to the mapping declaration (the `@MapConfig` object, or the `@MapFrom` / `@MapTo` class). Suppression does not change the generated code.
+
+### KRAFT-W011 — More than one @FieldMapping for one target {#kraft-w011}
+
+**Severity:** warning
+
+**Cause:** Two or more `@FieldMapping` rules on one `@MapConfig` object, all in the array or all flat, claim the same target. Kraft uses the last one it reads (array first, then flat) and drops the rest. With `@MapReverse`, renames from one `source` claim that source as the reverse mapper's target, which is the same conflict seen from the reverse side. The identical rule written twice is reported as a duplicate. The same target in *both* forms is the error [KRAFT-E066](#kraft-e066) instead. `@MapIgnoreField` rules never trigger this: they combine.
+
+```kotlin
+@MapConfig(source = UserDto::class, target = User::class)
+@FieldMapping(source = "first", target = "name")
+@FieldMapping(source = "second", target = "name")  // warning: only this one is used
+object UserMapper
+// generates User(name = this.second)
+```
+
+**Fix:**
+
+- Delete the renames you do not want for the target.
+- On a `@MapReverse` mapper where one source feeds several targets, keep the forward renames and choose the reverse value with `@MapUsing(target = "<source>", direction = ConverterDirection.REVERSE)`. A target that a `@MapUsing` claims is not reported.
+- Or add `@Suppress("KRAFT-W011")` to the config object to keep the current behaviour without the warning. A later release may make this an error.

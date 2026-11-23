@@ -1053,6 +1053,59 @@ fun KSPLogger.mapConstantConflict(
     symbol
 )
 
+/**
+ * `KRAFT-W011`: [rules] (rendered, e.g. `source = "a"`) all claim [target] in [targetClass] in
+ * one direction; Kraft keeps the last, [winner]. [reverse] names the reverse mapper's target.
+ */
+@Suppress("LongParameterList")
+fun KSPLogger.duplicateFieldMappingTarget(
+    reverse: Boolean,
+    target: String,
+    targetClass: String,
+    objectName: String,
+    rules: List<String>,
+    winner: String,
+    symbol: KSNode
+) {
+    val subject = if (reverse) "In the reverse mapper, target" else "Target"
+    val suppress = "Or add @Suppress(\"KRAFT-W011\") to '$objectName' " +
+        "to keep the current behaviour without the warning."
+    val fixes = if (reverse) {
+        listOf(
+            "One source cannot be the reverse of several targets. Keep the forward renames, and choose how " +
+                "'$target' is filled in reverse with @MapUsing(target = \"$target\", direction = REVERSE).",
+            suppress,
+        )
+    } else {
+        listOf("Delete the @FieldMapping rules you do not want for '$target'.", suppress)
+    }
+    report(
+        KraftDiagnostic.DUPLICATE_FIELD_MAPPING,
+        "$subject '$target' in '$targetClass' has ${rules.size} @FieldMapping rules on '$objectName' " +
+            "(${rules.joinToString(", ")}). Only the last one is used: $winner.\n" +
+            "\n" +
+            "Why:\n" +
+            "Each target property takes its value from one rule. Kraft keeps the last rule it reads " +
+            "and drops the others without using them.\n" +
+            "\n" +
+            "How to fix:\n" +
+            fixes.joinToString("\n") { "  ✓ $it" },
+        symbol
+    )
+}
+
+/** `KRAFT-W011`: the identical [rule] is written [count] times on [objectName]. */
+fun KSPLogger.fieldMappingDeclaredRepeatedly(rule: String, count: Int, objectName: String, symbol: KSNode) = report(
+    KraftDiagnostic.DUPLICATE_FIELD_MAPPING,
+    """
+    $rule is declared $count times on '$objectName'. Keep one.
+
+    How to fix:
+      ✓ Delete the extra copies. The mapping is the same either way.
+    """.trimIndent(),
+    symbol
+)
+
 private fun suggestNames(target: String, candidates: Collection<String>): List<String> =
     candidates
         .map { it to levenshtein(target, it) }

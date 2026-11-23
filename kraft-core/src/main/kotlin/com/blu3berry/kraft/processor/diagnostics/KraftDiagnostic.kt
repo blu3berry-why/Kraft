@@ -255,6 +255,9 @@ enum class KraftDiagnostic(
 
     /** An unmapped nullable target property with no default receives `null`. */
     NULLABLE_TARGET_DEFAULTED_TO_NULL("KRAFT-W009", Severity.WARNING, "Nullable property set to null"),
+
+    /** Two `@FieldMapping` rules in one form claim one target in one direction; the last one wins. */
+    DUPLICATE_FIELD_MAPPING("KRAFT-W011", Severity.WARNING, "More than one @FieldMapping for one target"),
     ;
 
     /** The heading anchor on the errors reference page, e.g. `kraft-w001`. */

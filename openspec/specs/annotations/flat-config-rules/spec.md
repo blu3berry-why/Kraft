@@ -50,6 +50,21 @@ When one object has a `@FieldMapping` for the same `target`, or a `@MapIgnoreFie
 - **WHEN** `object UserMapper` has `ignoredMappings = [MapIgnoreField("notes")]` and a flat `@MapIgnoreField("notes", direction = IgnoreSide.TARGET)`
 - **THEN** compilation fails with an error whose first line is `[KRAFT-E066] @MapIgnoreField for 'notes' is declared both in @MapConfig.ignoredMappings and as an annotation on 'UserMapper'. Keep one.`
 
+### Requirement: Two renames that claim one target warn
+When `@FieldMapping` rules that are not in both forms claim one target in one direction, the last one (array first, then flat) SHALL still be used, and Kraft SHALL warn `KRAFT-W011`. Forward, they claim the same `target`. With `@MapReverse`, renames from the same `source` claim that source as the reverse mapper's target. No warning SHALL be reported for a target that a `@MapUsing` claims in that direction, since no rename is used there. `@MapIgnoreField` rules combine and SHALL NOT warn. Roadmap: #43.
+
+#### Scenario: Two renames to one target
+- **WHEN** `object UserMapper` has flat `@FieldMapping(source = "first", target = "name")` and `@FieldMapping(source = "second", target = "name")`
+- **THEN** compilation succeeds, `fun UserDto.toUser()` contains `name = this.second`, and a warning's first line starts with `[KRAFT-W011] Target 'name' in 'User' has 2 @FieldMapping rules on 'UserMapper'`
+
+#### Scenario: Two renames from one source on a reverse mapper
+- **WHEN** a `@MapReverse` `object UserMapper` has `@FieldMapping(source = "first", target = "name")` and `@FieldMapping(source = "first", target = "alias")`
+- **THEN** compilation succeeds and a warning's first line starts with `[KRAFT-W011] In the reverse mapper, target 'first' in 'UserDto' has 2 @FieldMapping rules on 'UserMapper'`
+
+#### Scenario: A reverse @MapUsing resolves it
+- **WHEN** the same object also declares `@MapUsing(target = "first", direction = ConverterDirection.REVERSE) fun User.pickFirst(): String`
+- **THEN** compilation succeeds with no `KRAFT-W011`, and `fun User.toUserDto()` calls `pickFirst()`
+
 ### Requirement: A flat rule requires @MapConfig on the same declaration
 A flat `@FieldMapping` or `@MapIgnoreField` on a declaration without `@MapConfig` SHALL fail compilation with a new `KRAFT-E` code. It SHALL NOT be ignored silently.
 

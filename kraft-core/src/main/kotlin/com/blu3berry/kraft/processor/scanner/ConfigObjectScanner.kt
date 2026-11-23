@@ -26,6 +26,8 @@ import com.blu3berry.kraft.model.scan.IgnoredMappingConfig
 import com.blu3berry.kraft.model.toTypeInfo
 import com.blu3berry.kraft.processor.util.KraftKspConstants
 import com.blu3berry.kraft.processor.util.annotationTargetError
+import com.blu3berry.kraft.processor.util.duplicateFieldMappingTarget
+import com.blu3berry.kraft.processor.util.fieldMappingDeclaredRepeatedly
 import com.blu3berry.kraft.processor.util.fieldMappingInBothForms
 import com.blu3berry.kraft.processor.util.findAnnotation
 import com.blu3berry.kraft.processor.util.flatFieldMappingWithoutMapConfig
@@ -40,6 +42,7 @@ import com.blu3berry.kraft.processor.util.mapConstantConflict
 import com.blu3berry.kraft.processor.util.mapConstantOutsideMapConfig
 import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.isKraftSuppressed
 import com.blu3berry.kraft.processor.diagnostics.report
 
 /**
@@ -163,6 +166,11 @@ class ConfigObjectScanner(
         val taggedIgnoredMappings = extractIgnoredMappings(annotation, classDeclaration)
 
         reportRulesInBothForms(classDeclaration, taggedFieldOverrides, taggedIgnoredMappings)
+        reportDuplicateFieldMappings(
+            classDeclaration, taggedFieldOverrides, converters, hasReverse,
+            forwardTargetName = toType.simpleName.asString(),
+            reverseTargetName = fromType.simpleName.asString()
+        )
         val fieldOverrides = taggedFieldOverrides.map { it.value }
         val ignoredMappings = taggedIgnoredMappings.map { it.value }
 
@@ -384,6 +392,63 @@ class ConfigObjectScanner(
             logger.mapIgnoreFieldInBothForms(name, objectName, symbol)
         }
     }
+
+    /**
+     * Reports KRAFT-W011 when `@FieldMapping` rules resolve last-wins. Forward: two rules with one
+     * `target` (a target given in both forms is KRAFT-E066 instead, so it is skipped here). With
+     * `@MapReverse`: two rules with one `source`, since renames are inverted in the reverse mapper.
+     * The identical rule written twice is reported once, as a duplicate. A target that a
+     * `@MapUsing` claims in that direction is skipped: the converter wins, so no rename is used.
+     * Suppressible with `@Suppress("KRAFT-W011")` on the object. A warning, so existing
+     * last-wins code keeps compiling.
+     */
+    @Suppress("LongParameterList")
+    private fun reportDuplicateFieldMappings(
+        symbol: KSClassDeclaration,
+        tagged: List<Tagged<FieldOverride>>,
+        converters: List<ConverterDescriptor>,
+        hasReverse: Boolean,
+        forwardTargetName: String,
+        reverseTargetName: String
+    ) {
+        if (symbol.isKraftSuppressed(KraftDiagnostic.DUPLICATE_FIELD_MAPPING)) return
+        val objectName = symbol.simpleName.asString()
+        val inBothForms = bothFormsKeys(tagged) { it.target }.toSet()
+        val (reverseConverters, forwardConverters) =
+            converters.partition { it.resolvedDirection == ConverterDirection.REVERSE }
+        val forwardClaims = forwardConverters.map { it.targetPropertyName }.toSet()
+        val reverseClaims = reverseConverters.map { it.targetPropertyName }.toSet()
+        // Resolution order is the order the descriptor builders read: array first, then flat.
+        val rules = tagged.map { it.value }
+
+        rules.groupingBy { it }.eachCount().filterValues { it > 1 }.forEach { (rule, count) ->
+            if (rule.target in inBothForms) return@forEach
+            logger.fieldMappingDeclaredRepeatedly(rule.render(), count, objectName, symbol)
+        }
+        rules.groupBy { it.target }
+            .filter { (target, group) ->
+                target !in inBothForms && target !in forwardClaims && group.distinct().size > 1
+            }
+            .forEach { (target, group) ->
+                logger.duplicateFieldMappingTarget(
+                    reverse = false, target = target, targetClass = forwardTargetName, objectName = objectName,
+                    rules = group.distinct().map { "source = \"${it.source}\"" },
+                    winner = "source = \"${group.last().source}\"", symbol = symbol
+                )
+            }
+        if (!hasReverse) return
+        rules.groupBy { it.source }
+            .filter { (source, group) -> source !in reverseClaims && group.distinct().size > 1 }
+            .forEach { (source, group) ->
+                logger.duplicateFieldMappingTarget(
+                    reverse = true, target = source, targetClass = reverseTargetName, objectName = objectName,
+                    rules = group.distinct().map { "target = \"${it.target}\"" },
+                    winner = "target = \"${group.last().target}\"", symbol = symbol
+                )
+            }
+    }
+
+    private fun FieldOverride.render(): String = "@FieldMapping(source = \"$source\", target = \"$target\")"
 
     private fun <T> bothFormsKeys(tagged: List<Tagged<T>>, key: (T) -> String): List<String> {
         val arrayKeys = tagged.filter { it.origin == Origin.ARRAY }.map { key(it.value) }.toSet()
