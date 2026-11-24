@@ -126,6 +126,8 @@ object UserMapper {
 // fun User.toUserDto():   currency = UserMapper.currency
 ```
 
+`direction = REVERSE` needs `@MapReverse` on the object. Without it no reverse mapper exists, so compilation fails with [`KRAFT-E031`](errors.md#kraft-e031) rather than dropping the constant.
+
 ## Computing a value from the source: use @MapUsing
 
 A `@MapConstant` cannot see the object being mapped. When the value depends on the source, write a whole-source [`@MapUsing`](custom-converters.md#whole-source-mode) converter instead:
