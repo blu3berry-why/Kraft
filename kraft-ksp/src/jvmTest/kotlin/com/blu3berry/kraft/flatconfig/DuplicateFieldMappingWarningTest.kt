@@ -101,6 +101,70 @@ class DuplicateFieldMappingWarningTest {
         assertThat(result.messages).contains(
             "[KRAFT-W011] @FieldMapping(source = \"first\", target = \"name\") is declared 2 times on 'UserMapper'"
         )
+        assertThat(result.messages).contains("Keep the last copy and delete the earlier ones")
+    }
+
+    @Test
+    fun `the same rename written twice does not warn when a forward @MapUsing claims its target`() {
+        val result = TestKspRunner.compile(
+            SourceFile.kotlin(
+                "Models.kt",
+                """
+                package demo
+
+                import com.blu3berry.kraft.config.FieldMapping
+                import com.blu3berry.kraft.config.MapConfig
+                import com.blu3berry.kraft.config.MapUsing
+
+                data class UserDto(val first: String)
+                data class User(val name: String)
+
+                @MapConfig(source = UserDto::class, target = User::class)
+                @FieldMapping(source = "first", target = "name")
+                @FieldMapping(source = "first", target = "name")
+                object UserMapper {
+                    @MapUsing(target = "name")
+                    fun UserDto.upper(): String = first.uppercase()
+                }
+                """
+            )
+        )
+
+        assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
+        assertThat(result.messages).doesNotContain("KRAFT-W011")
+    }
+
+    @Test
+    fun `with @MapReverse, the same rename written twice still warns when only the forward side is claimed`() {
+        val result = TestKspRunner.compile(
+            SourceFile.kotlin(
+                "Models.kt",
+                """
+                package demo
+
+                import com.blu3berry.kraft.config.FieldMapping
+                import com.blu3berry.kraft.config.MapConfig
+                import com.blu3berry.kraft.config.MapReverse
+                import com.blu3berry.kraft.config.MapUsing
+
+                data class UserDto(val first: String)
+                data class User(val name: String)
+
+                @MapConfig(source = UserDto::class, target = User::class)
+                @MapReverse
+                @FieldMapping(source = "first", target = "name")
+                @FieldMapping(source = "first", target = "name")
+                object UserMapper {
+                    @MapUsing(target = "name")
+                    fun UserDto.upper(): String = first.uppercase()
+                }
+                """
+            )
+        )
+
+        // A forward-only converter under @MapReverse is also KRAFT-E023, so the build fails;
+        // this only checks that the duplicate is still reported for the unclaimed reverse side.
+        assertThat(result.messages).contains("is declared 2 times on 'UserMapper'")
     }
 
     @Test

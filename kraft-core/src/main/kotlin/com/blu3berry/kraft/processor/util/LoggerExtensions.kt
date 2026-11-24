@@ -1131,7 +1131,7 @@ fun KSPLogger.fieldMappingDeclaredRepeatedly(rule: String, count: Int, objectNam
     $rule is declared $count times on '$objectName'. Keep one.
 
     How to fix:
-      ✓ Delete the extra copies. The mapping is the same either way.
+      ✓ Keep the last copy and delete the earlier ones. The last copy is the one Kraft uses, so this keeps the mapping the same.
     """.trimIndent(),
     symbol
 )

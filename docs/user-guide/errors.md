@@ -1655,5 +1655,6 @@ object UserMapper
 **Fix:**
 
 - Delete the renames you do not want for the target.
+- For the identical rule written more than once, keep the last copy and delete the earlier ones. Kraft uses the last copy, so deleting it instead can change which rule wins.
 - On a `@MapReverse` mapper where one source feeds several targets, keep the forward renames and choose the reverse value with `@MapUsing(target = "<source>", direction = ConverterDirection.REVERSE)`. A target that a `@MapUsing` claims is not reported.
 - Or add `@Suppress("KRAFT-W011")` to the config object to keep the current behaviour without the warning. A later release may make this an error.

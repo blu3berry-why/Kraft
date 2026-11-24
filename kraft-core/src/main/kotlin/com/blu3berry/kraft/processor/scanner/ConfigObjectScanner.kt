@@ -414,6 +414,7 @@ class ConfigObjectScanner(
      * `@MapReverse`: two rules with one `source`, since renames are inverted in the reverse mapper.
      * The identical rule written twice is reported once, as a duplicate. A target that a
      * `@MapUsing` claims in that direction is skipped: the converter wins, so no rename is used.
+     * A repeated identical rule is skipped only when converters claim every direction it applies to.
      * Suppressible with `@Suppress("KRAFT-W011")` on the object. A warning, so existing
      * last-wins code keeps compiling.
      */
@@ -438,6 +439,10 @@ class ConfigObjectScanner(
 
         rules.groupingBy { it }.eachCount().filterValues { it > 1 }.forEach { (rule, count) ->
             if (rule.target in inBothForms) return@forEach
+            // Report only if some generated mapper still uses the rule rather than a converter.
+            val usedForward = rule.target !in forwardClaims
+            val usedReverse = hasReverse && rule.source !in reverseClaims
+            if (!usedForward && !usedReverse) return@forEach
             logger.fieldMappingDeclaredRepeatedly(rule.render(), count, objectName, symbol)
         }
         rules.groupBy { it.target }
