@@ -1637,3 +1637,24 @@ object UserMapper
 - To skip the property in the forward mapper, use `direction = IgnoreSide.TARGET`, or leave the default, `BOTH`.
 - Or add `@MapReverse` to the config object, if a reverse mapper is wanted.
 - Or delete the rule. To keep it without the warning, add `@Suppress("KRAFT-W010")` to the config object.
+
+### KRAFT-W011 — More than one @FieldMapping for one target {#kraft-w011}
+
+**Severity:** warning
+
+**Cause:** Two or more `@FieldMapping` rules on one `@MapConfig` object, all in the array or all flat, claim the same target. Kraft uses the last one it reads (array first, then flat) and drops the rest. With `@MapReverse`, renames from one `source` claim that source as the reverse mapper's target, which is the same conflict seen from the reverse side. The identical rule written twice is reported as a duplicate. The same target in *both* forms is the error [KRAFT-E066](#kraft-e066) instead. `@MapIgnoreField` rules never trigger this: they combine.
+
+```kotlin
+@MapConfig(source = UserDto::class, target = User::class)
+@FieldMapping(source = "first", target = "name")
+@FieldMapping(source = "second", target = "name")  // warning: only this one is used
+object UserMapper
+// generates User(name = this.second)
+```
+
+**Fix:**
+
+- Delete the renames you do not want for the target.
+- For the identical rule written more than once, keep the last copy and delete the earlier ones. Kraft uses the last copy, so deleting it instead can change which rule wins.
+- On a `@MapReverse` mapper where one source feeds several targets, keep the forward renames and choose the reverse value with `@MapUsing(target = "<source>", direction = ConverterDirection.REVERSE)`. A target that a `@MapUsing` claims is not reported.
+- Or add `@Suppress("KRAFT-W011")` to the config object to keep the current behaviour without the warning. A later release may make this an error.
