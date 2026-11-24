@@ -112,7 +112,7 @@ A mapper whose target had a defaulted or nullable property with no source was sk
 
 ---
 
-### 41. `@MapConstant(direction = REVERSE)` without `@MapReverse` is ignored silently — S · Bug · open
+### 41. `@MapConstant(direction = REVERSE)` without `@MapReverse` is ignored silently — S · Bug · done in 0.15 (#150)
 
 Found 2026-10-18 while shipping #29 (PR #129). A constant whose resolved direction is
 `REVERSE` on a `@MapConfig` object with no `@MapReverse` applies to nothing and reports
@@ -120,6 +120,9 @@ nothing. `@MapUsing(direction = REVERSE)` in the same position already fails wit
 
 *Scope:* report an E031-style error from `ConstantMemberScanner` when the direction is
 `REVERSE` and the object has no `@MapReverse`, and add the case to `ConstantDirectionTest`.
+
+**Fixed.** Reverse-only rules (`@MapConstant`, `@MapIgnoreField(side = SOURCE)`) on a
+`@MapConfig` object without `@MapReverse` now report an error instead of applying to nothing.
 
 ## DX and diagnostics
 
@@ -514,7 +517,7 @@ Spike confirmed KSP2 sees repeatable `SOURCE` annotations in the KMP metadata co
 that a class-targeted annotation can still be used inside an array argument (2026-10-18).
 Designed together with #29.
 
-### 43. Two rules for one target within one form resolve last-wins silently — S · Feature · open
+### 43. Two rules for one target within one form resolve last-wins silently — S · Feature · partial (promote the warning to an error)
 
 Two `@FieldMapping(target = "x")` (or two `@MapIgnoreField("x")`) on one object, both in the
 array or both flat, keep the last one with no diagnostic. The same rule given in *both* forms
@@ -523,6 +526,8 @@ flat-mapconfig-annotations because an error would break existing last-wins code 
 Open Questions).
 
 *Scope:* warn first (non-breaking), then promote the warning to an error in a later minor.
+
+*Update:* the warning shipped in #151. Promoting it to an error is what remains.
 
 ---
 
@@ -548,7 +553,7 @@ mapper does the right thing".
 
 - **0.15 — Kraft explains itself.** First the silent-behaviour bugs, one `fix:` PR each with a
   failing test first: the KRAFT-E011 crash on type-parameter sources, the same-name import
-  collision, #41 and #43 (warning only). Then #5 (`kraft.report`) as an OpenSpec change that
+  collision, #41 and #43 (warning only). *Done:* #147, #148, #150, #151. Then #5 (`kraft.report`) as an OpenSpec change that
   sets the reporting model, and #34 (unmapped-target policy) built on top of it, since #34's
   per-mapper coverage report is a kind of report. Doing #34 first would fix a warning format
   that #5 then has to work around.
