@@ -112,8 +112,8 @@ enum class KraftDiagnostic(
     /** Two dependencies register a `@KraftConverter` for the same type pair. */
     AMBIGUOUS_CLASSPATH_CONVERTER("KRAFT-E030", Severity.ERROR, "Ambiguous classpath converter"),
 
-    /** A reverse-direction `@MapUsing` sits in a config that is not reversed. */
-    MAP_USING_REVERSE_WITHOUT_MAP_REVERSE("KRAFT-E031", Severity.ERROR, "@MapUsing REVERSE without @MapReverse"),
+    /** A reverse-only `@MapUsing` or `@MapConstant` sits in a config that is not reversed. */
+    REVERSE_RULE_WITHOUT_MAP_REVERSE("KRAFT-E031", Severity.ERROR, "Reverse-only rule without @MapReverse"),
 
     /** A validated `@MapUsing` property was missing from Kraft's own lookup. */
     MAP_USING_INTERNAL_LOOKUP_FAILED("KRAFT-E032", Severity.ERROR, "@MapUsing internal lookup failure"),
@@ -255,6 +255,9 @@ enum class KraftDiagnostic(
 
     /** An unmapped nullable target property with no default receives `null`. */
     NULLABLE_TARGET_DEFAULTED_TO_NULL("KRAFT-W009", Severity.WARNING, "Nullable property set to null"),
+
+    /** A reverse-only `@MapIgnoreField(direction = SOURCE)` sits in a config that is not reversed. */
+    IGNORE_SOURCE_WITHOUT_MAP_REVERSE("KRAFT-W010", Severity.WARNING, "@MapIgnoreField SOURCE without @MapReverse"),
     ;
 
     /** The heading anchor on the errors reference page, e.g. `kraft-w001`. */

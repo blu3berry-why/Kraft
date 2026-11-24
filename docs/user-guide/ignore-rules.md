@@ -91,7 +91,7 @@ Generated: the `internalNotes` parameter is omitted from the `UserDto(...)` cons
 | Value | Behavior |
 |---|---|
 | `IgnoreSide.TARGET` | Ignore only when mapping source to target (forward direction). The `name` refers to a target-class constructor parameter. |
-| `IgnoreSide.SOURCE` | Ignore only when mapping target to source (reverse direction). Honored by `@MapReverse`. The `name` refers to a source-class constructor parameter. See [Reverse Mapping](reverse-mapping.md) for details. |
+| `IgnoreSide.SOURCE` | Ignore only when mapping target to source (reverse direction). Honored by `@MapReverse`; without it the rule has no effect and Kraft warns [`KRAFT-W010`](errors.md#kraft-w010). The `name` refers to a source-class constructor parameter. See [Reverse Mapping](reverse-mapping.md) for details. |
 | `IgnoreSide.BOTH` | Ignore in both directions. If the property name exists in only one direction's target, it is applied there; if it exists in both, it is applied in both. |
 
 ### TARGET direction example

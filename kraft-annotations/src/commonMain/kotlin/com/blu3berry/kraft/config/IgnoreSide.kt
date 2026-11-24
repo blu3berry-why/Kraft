@@ -11,7 +11,11 @@ enum class IgnoreSide {
     /** Apply only when mapping `from → to` (forward direction; name is a **target**-side constructor parameter). */
     TARGET,
 
-    /** Apply only when mapping `to → from` (reverse direction, honored by `@MapReverse`; name is a **source**-side constructor parameter). */
+    /**
+     * Apply only when mapping `to → from` (reverse direction, honored by `@MapReverse`; name is a
+     * **source**-side constructor parameter). Without `@MapReverse` it has no effect, and Kraft
+     * warns KRAFT-W010.
+     */
     SOURCE,
 
     /**

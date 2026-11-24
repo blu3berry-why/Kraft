@@ -635,23 +635,26 @@ data class Orphan(val value: Int)
 - Add a same-module `@KraftConverter` for the pair; it takes precedence over dependencies.
 - Or use a per-property `@MapUsing`.
 
-### KRAFT-E031 — @MapUsing REVERSE without @MapReverse {#kraft-e031}
+### KRAFT-E031 — Reverse-only rule without @MapReverse {#kraft-e031}
 
 **Severity:** error
 
-**Cause:** A `@MapUsing(direction = REVERSE)` converter sits in a `@MapConfig` that is not annotated with `@MapReverse`, so the converter would never be used.
+**Cause:** A rule that applies only to the reverse mapper, `@MapUsing(direction = REVERSE)` or `@MapConstant(direction = REVERSE)`, sits in a `@MapConfig` that is not annotated with `@MapReverse`. No reverse mapper is generated, so the rule would never be used. (Before 0.15 this code covered `@MapUsing` only; a reverse `@MapConstant` was dropped without a message.) The `@MapIgnoreField` counterpart, `direction = SOURCE`, is the warning [KRAFT-W010](#kraft-w010).
 
 ```kotlin
 @MapConfig(source = Src::class, target = Dst::class) // no @MapReverse
 object SrcMapper {
     @MapUsing(source = "text", target = "value", direction = ConverterDirection.REVERSE) // error: no effect
     fun parse(s: String): Int = s.toInt()
+
+    @MapConstant(direction = ConverterDirection.REVERSE) // error: no effect
+    val origin = "api"
 }
 ```
 
 **Fix:**
 
-- Remove the `direction` argument.
+- Remove the `direction` argument (or set `FORWARD`), if the rule belongs to the forward mapper.
 - Or add `@MapReverse` to the config object.
 
 ### KRAFT-E032 — @MapUsing internal lookup failure {#kraft-e032}
@@ -1616,3 +1619,21 @@ object PersonMapper
 - Or map it explicitly with `@MapUsing(target = "nickname")`.
 - Or set it from the mapper object: `@MapConstant val nickname = ...` (see [Constant Values](constant-values.md)).
 - Or add `@Suppress("KRAFT-W009")` to the property or to the mapping declaration (the `@MapConfig` object, or the `@MapFrom` / `@MapTo` class). Suppression does not change the generated code.
+
+### KRAFT-W010 — @MapIgnoreField SOURCE without @MapReverse {#kraft-w010}
+
+**Severity:** warning
+
+**Cause:** A `@MapIgnoreField(direction = IgnoreSide.SOURCE)` sits in a `@MapConfig` that is not annotated with `@MapReverse`. `SOURCE` applies only to the reverse mapper, which is not generated, so the rule does nothing. Often the intent was `TARGET`, to skip the property in the forward mapper. This is a warning rather than an error like [KRAFT-E031](#kraft-e031), so configs that already carry such a rule keep compiling; it may become an error in a later release.
+
+```kotlin
+@MapConfig(source = UserDto::class, target = User::class) // no @MapReverse
+@MapIgnoreField("secret", direction = IgnoreSide.SOURCE)   // warning: no effect
+object UserMapper
+```
+
+**Fix:**
+
+- To skip the property in the forward mapper, use `direction = IgnoreSide.TARGET`, or leave the default, `BOTH`.
+- Or add `@MapReverse` to the config object, if a reverse mapper is wanted.
+- Or delete the rule. To keep it without the warning, add `@Suppress("KRAFT-W010")` to the config object.
