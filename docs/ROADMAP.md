@@ -71,6 +71,9 @@ and `OptInMarkerCollector` only walked declaration annotations. Fixed in 0.13.0 
 opt-ins deterministically on 0.13.0+, and no module-wide `-opt-in` compiler argument should
 be needed. The reference docs were never updated to say so.
 
+*Correction (2026-11-25):* that held in-module only. A converter consumed from another
+module's klib still lost its marker until 0.14.1; see item 17.
+
 **RC-4 — converter rules.** The standalone restriction (top-level, extension receiver, no
 value parameters, no parameterized types) is documented and its error messages are specific,
 including the parameterized case corrected in #110. The nullable-scalar lift is where the
@@ -311,7 +314,7 @@ all four Android cases failed at plugin apply. The probe now runs on AGP 8.13.2 
 needs that leg on AGP ≥ 8.12, and the README/Getting Started should say that KSP 2.3.12+ needs
 AGP 8.12+. 2.3.11 remains the newest bump that works with the AGP 8.11.2 floor.
 
-### 17. No cross-module test for opt-in propagation — M · Test · open
+### 17. No cross-module test for opt-in propagation — M · Test · done in 0.14.1 (#154)
 
 `OptInPropagationTest` covers `@file:OptIn` well, but in-module only. RC-3 bit in the
 cross-module case, where converters resolve as classpath delegates from a klib — the one
@@ -321,7 +324,14 @@ configuration the existing tests do not reach.
 an experimental type and assert the consumer's generated mapper carries the marker. The
 harness already exists; this is a fixture addition, not new infrastructure.
 
-### 18. Generated code is asserted as text, never executed — M · Test · done in 0.16 (#153)
+*Done:* the test found a real bug. `kotlin.OptIn` has `SOURCE` retention, so the `@OptIn` on a
+producer's `@KraftConverterDelegate` never reaches the klib, and the consumer's mapper came out
+without the marker. The mapper side now also collects markers from the converter's receiver and
+return types (and aliases), as the delegate registry already did. *Not covered:* markers on type
+arguments (a converter over `List<Experimental>`), and an experimental-typed property copied
+across modules with no converter involved.
+
+### 18. Generated code is asserted as text, never executed — M · Test · done in 0.14.1 (#153)
 
 The KSP suite asserts on the *source* of generated mappers. Nothing runs a mapper and checks
 the resulting value, so a mapper that compiles but assigns the wrong field passes. The one
@@ -589,9 +599,9 @@ mapper does the right thing".
   sets the reporting model, and #34 (unmapped-target policy) built on top of it, since #34's
   per-mapper coverage report is a kind of report. Doing #34 first would fix a warning format
   that #5 then has to work around.
-- **0.16 — #18, then #30 (sealed).** Sealed mapping generates `when` branches, which is
+- **0.16 — #30 (sealed).** Sealed mapping generates `when` branches, which is
   behaviour, and text-only assertions catch little of it, so the generated code is executed in
-  tests (#18) before #30 lands. #30 moves ahead of #31–#33 because Positioning puts Kraft's gap
+  tests (#18) before #30 lands. #18 landed early, in 0.14.1 (#153). #30 moves ahead of #31–#33 because Positioning puts Kraft's gap
   in *type coverage*: users leave over a field Kraft can't map, not over a missing advanced
   feature.
 - **0.17 — #31, #32 and #33 together**, because they change the generated function signatures.

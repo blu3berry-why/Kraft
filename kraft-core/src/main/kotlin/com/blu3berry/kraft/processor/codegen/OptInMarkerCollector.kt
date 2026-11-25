@@ -4,11 +4,14 @@ import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
+import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.blu3berry.kraft.model.descriptor.MapperDescriptor
 import com.blu3berry.kraft.model.descriptor.MappingSource
 import com.blu3berry.kraft.model.descriptor.PropertyMappingStrategy
 import com.blu3berry.kraft.model.descriptor.converterDescriptors
+import com.blu3berry.kraft.processor.util.unwrapTypeAliases
 
 /**
  * Pair of (package, simple name) for an `@RequiresOptIn` marker class. Used by the
@@ -30,6 +33,11 @@ data class OptInMarker(val packageName: String, val simpleName: String) {
  * 4. Every `@MapUsing` converter function on the config object.
  * 5. Every `@KraftConverter` (or `@MapUsing`) function actually invoked by a
  *    [PropertyMappingStrategy.ConverterFunction] entry of the descriptor.
+ *
+ * For each converter in 4 and 5 the receiver and return type declarations are walked too.
+ * A converter from another module is a classpath delegate, and `kotlin.OptIn` has `SOURCE`
+ * retention, so the delegate's `@OptIn` never reaches the klib; the marker on the
+ * experimental type it converts is the only one still visible there.
  *
  * Two annotation patterns contribute markers:
  * - `@OptIn(M::class, ...)` — the listed marker classes are added directly.
@@ -58,15 +66,15 @@ object OptInMarkerCollector {
         // declaration to walk for opt-in markers; their generated body has no
         // experimental dependencies of its own, and the source/target types are
         // already covered by the explicit collectFrom calls above.
-        descriptor.converters.forEach { conv -> conv.function?.let { collectFrom(it, markers) } }
+        descriptor.converters.forEach { conv -> conv.function?.let { collectFromConverter(it, markers) } }
         descriptor.propertyMappings
             .filterIsInstance<PropertyMappingStrategy.ConverterFunction>()
-            .forEach { strat -> strat.converter.function?.let { collectFrom(it, markers) } }
+            .forEach { strat -> strat.converter.function?.let { collectFromConverter(it, markers) } }
         // Converters applied element-wise inside a container are invoked too.
         descriptor.propertyMappings
             .filterIsInstance<PropertyMappingStrategy.ContainerMapping>()
             .flatMap { it.shape.converterDescriptors() }
-            .forEach { conv -> conv.function?.let { collectFrom(it, markers) } }
+            .forEach { conv -> conv.function?.let { collectFromConverter(it, markers) } }
 
         return markers.values.toList()
     }
@@ -81,6 +89,17 @@ object OptInMarkerCollector {
         val markers = linkedMapOf<String, OptInMarker>()
         symbols.forEach { collectFrom(it, markers) }
         return markers.values.toList()
+    }
+
+    private fun collectFromConverter(function: KSFunctionDeclaration, sink: MutableMap<String, OptInMarker>) {
+        collectFrom(function, sink)
+        // An aliased type resolves to the KSTypeAlias node, so walk both the alias (it can
+        // carry its own marker) and the unaliased class, as DelegateRegistryGenerator does.
+        val types = listOfNotNull(function.extensionReceiver?.resolve(), function.returnType?.resolve())
+        for (type in types) {
+            (type.declaration as? KSTypeAlias)?.let { collectFrom(it, sink) }
+            (type.unwrapTypeAliases().declaration as? KSClassDeclaration)?.let { collectFrom(it, sink) }
+        }
     }
 
     private fun collectFrom(symbol: KSAnnotated, sink: MutableMap<String, OptInMarker>) {
