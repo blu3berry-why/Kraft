@@ -157,6 +157,22 @@ sides/           — side-alias happy paths, error cases, emit modes, enum alias
 propertyresolver/ — unit tests for individual MappingRule implementations
 ```
 
+### Round-Trip Tests (Running the Generated Code)
+
+The KSP suite asserts on the *text* of generated mappers. To check what a mapper actually
+*does*, add a fixture to `integration-tests/kmp-consumer/src/commonMain/kotlin/kraft/itest/consumer/roundtrip/RoundTripModels.kt`
+and a case to `RoundTripTest` in the matching `commonTest` package: map a value, map it back
+through the `@MapReverse` mapper, and assert equality, plus the forward value itself, since two
+swapped fields would still round-trip. The module is a real Gradle KMP build, so the generated
+code is compiled and called like a consumer's. CI runs it in the test job:
+
+```bash
+./gradlew :integration-tests:kmp-consumer:jvmTest
+```
+
+A fixture that Kraft rejects fails the whole module at KSP time, so a case that does not compile
+yet belongs in a roadmap item, not in the fixtures.
+
 ### Running Tests
 
 ```bash
