@@ -321,7 +321,7 @@ configuration the existing tests do not reach.
 an experimental type and assert the consumer's generated mapper carries the marker. The
 harness already exists; this is a fixture addition, not new infrastructure.
 
-### 18. Generated code is asserted as text, never executed — M · Test · open
+### 18. Generated code is asserted as text, never executed — M · Test · done in 0.16 (#153)
 
 The KSP suite asserts on the *source* of generated mappers. Nothing runs a mapper and checks
 the resulting value, so a mapper that compiles but assigns the wrong field passes. The one
