@@ -71,6 +71,9 @@ and `OptInMarkerCollector` only walked declaration annotations. Fixed in 0.13.0 
 opt-ins deterministically on 0.13.0+, and no module-wide `-opt-in` compiler argument should
 be needed. The reference docs were never updated to say so.
 
+*Correction (2026-11-25):* that held in-module only. A converter consumed from another
+module's klib still lost its marker until 0.14.1; see item 17.
+
 **RC-4 — converter rules.** The standalone restriction (top-level, extension receiver, no
 value parameters, no parameterized types) is documented and its error messages are specific,
 including the parameterized case corrected in #110. The nullable-scalar lift is where the
@@ -274,7 +277,7 @@ all four Android cases failed at plugin apply. The probe now runs on AGP 8.13.2 
 needs that leg on AGP ≥ 8.12, and the README/Getting Started should say that KSP 2.3.12+ needs
 AGP 8.12+. 2.3.11 remains the newest bump that works with the AGP 8.11.2 floor.
 
-### 17. No cross-module test for opt-in propagation — M · Test · done in 0.15 (#154)
+### 17. No cross-module test for opt-in propagation — M · Test · done in 0.14.1 (#154)
 
 `OptInPropagationTest` covers `@file:OptIn` well, but in-module only. RC-3 bit in the
 cross-module case, where converters resolve as classpath delegates from a klib — the one
@@ -283,6 +286,13 @@ configuration the existing tests do not reach.
 *Scope:* extend `integration-tests/kmp-producer` with a `@file:OptIn`-annotated converter over
 an experimental type and assert the consumer's generated mapper carries the marker. The
 harness already exists; this is a fixture addition, not new infrastructure.
+
+*Done:* the test found a real bug. `kotlin.OptIn` has `SOURCE` retention, so the `@OptIn` on a
+producer's `@KraftConverterDelegate` never reaches the klib, and the consumer's mapper came out
+without the marker. The mapper side now also collects markers from the converter's receiver and
+return types (and aliases), as the delegate registry already did. *Not covered:* markers on type
+arguments (a converter over `List<Experimental>`), and an experimental-typed property copied
+across modules with no converter involved.
 
 ### 18. Generated code is asserted as text, never executed — M · Test · open
 

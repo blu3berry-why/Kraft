@@ -62,7 +62,7 @@ The `@KraftConverter` delegate file that Kraft generates for [cross-module disco
 
 On Kraft 0.13.0 and later, generated code owns its opt-ins. You do not need a module-wide `-opt-in` compiler argument to compile Kraft's output, and you do not need an `@OptIn` at the call site of a generated mapper for markers Kraft collected.
 
-Before 0.13.0, only declaration-level markers were copied and a file-level `@file:OptIn` was silently dropped. See [Upgrading](upgrading.md) if you are coming from an earlier version.
+Before 0.13.0, only declaration-level markers were copied and a file-level `@file:OptIn` was silently dropped. Before 0.14.1, a mapper that called a `@KraftConverter` from an upstream module could still miss that converter's opt-in, because `@OptIn` is not kept in the compiled klib. The mapper now also takes the marker from the converter's receiver and return types, which the klib does keep. See [Upgrading](upgrading.md) if you are coming from an earlier version.
 
 ## If a marker still leaks
 
@@ -92,4 +92,4 @@ That compiles, but it is not the intended setup. It opts in every file in the mo
 
 ## Coverage notes
 
-`OptInPropagationTest` covers each site above: declaration-level markers on the source class, the `@KraftConverter`, and the `@MapUsing` function; `@file:OptIn` on the source class file and on the converter file; deduplication across sites; type aliases on the delegate registry; and the case with no markers. There is no dedicated test where an upstream module's converter is consumed from a separate compilation and its opt-in is checked in the consumer's generated mapper. The delegate file carrying the opt-in is tested (`CrossModuleConverterTest`), and the mapper side reads the invoked converter's declaration, but that end-to-end klib-classpath case is not pinned by its own test.
+`OptInPropagationTest` covers each site above: declaration-level markers on the source class, the `@KraftConverter`, and the `@MapUsing` function; `@file:OptIn` on the source class file and on the converter file; deduplication across sites; type aliases on the delegate registry; and the case with no markers. The delegate file carrying the opt-in is tested (`CrossModuleConverterTest`). The end-to-end klib-classpath case, where an upstream module's `@file:OptIn` converter is consumed from a separate compilation, is pinned by the `kmp-producer` / `kmp-consumer` integration modules: `verifyCrossModuleOptIn` checks that the consumer's generated mapper carries the marker, and `CrossModuleOptInTest` runs it. Markers on type arguments (a converter over `List<Experimental>`) are not covered.
