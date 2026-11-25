@@ -121,6 +121,43 @@ nothing. `@MapUsing(direction = REVERSE)` in the same position already fails wit
 *Scope:* report an E031-style error from `ConstantMemberScanner` when the direction is
 `REVERSE` and the object has no `@MapReverse`, and add the case to `ConstantDirectionTest`.
 
+### 44. A non-null source into a nullable target fails for same-type, enum and converter pairs — S · Bug · open
+
+Found 2026-11-24 by the round-trip suite (#18). Kotlin accepts a `T` wherever a `T?` is expected,
+and Kraft already accepts that widening for a value-class wrap/unwrap (`TagId` → `String?`), a
+nested object (`Address` → `AddressDto?`) and a mapped collection (`List<Address>` →
+`List<AddressDto>?`). Every other kind fails with KRAFT-E005 "Types must match exactly":
+
+| Source | Target | Today |
+|---|---|---|
+| `String` | `String?` | KRAFT-E005 (`DirectMatchRule` compares the `KSType`s, nullability included) |
+| `List<String>` | `List<String>?` | KRAFT-E005 |
+| `Status` | `StatusDto?` with `@MapEnum`, or auto-derived | KRAFT-E005 |
+| `Millis` | `Long?` with `@KraftConverter fun Millis.toEpochMillis(): Long` | KRAFT-E005 |
+
+The error is misleading for a same-type pair, whose fix ("align the declared types") is the
+change the user is trying not to make. The usual case is a DTO with optional fields fed from a
+domain model whose fields are all set.
+
+*Scope:* accept a source type that is assignable to the target type (the non-null form of the
+target) in `DirectMatchRule`, and let the enum and converter lookups match a nullable target on
+its non-null key, as the element lookups already do (#1). Add the four rows above to
+`integration-tests/kmp-consumer`'s `RoundTripModels.kt` (`Widening`), which leaves them out today.
+
+### 45. A nullable collection of value classes does not fall back to empty — S · Bug · open
+
+Found 2026-11-24 by the round-trip suite (#18). `collection-mapping.md` says a nullable source
+collection into a non-null target falls back to an empty one, and that holds for nested, enum and
+converter elements. With a value-class element it fails instead: `Set<TagId>?` → `Set<String>`
+reports KRAFT-E005, followed by a KRAFT-E004 for the same property.
+`ContainerShapeBuilder.autoElementOp` rejects a wrap or unwrap when the source container is
+nullable and the target is not, on purpose since #120, but no doc states the exception and no
+test pins it.
+
+*Scope:* decide which way it goes. Either drop the check so the value-class case falls back like
+the others (and add `labels: Set<TagId>?` back to `Inbox` in `RoundTripModels.kt`), or keep it,
+document it in `collection-mapping.md` and `value-classes.md`, and suppress the trailing E004.
+
 ## DX and diagnostics
 
 ### 4. Type-mismatch error named neither `@KraftConverter` nor the nullability rule — S · DX · done in 0.14 (#113)
@@ -284,7 +321,7 @@ configuration the existing tests do not reach.
 an experimental type and assert the consumer's generated mapper carries the marker. The
 harness already exists; this is a fixture addition, not new infrastructure.
 
-### 18. Generated code is asserted as text, never executed — M · Test · open
+### 18. Generated code is asserted as text, never executed — M · Test · done in 0.16 (#153)
 
 The KSP suite asserts on the *source* of generated mappers. Nothing runs a mapper and checks
 the resulting value, so a mapper that compiles but assigns the wrong field passes. The one
