@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.1](https://github.com/blu3berry-why/Kraft/compare/0.14.0...0.14.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* import same-name extension mappers instead of fully qualifying them ([#148](https://github.com/blu3berry-why/Kraft/issues/148)) ([f494162](https://github.com/blu3berry-why/Kraft/commit/f4941628a624d0afd0d3b18b3df940c1e5984eb1))
+* propagate opt-in markers from cross-module converters (roadmap [#17](https://github.com/blu3berry-why/Kraft/issues/17)) ([#154](https://github.com/blu3berry-why/Kraft/issues/154)) ([af09709](https://github.com/blu3berry-why/Kraft/commit/af097094eacc48a39fd23c68b64e28f5827ad484))
+* report KRAFT-E011 for type-parameter source properties instead of crashing ([#147](https://github.com/blu3berry-why/Kraft/issues/147)) ([78cd030](https://github.com/blu3berry-why/Kraft/commit/78cd030ae95746b71605ea4219227f9635257f75))
+* report reverse-only rules on a @MapConfig without @MapReverse ([#150](https://github.com/blu3berry-why/Kraft/issues/150)) ([b737268](https://github.com/blu3berry-why/Kraft/commit/b73726880860f6ebc09277101f4508499e8154c5))
+* warn when @FieldMapping rules for one target resolve last-wins ([#151](https://github.com/blu3berry-why/Kraft/issues/151)) ([da9664c](https://github.com/blu3berry-why/Kraft/commit/da9664c5d72dd83c79e9a1742a8540bbba04b902))
+
 ## [0.14.0](https://github.com/blu3berry-why/Kraft/compare/0.13.0...0.14.0) (2026-10-27)
 
 
