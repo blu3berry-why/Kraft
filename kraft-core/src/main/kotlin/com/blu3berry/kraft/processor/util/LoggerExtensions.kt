@@ -7,10 +7,12 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSNode
 import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
+import com.blu3berry.kraft.processor.diagnostics.converterCandidatesSection
 import com.blu3berry.kraft.processor.diagnostics.report
 import com.blu3berry.kraft.model.PropertyInfo
 import com.blu3berry.kraft.model.TypeInfo
 import com.blu3berry.kraft.model.scan.FieldOverride
+import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 
 fun KSPLogger.annotationTargetError(
     annotationName: String,
@@ -184,14 +186,17 @@ fun KSPLogger.nullableTargetDefaultedToNull(
 )
 
 /**
- * More informative type mismatch message.
+ * More informative type mismatch message. [converters] supplies the converter listing: every
+ * known converter whose source or target touches the two property types.
  */
+@Suppress("LongParameterList")
 fun KSPLogger.detailedTypeMismatch(
     sourceType: String,
     targetType: String,
     sourceProperty: PropertyInfo,
     targetProperty: PropertyInfo,
-    symbol: KSNode
+    symbol: KSNode,
+    converters: GlobalConverterRegistry = GlobalConverterRegistry.EMPTY
 ) {
     var sourceShown = sourceProperty.type.ksType.toString()
     var targetShown = targetProperty.type.ksType.toString()
@@ -219,6 +224,8 @@ fun KSPLogger.detailedTypeMismatch(
       • ${targetProperty.name}: $targetShown
 
     Types must match exactly, or be bridged by a registered converter.
+
+${converterCandidatesSection(sourceProperty, targetProperty, converters)}
 
 ${typeMismatchGuidance(sourceProperty, targetProperty)}
         """.trimIndent(),

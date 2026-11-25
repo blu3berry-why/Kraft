@@ -41,7 +41,8 @@ class ClassOverrideRule : MappingRule {
                 ctx.targetTypeName,
                 source,
                 target,
-                target.declaration
+                target.declaration,
+                converters = ctx.globalConverters
             )
             return null
         }

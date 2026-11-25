@@ -140,7 +140,13 @@ class ExtensionMapperGenerator(
         }
         val mapperOrigin = originSymbol.qualifiedName?.asString() ?: "<unknown>"
         try {
-            sideRegistry.recordAlias(fromClass.canonicalName, aliasName, mapperOrigin)
+            sideRegistry.recordAlias(
+                receiverFqn = fromClass.canonicalName,
+                aliasName = aliasName,
+                mapperOrigin = mapperOrigin,
+                targetFqn = targetFqn,
+                sideName = side.name,
+            )
         } catch (e: IllegalStateException) {
             logger.report(KraftDiagnostic.ALIAS_COLLISION, e.message ?: "Alias collision.", originSymbol)
             return null

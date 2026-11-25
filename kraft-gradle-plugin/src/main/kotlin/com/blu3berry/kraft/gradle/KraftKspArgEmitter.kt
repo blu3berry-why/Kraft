@@ -38,6 +38,9 @@ internal object KraftKspArgEmitter {
                 extension.functionNameFormat.orNull?.let {
                     emitArg(project, ksp, "kraft.functionNameFormat", it)
                 }
+                extension.report.orNull?.let {
+                    emitArg(project, ksp, "kraft.report", it.toString())
+                }
                 emitSides(project, ksp, extension)
             }
         }

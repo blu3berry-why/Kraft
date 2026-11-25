@@ -18,6 +18,9 @@ import com.blu3berry.kraft.processor.codegen.generator.enumMappingsToConverterEn
 import com.blu3berry.kraft.processor.codegen.generator.mergeWithEnumAmbiguityCheck
 import com.blu3berry.kraft.processor.descriptor.DescriptorBuilder
 import com.blu3berry.kraft.processor.scanner.AutoEnumMappingDeriver
+import com.blu3berry.kraft.model.descriptor.EnumMappingDescriptor
+import com.blu3berry.kraft.model.scan.ConverterEntry
+import com.blu3berry.kraft.model.scan.ConverterTypeKey
 import com.blu3berry.kraft.model.scan.GlobalConverterRegistry
 import com.blu3berry.kraft.processor.scanner.ClassAnnotationScanner
 import com.blu3berry.kraft.processor.scanner.ClasspathConverterScanner
@@ -30,6 +33,7 @@ import java.util.ServiceLoader
 import com.blu3berry.kraft.processor.diagnostics.KraftDiagnostic
 import com.blu3berry.kraft.processor.diagnostics.NullableTwinConverterReporter
 import com.blu3berry.kraft.processor.diagnostics.report
+import com.blu3berry.kraft.processor.report.KraftReportCollector
 
 /**
  * Main KSP [SymbolProcessor] that orchestrates the scan, build, and generate pipeline:
@@ -44,16 +48,16 @@ class AutoMapperProcessor(
     private val logger = env.logger
     private val nullableTwinReporter = NullableTwinConverterReporter(logger)
 
-    override fun process(resolver: Resolver): List<KSAnnotated> {
-        val deferred = listOf(
-            KraftKspConstants.FQ_MAP_FROM,
-            KraftKspConstants.FQ_MAP_TO,
-            KraftKspConstants.FQ_MAP_CONFIG,
-            KraftKspConstants.FQ_MAP_ENUM,
-            KraftKspConstants.FQ_KRAFT_CONVERTER
-        ).flatMap { fq ->
-            resolver.getSymbolsWithAnnotation(fq).filter { !it.validate() }
+    /** Non-null only when `kraft.report=true`; nothing else changes when it is off. */
+    private val reportCollector: KraftReportCollector? =
+        if (env.options[KraftKspConstants.OPTION_REPORT].equals("true", ignoreCase = true)) {
+            KraftReportCollector(moduleId = env.options[KraftKspConstants.OPTION_MODULE_ID])
+        } else {
+            null
         }
+
+    override fun process(resolver: Resolver): List<KSAnnotated> {
+        val deferred = deferredSymbols(resolver)
 
         val classMappings = ClassAnnotationScanner(resolver, logger).scan()
         val configMappings = ConfigObjectScanner(resolver, logger).scan()
@@ -103,7 +107,8 @@ class AutoMapperProcessor(
         // Classpath delegates are resolved lazily by name (klib classpaths can't be
         // package-enumerated); eager same-module entries win, so a local
         // @KraftConverter shadows a classpath delegate by resolving first.
-        val mergedConverters = withClasspathFallback(sameModuleConverters, resolver)
+        val classpathScanner = ClasspathConverterScanner(resolver, logger)
+        val mergedConverters = withClasspathFallback(sameModuleConverters, classpathScanner)
         nullableTwinReporter.report(sameModuleConverters, mergedConverters)
 
         DelegateRegistryGenerator(
@@ -125,7 +130,45 @@ class AutoMapperProcessor(
             generator.generate(descriptor, codeGenerator)
         }
 
+        // After generation, so every classpath delegate a mapper looked up is known.
+        reportCollector?.collectRound(
+            mergedConverters, classpathScanner, declaredEnumMappings, syntheticEnumConverters, sideRegistry
+        )
+
         return deferred
+    }
+
+    /** Annotated symbols that do not validate yet; KSP hands them back next round. */
+    private fun deferredSymbols(resolver: Resolver): List<KSAnnotated> = listOf(
+        KraftKspConstants.FQ_MAP_FROM,
+        KraftKspConstants.FQ_MAP_TO,
+        KraftKspConstants.FQ_MAP_CONFIG,
+        KraftKspConstants.FQ_MAP_ENUM,
+        KraftKspConstants.FQ_KRAFT_CONVERTER
+    ).flatMap { fq ->
+        resolver.getSymbolsWithAnnotation(fq).filter { !it.validate() }
+    }
+
+    private fun KraftReportCollector.collectRound(
+        converters: GlobalConverterRegistry,
+        classpathScanner: ClasspathConverterScanner,
+        declaredEnumMappings: List<EnumMappingDescriptor>,
+        enumConverters: Map<ConverterTypeKey, ConverterEntry.Synthetic>,
+        sideRegistry: SideRegistry,
+    ) {
+        addConverters(converters.knownEntries(), classpathScanner::moduleIdOf)
+        addEnumPairs(declaredEnumMappings, enumConverters)
+        addSides(sideRegistry.sides)
+        addAliases(sideRegistry.emittedAliases())
+    }
+
+    override fun finish() {
+        reportCollector?.writeOnce(codeGenerator)
+    }
+
+    /** Also written on failure: a failing build is when the report is most needed. */
+    override fun onError() {
+        reportCollector?.writeOnce(codeGenerator)
     }
 
     /**
@@ -134,15 +177,13 @@ class AutoMapperProcessor(
      */
     private fun withClasspathFallback(
         converters: GlobalConverterRegistry,
-        resolver: Resolver
-    ): GlobalConverterRegistry {
-        val classpathScanner = ClasspathConverterScanner(resolver, logger)
-        return GlobalConverterRegistry(
-            entries = converters.entries,
-            classpathFallback = classpathScanner::lookupByName,
-            silentClasspathFallback = classpathScanner::lookupByNameSilently
-        )
-    }
+        classpathScanner: ClasspathConverterScanner
+    ): GlobalConverterRegistry = GlobalConverterRegistry(
+        entries = converters.entries,
+        classpathFallback = classpathScanner::lookupByName,
+        silentClasspathFallback = classpathScanner::lookupByNameSilently,
+        resolvedClasspathEntries = classpathScanner::resolvedEntries
+    )
 
     /**
      * Builds the [SideRegistry] from KSP options, or returns null after logging

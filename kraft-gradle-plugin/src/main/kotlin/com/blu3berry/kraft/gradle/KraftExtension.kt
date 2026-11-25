@@ -20,6 +20,7 @@ import javax.inject.Inject
  *     functionNameFormat = "to${'$'}{target}From${'$'}{source}"   // optional
  *     side("dto")    { packagePattern = "com.example.dto.**" }     // name defaults to "Dto"
  *     side("domain") { packagePattern = "com.example.domain.**" }  // name defaults to "Domain"
+ *     report = true                                               // optional: write kraft/report.json
  * }
  * ```
  */
@@ -34,6 +35,13 @@ abstract class KraftExtension @Inject constructor(objects: ObjectFactory) {
 
     /** `kraft.functionNameFormat`. Unset → the processor default `to${'$'}{target}`. */
     abstract val functionNameFormat: Property<String>
+
+    /**
+     * `kraft.report`. `true` makes the processor write `kraft/report.json` (converters with their
+     * origin, enum pairs, sides and emitted aliases) to each compilation's KSP resources output.
+     * Unset → the processor default, off.
+     */
+    abstract val report: Property<Boolean>
 
     /** Named side registry: `side("dto") { … }` → `kraft.side.dto.*`. */
     val sides: NamedDomainObjectContainer<KraftSide> =

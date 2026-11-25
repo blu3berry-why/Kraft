@@ -38,7 +38,8 @@ class ConfigOverrideRule : MappingRule {
                 ctx.targetTypeName,
                 sourceProp,
                 target,
-                target.declaration
+                target.declaration,
+                converters = ctx.globalConverters
             )
             null
         }
