@@ -64,6 +64,8 @@ jobs:
       # Real two-module KMP build: the consumer's converter only exists in the
       # producer's klib, so a green build proves cross-module @KraftConverter
       # discovery works under kspCommonMainKotlinMetadata (klib classpath).
+      # jvmTest also runs the round-trip suite (roadmap #18), which executes the
+      # generated mappers and asserts on the values they return.
       - name: KMP cross-module integration test
         run: ./gradlew :integration-tests:kmp-consumer:jvmTest :integration-tests:kmp-consumer:compileKotlinJs
 
