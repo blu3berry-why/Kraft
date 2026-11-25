@@ -2,6 +2,7 @@ package com.blu3berry.kraft.model.scan
 
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import com.google.devtools.ksp.symbol.Origin
 import com.blu3berry.kraft.model.TypeInfo
 import com.blu3berry.kraft.model.descriptor.EnumKeyCollision
 
@@ -18,7 +19,28 @@ data class ConverterTypeKey(
     val sourceNullable: Boolean,
     val targetFqName: String,
     val targetNullable: Boolean
-)
+) {
+    /** The source type as written in reports and diagnostics, e.g. `kotlin.String?`. */
+    val sourceRendering: String get() = sourceFqName + if (sourceNullable) "?" else ""
+
+    /** The target type as written in reports and diagnostics, e.g. `app.Tag?`. */
+    val targetRendering: String get() = targetFqName + if (targetNullable) "?" else ""
+}
+
+/**
+ * Where a [ConverterEntry] came from, as shown in the `kraft.report` file and in the
+ * KRAFT-E005 converter listing. [label] is the stable string both print.
+ */
+enum class ConverterOrigin(val label: String) {
+    /** A `@KraftConverter` function declared in the module being compiled. */
+    SAME_MODULE("same-module"),
+
+    /** A `@KraftConverterDelegate` published by an upstream Kraft module on the classpath. */
+    CLASSPATH_DELEGATE("classpath-delegate"),
+
+    /** A converter this KSP run generates itself (a `@MapEnum` or auto-derived enum mapper). */
+    SYNTHETIC("synthetic"),
+}
 
 /**
  * A single entry in the [GlobalConverterRegistry].
@@ -35,10 +57,24 @@ sealed class ConverterEntry {
     abstract val packageName: String
     abstract val simpleName: String
 
+    /** Where this converter came from. */
+    abstract val origin: ConverterOrigin
+
+    /** Qualified name of the function the generated code calls. */
+    val callFqName: String
+        get() = if (packageName.isEmpty()) simpleName else "$packageName.$simpleName"
+
     /** A converter the user wrote (or that an upstream module published as a delegate). */
     data class Real(val function: KSFunctionDeclaration) : ConverterEntry() {
         override val packageName: String get() = function.packageName.asString()
         override val simpleName: String get() = function.simpleName.asString()
+
+        /** Library-origin entries can only come from the classpath-delegate scanner. */
+        override val origin: ConverterOrigin
+            get() = when (function.origin) {
+                Origin.KOTLIN_LIB, Origin.JAVA_LIB -> ConverterOrigin.CLASSPATH_DELEGATE
+                else -> ConverterOrigin.SAME_MODULE
+            }
     }
 
     /**
@@ -64,6 +100,8 @@ sealed class ConverterEntry {
     ) : ConverterEntry() {
         /** True when no two source entries map to the same target entry. */
         val isInjective: Boolean get() = keyCollision == null
+
+        override val origin: ConverterOrigin get() = ConverterOrigin.SYNTHETIC
     }
 }
 
@@ -86,21 +124,33 @@ sealed class ConverterEntry {
  * @param silentClasspathFallback The same lookup as [classpathFallback], but one that reports
  *                nothing and leaves no trace (no memoized results, no diagnostics). Used by
  *                [silent] for speculative resolution. Defaults to [classpathFallback].
+ * @param resolvedClasspathEntries The classpath delegates the fallback has resolved so far.
+ *                Classpath delegates cannot be enumerated, so this is the only view of them
+ *                that [knownEntries] can offer.
  */
 class GlobalConverterRegistry(
     val entries: Map<ConverterTypeKey, ConverterEntry>,
     private val classpathFallback: ((ConverterTypeKey) -> ConverterEntry?)? = null,
-    private val silentClasspathFallback: ((ConverterTypeKey) -> ConverterEntry?)? = classpathFallback
+    private val silentClasspathFallback: ((ConverterTypeKey) -> ConverterEntry?)? = classpathFallback,
+    private val resolvedClasspathEntries: () -> Map<ConverterTypeKey, ConverterEntry> = { emptyMap() }
 ) {
     fun lookup(key: ConverterTypeKey): ConverterEntry? =
         entries[key] ?: classpathFallback?.invoke(key)
+
+    /**
+     * Every converter this registry can name right now: the eager [entries] plus the classpath
+     * delegates resolved so far. An eager entry wins over a delegate for the same key, as in
+     * [lookup]. Used by the `kraft.report` file and the KRAFT-E005 converter listing.
+     */
+    fun knownEntries(): Map<ConverterTypeKey, ConverterEntry> =
+        resolvedClasspathEntries() + entries
 
     /**
      * A view of this registry whose classpath lookups are side-effect free, for speculative
      * rule evaluation (the `KRAFT-W001` shadow probe). Lookups return the same entries.
      */
     fun silent(): GlobalConverterRegistry =
-        GlobalConverterRegistry(entries, silentClasspathFallback, silentClasspathFallback)
+        GlobalConverterRegistry(entries, silentClasspathFallback, silentClasspathFallback, resolvedClasspathEntries)
 
     /** True when no converter can possibly resolve — no entries and no lazy fallback. */
     fun isEmpty(): Boolean = entries.isEmpty() && classpathFallback == null

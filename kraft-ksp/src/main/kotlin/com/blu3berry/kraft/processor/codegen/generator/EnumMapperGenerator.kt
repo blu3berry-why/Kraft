@@ -228,7 +228,13 @@ class EnumMapperGenerator(
         val mapperOrigin = originDecl?.qualifiedName?.asString()
             ?: "${fromClass.canonicalName}->${toClass.canonicalName}"
         try {
-            sideRegistry.recordAlias(fromClass.canonicalName, aliasName, mapperOrigin)
+            sideRegistry.recordAlias(
+                receiverFqn = fromClass.canonicalName,
+                aliasName = aliasName,
+                mapperOrigin = mapperOrigin,
+                targetFqn = targetFqn,
+                sideName = side.name,
+            )
         } catch (e: IllegalStateException) {
             logger.report(KraftDiagnostic.ALIAS_COLLISION, e.message ?: "Alias collision.", originDecl)
             return null

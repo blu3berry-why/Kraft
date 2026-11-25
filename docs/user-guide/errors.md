@@ -135,6 +135,19 @@ data class UserDto(val id: String) // error: Int -> String has no converter
 - Or align the declared types, including nullability.
 - When only nullability differs (`String?` to `String`), make the target nullable, give it a default and add `@MapIgnore`, or choose the fallback with a whole-source `@MapUsing(target = ...)`.
 
+#### Converters Kraft knows for these types
+
+The error lists every registered converter whose source matches the source property's type, or whose target matches the target property's type. Nullability is ignored, and for a `List`, `Set` or `Map` the element, key and value types count too. Each line gives the pair, the function and its origin:
+
+```text
+Registered converters touching these types:
+  • app.Money → kotlin.Long (app.toCents, same-module)
+```
+
+A converter listed with the right source but the wrong target means the pair you need is missing. Declare it, or change the target type. When nothing touches the types, the error says `No registered converter has <source> as its source or <target> as its target.` If you expected one, check that it is a top-level `@KraftConverter` extension in this module, or in an upstream Kraft module on the classpath built with the same Kraft version.
+
+Upstream (`classpath-delegate`) converters are found by name, from the exact pair a mapper needs, so the list only shows the ones resolved before this error. Turn on [`kraft.report`](processor-report.md) for the full table at the end of processing.
+
 #### Map values that are nullable
 
 When two maps differ only because the source value is nullable (`Map<String, ItemSource?>` into `Map<String, ItemDto>`), the error adds the hint `Map values cannot be dropped like list elements: removing a null value would also remove its key.` A list would drop the null element with `mapNotNull`, but a map cannot drop a value without dropping its key. Make the target values nullable, or filter first with a whole-source `@MapUsing`.

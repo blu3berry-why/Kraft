@@ -29,7 +29,7 @@ The report SHALL be a JSON object with an integer `schemaVersion` (1 for this ch
 - **THEN** both report files are byte-identical, and the converter entries are ordered by source type, then target type, then function
 
 ### Requirement: Converter table names each entry's origin
-Each entry in `converters` SHALL give `source` and `target` as qualified type names with a trailing `?` when nullable, `function` as the qualified name of the function the generated code calls, and `origin` as one of `same-module`, `classpath-delegate` or `synthetic`. A `classpath-delegate` entry SHALL also give `module`, the producing module's id.
+Each entry in `converters` SHALL give `source` and `target` as qualified type names with a trailing `?` when nullable, `function` as the qualified name of the function the generated code calls, and `origin` as one of `same-module`, `classpath-delegate` or `synthetic`. A `classpath-delegate` entry SHALL also give `module`, the producing module id recorded on the delegate (the `kraft.moduleId` sanitised to an identifier, or the module's content hash when unset).
 
 #### Scenario: Same-module converter
 - **WHEN** a module declares `@KraftConverter fun Money.toCents(): Long` in package `app` and compiles with `kraft.report=true`
@@ -41,11 +41,11 @@ Each entry in `converters` SHALL give `source` and `target` as qualified type na
 
 #### Scenario: Classpath delegate used by a mapper
 - **WHEN** an upstream module with `kraft.moduleId=:core` declares `@KraftConverter fun Money.toCents(): Long`, and the consumer maps `data class A(val price: Money)` to `@MapFrom(A::class) data class B(val price: Long)` with `kraft.report=true`
-- **THEN** the consumer's `converters` contains an entry with `"source": "core.Money"`, `"target": "kotlin.Long"`, `"origin": "classpath-delegate"` and `"module": ":core"`
+- **THEN** the consumer's `converters` contains an entry with `"source": "core.Money"`, `"target": "kotlin.Long"`, `"origin": "classpath-delegate"` and `"module": "_core"`
 
 #### Scenario: Enum mapper as a synthetic converter
 - **WHEN** a module declares `@MapEnum(source = StatusDto::class, target = Status::class) object StatusMapper` in package `app`
-- **THEN** `converters` contains an entry with `"source": "app.StatusDto"`, `"target": "app.Status"`, `"function": "app.toStatus"` and `"origin": "synthetic"`
+- **THEN** `converters` contains an entry with `"source": "app.StatusDto"`, `"target": "app.Status"`, `"function": "app.generated.toStatus"` and `"origin": "synthetic"`
 
 ### Requirement: Classpath delegates are reported only once resolved
 A classpath delegate SHALL appear in `converters` only when a mapper in the compilation looked up its type pair. Delegates for pairs no mapper needed SHALL NOT appear, because they cannot be enumerated on klib classpaths.
@@ -59,7 +59,7 @@ Each entry in `enumPairs` SHALL give `source`, `target`, the generated `function
 
 #### Scenario: Declared enum pair
 - **WHEN** a module declares `@MapEnum(source = StatusDto::class, target = Status::class) object StatusMapper` in package `app`
-- **THEN** `enumPairs` contains `{"source": "app.StatusDto", "target": "app.Status", "function": "app.toStatus", "derivation": "declared", "declaredBy": "app.StatusMapper"}`
+- **THEN** `enumPairs` contains `{"source": "app.StatusDto", "target": "app.Status", "function": "app.generated.toStatus", "derivation": "declared", "declaredBy": "app.StatusMapper"}`
 
 #### Scenario: Auto-derived enum pair
 - **WHEN** a module declares enums `RoleDto { ADMIN }` and `Role { ADMIN }` in package `app`, `data class UserDto(val role: RoleDto)` and `@MapFrom(UserDto::class) data class User(val role: Role)`, with no `@MapEnum`

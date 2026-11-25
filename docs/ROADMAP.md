@@ -147,6 +147,15 @@ entry's origin: same-module, classpath delegate, or synthetic), derived enum pai
 resolved side aliases. Extend item 4 to list registered converters whose source or
 target matches the failing property.
 
+**Shipped.** `kraft { report = true }` (KSP option `kraft.report=true`) writes
+`kraft/report.json` to each compilation's KSP resources output: the converter table with
+`same-module` / `classpath-delegate` / `synthetic` origins, the enum pairs (`declared` or
+`auto`), the configured sides and the emitted aliases. It is versioned JSON whose sections are
+additive, so #34's per-mapper coverage report can be added under the same schema. KRAFT-E005 now
+lists the registered converters touching the failing property's types, or says that none do.
+Classpath delegates appear only once a mapper has looked up their pair, because klib
+classpaths cannot be enumerated. See [Processor Report](user-guide/processor-report.md).
+
 ### 6. Errors carry no stable codes — M · DX · done in 0.14 (#118)
 
 Messages are well-formatted prose with no identifier, so they cannot be searched, linked to a

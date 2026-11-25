@@ -17,3 +17,15 @@ data class SideConfig(
     val template: AliasTemplate,
     val emitMode: AliasEmitMode,
 )
+
+/**
+ * One alias function a generator emitted: `fun <receiver>.<alias>(): <target>`, produced for
+ * [side] by [mapper]. Reported in the `kraft.report` file.
+ */
+data class EmittedAlias(
+    val receiver: String,
+    val alias: String,
+    val target: String?,
+    val side: String?,
+    val mapper: String,
+)

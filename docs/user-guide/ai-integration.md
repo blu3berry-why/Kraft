@@ -191,3 +191,5 @@ Example addition:
 ## When a build fails
 
 Every Kraft error and warning starts with its code in square brackets, `[KRAFT-E###]` or `[KRAFT-W###]`, and ends with a `See:` link to its entry. Grep the code in the project and read its entry in the [Errors Reference](errors.md) before changing any code. Warnings `KRAFT-W001` and `KRAFT-W002` mean "delete your helper": Kraft already generates that mapping. Suppress a warning only deliberately, with `@Suppress("KRAFT-W001")` or `@Suppress("KRAFT-W002")`, when the helper does something Kraft does not.
+
+To check what Kraft registered (whether a converter from another module is seen, which enum pairs it derived, which side aliases it emitted), build once with the KSP option `kraft.report=true` and read `kraft/report.json` under `build/generated/ksp/<compilation>/resources/`. See [Processor Report](processor-report.md). For a KRAFT-E005 type mismatch, the error already lists the registered converters that touch the two types, with their origin.

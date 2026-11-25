@@ -22,7 +22,8 @@ class DirectMatchRule : MappingRule {
                 targetType = ctx.targetTypeName,
                 sourceProperty = source,
                 targetProperty = target,
-                symbol = target.declaration
+                symbol = target.declaration,
+                converters = ctx.globalConverters
             )
             return null
         }

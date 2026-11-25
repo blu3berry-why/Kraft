@@ -72,6 +72,11 @@ From each property type, collect the qualified names of the type and, recursivel
 
 Additive, shipped in a `feat:` minor release (0.15). No consumer action is needed. Rollback is a revert.
 
+## Deviations during apply
+
+- **Spec scenarios corrected to observed coordinates (group 3).** Enum mappers are generated in `<package>.generated`, so the synthetic and enum-pair scenarios expect `app.generated.toStatus`, not `app.toStatus`. A classpath delegate records the producing module's sanitised id (`_core` for `:core`, or a content hash when unset), so the report's `module` is that value. Both were spec mistakes. The implementation reports what the processor actually calls and reads.
+- **`process` was split (group 6).** Adding the report call pushed `AutoMapperProcessor.process` over detekt's 60-line limit. The deferred-symbol query and the per-round report collection moved into private helpers. Behaviour is unchanged.
+
 ## Open Questions
 
 - Should the report be kept out of packaged artifacts, for example by the Gradle plugin excluding `kraft/report.json` from the resources of a compilation, or by moving it to a KSP-unmanaged path once KSP offers a non-packaged output kind? It does not change the format or the option, so it can be decided after this lands.

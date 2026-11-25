@@ -155,6 +155,36 @@ The value is sanitized into a Kotlin file-name suffix, so any non-alphanumeric c
 
 In those cases the default hash is sufficient.
 
+## kraft.report
+
+Writes `kraft/report.json` to each compilation's KSP resources output. It lists every converter Kraft can call, with its origin (`same-module`, `classpath-delegate` or `synthetic`), the enum pairs it generates mappers for, and the configured sides and emitted aliases. See [Processor Report](processor-report.md) for the format and how to read it.
+
+### Default
+
+Off. Only the value `true` (case-insensitive) turns it on.
+
+### Configuration
+
+With the DSL:
+
+```kotlin
+kraft {
+    report = true
+    // or only on demand: ./gradlew build -Pkraft.report
+    // report = providers.gradleProperty("kraft.report").isPresent
+}
+```
+
+Or as a raw KSP arg:
+
+```kotlin
+ksp {
+    arg("kraft.report", "true")
+}
+```
+
+The report is packaged with the compilation's resources, so leave it off for published builds.
+
 ## kraft.side.*
 
 Register named layers (`Dto`, `Domain`, `Entity`, …) so Kraft emits short alias extensions like `.toDomain()` alongside the verbose mappers. See [Side Aliases](side-aliases.md) for the full feature guide; this section is a reference of the four KSP keys.
