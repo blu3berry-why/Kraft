@@ -136,7 +136,7 @@ source with a non-null target it said "align nullability", hiding the actual rul
 and the nullable-source/non-null-target case gets dedicated text stating the both-sides rule,
 why it exists, and the three ways out. Covered by two tests in `NullableScalarBridgeTest`.
 
-### 5. Errors do not report what the processor actually discovered — M · DX · open
+### 5. Errors do not report what the processor actually discovered — M · DX · done in 0.15 (#152)
 
 Every "is my converter being seen?" investigation — especially cross-module, where discovery
 runs off the klib classpath — currently ends in reading generated output or bisecting the
