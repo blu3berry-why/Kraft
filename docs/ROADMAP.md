@@ -274,7 +274,7 @@ all four Android cases failed at plugin apply. The probe now runs on AGP 8.13.2 
 needs that leg on AGP ≥ 8.12, and the README/Getting Started should say that KSP 2.3.12+ needs
 AGP 8.12+. 2.3.11 remains the newest bump that works with the AGP 8.11.2 floor.
 
-### 17. No cross-module test for opt-in propagation — M · Test · open
+### 17. No cross-module test for opt-in propagation — M · Test · done in 0.15 (#154)
 
 `OptInPropagationTest` covers `@file:OptIn` well, but in-module only. RC-3 bit in the
 cross-module case, where converters resolve as classpath delegates from a klib — the one
