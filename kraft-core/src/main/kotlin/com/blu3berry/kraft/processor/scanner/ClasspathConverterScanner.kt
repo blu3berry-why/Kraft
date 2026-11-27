@@ -64,6 +64,18 @@ class ClasspathConverterScanner(
         return resolveByName(key, reportAmbiguity = false)
     }
 
+    /**
+     * The delegates [lookupByName] has found so far, by type pair. Misses are left out.
+     * Silent lookups are not cached, so they never appear here.
+     */
+    fun resolvedEntries(): Map<ConverterTypeKey, ConverterEntry> =
+        byNameCache.entries
+            .mapNotNull { (key, entry) -> entry?.let { key to it } }
+            .toMap()
+
+    /** The producing module id of a resolved delegate, or null when it carries none. */
+    fun moduleIdOf(entry: ConverterEntry.Real): String? = delegateModuleId(entry.function)
+
     private fun resolveByName(key: ConverterTypeKey, reportAmbiguity: Boolean): ConverterEntry? {
         val fqName = "${KraftKspConstants.GENERATED_REGISTRY_PACKAGE}.${DelegateNaming.delegateNameFor(key)}"
         val matches = resolver
@@ -118,12 +130,14 @@ class ClasspathConverterScanner(
      * the only thing that distinguishes the two sides of an ambiguity report.
      */
     private fun describeDelegate(fn: KSFunctionDeclaration): String {
-        val moduleId = fn.annotations.firstOrNull(::isDelegateAnnotation)
-            ?.arguments
-            ?.firstOrNull { it.name?.asString() == "moduleId" }
-            ?.value as? String
-            ?: KraftKspConstants.DEFAULT_KRAFT_CONVERTER_DELEGATE_MODULE_ID
+        val moduleId = delegateModuleId(fn) ?: KraftKspConstants.DEFAULT_KRAFT_CONVERTER_DELEGATE_MODULE_ID
         val fqName = fn.qualifiedName?.asString() ?: fn.simpleName.asString()
         return if (moduleId.isBlank()) "'$fqName'" else "Kraft module '$moduleId' ('$fqName')"
     }
+
+    private fun delegateModuleId(fn: KSFunctionDeclaration): String? =
+        fn.annotations.firstOrNull(::isDelegateAnnotation)
+            ?.arguments
+            ?.firstOrNull { it.name?.asString() == "moduleId" }
+            ?.value as? String
 }

@@ -68,6 +68,7 @@ object KraftKspConstants {
     // Processor option keys
     const val OPTION_FUNCTION_NAME_FORMAT = "kraft.functionNameFormat"
     const val OPTION_MODULE_ID            = "kraft.moduleId"
+    const val OPTION_REPORT               = "kraft.report"
 
     // Side-alias config (per-side keys: kraft.side.<slot>.<field>)
     const val OPTION_SIDE_PREFIX           = "kraft.side."

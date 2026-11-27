@@ -204,6 +204,34 @@ class KraftGradlePluginFunctionalTest {
     }
 
     @Test
+    fun `kraft DSL report emits kraft report only when set`() {
+        writeSettings()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            ${buildScriptHeader()}
+
+            kraft {
+                report.set(true)
+            }
+
+            ${probeTask()}
+            """.trimIndent()
+        )
+        assertThat(runner("kraftArgsProbe").build().output).contains("kraft.report=true")
+
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            ${buildScriptHeader()}
+
+            kraft { }
+
+            ${probeTask()}
+            """.trimIndent()
+        )
+        assertThat(runner("kraftArgsProbe").build().output).doesNotContain("kraft.report")
+    }
+
+    @Test
     fun `raw ksp args pass through the plugin unchanged`() {
         writeSettings()
         File(projectDir, "build.gradle.kts").writeText(
@@ -369,6 +397,7 @@ class KraftGradlePluginFunctionalTest {
                 functionNameFormat.set("into\${'$'}{target}")
                 side("dto") { packagePattern.set("com.example.dto.**") }
                 side("domain") { packagePattern.set("com.example.domain.**") }
+                report.set(true)
             }
 
             // A raw KSP arg must coexist with the DSL (and the plugin's
@@ -400,6 +429,10 @@ class KraftGradlePluginFunctionalTest {
         assertThat(generated).contains("toCreatedAtString(")
         // The raw ksp { arg("kraft.moduleId", …) } named the converter registry.
         assertThat(generatedFiles.map { it.name }.filter { it.contains("e2eModule") }).isNotEmpty()
+        // kraft { report = true } wrote the processor report next to the generated sources.
+        val report = File(projectDir, "build/generated/ksp/metadata/commonMain/resources/kraft/report.json")
+        assertThat(report.exists()).isTrue()
+        assertThat(report.readText()).contains("\"origin\": \"same-module\"")
     }
 
     @Test

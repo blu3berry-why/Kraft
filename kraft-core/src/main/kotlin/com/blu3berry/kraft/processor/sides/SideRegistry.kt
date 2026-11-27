@@ -46,15 +46,24 @@ class SideRegistry private constructor(
     }
 
     private val recordedAliases: MutableMap<Pair<String, String>, String> = mutableMapOf()
+    private val aliasRecords: MutableMap<Pair<String, String>, EmittedAlias> = mutableMapOf()
 
     /**
      * Track an emitted alias `(receiverFqn, aliasName)` and the originating
      * mapper's identifier (e.g. the `@MapConfig`-bearing object's qualified
      * name). Throws [IllegalStateException] on collision — same receiver +
-     * same alias name from two different mappers.
+     * same alias name from two different mappers. [targetFqn] and [sideName]
+     * are kept for the `kraft.report` file (see [emittedAliases]).
      */
-    fun recordAlias(receiverFqn: String, aliasName: String, mapperOrigin: String) {
+    fun recordAlias(
+        receiverFqn: String,
+        aliasName: String,
+        mapperOrigin: String,
+        targetFqn: String? = null,
+        sideName: String? = null,
+    ) {
         val key = receiverFqn to aliasName
+        aliasRecords.putIfAbsent(key, EmittedAlias(receiverFqn, aliasName, targetFqn, sideName, mapperOrigin))
         val previous = recordedAliases.put(key, mapperOrigin)
         if (previous != null && previous != mapperOrigin) {
             error(
@@ -68,6 +77,9 @@ class SideRegistry private constructor(
             )
         }
     }
+
+    /** Every alias recorded so far, in recording order. A colliding second mapper is not listed. */
+    fun emittedAliases(): List<EmittedAlias> = aliasRecords.values.toList()
 
     companion object {
 
